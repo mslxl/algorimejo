@@ -1,0 +1,13 @@
+.sidebarButtonGroup {
+    &>* {
+        writing-mode: vertical-rl;
+        width: 100%;
+    }
+}
+
+.sidebarPanel {
+    &>* {
+        width: 100%;
+        height: 100%;
+    }
+}
