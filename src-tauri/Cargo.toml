@@ -23,10 +23,17 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 whoami = "1.6.0"
-specta = { version = "=2.0.0-rc.22", features = ["uuid", "url", "serde", "serde_json", "time", "bigdecimal"] }
+specta = { version = "=2.0.0-rc.22", features = ["uuid", "url", "serde", "serde_json", "time", "bigdecimal", "chrono"] }
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
-diesel = { version = "2.2.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+diesel = { version = "2.2.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "chrono", "r2d2"] }
 libsqlite3-sys = { version = "0.30", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde_bytes = "0.11"
 tauri-plugin-log = "2"
+anyhow = "1.0.98"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+toml = "0.9.2"
+log = "0.4.27"
+diesel_migrations = { version = "2.2.0", features = ["sqlite"] }
 

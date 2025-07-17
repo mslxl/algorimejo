@@ -1,4 +1,4 @@
-import { type HTMLAttributes, useCallback, useEffect, useState } from "react";
+import { type HTMLAttributes, useCallback, useState } from "react";
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -9,7 +9,7 @@ import { useAppSelector } from "@/hooks/use-app-selector";
 import { algorimejo } from "@/lib/algorimejo";
 import type { PanelPosition } from "@/lib/algorimejo/algorimejo";
 import { cn } from "@/lib/utils";
-import { open, select, unselect } from "@/stores/sidebar-slice";
+import { select, unselect } from "@/stores/sidebar-slice";
 import { MonacoEditor } from "../monaco";
 import stylesheet from "./index.module.scss";
 import { SidebarButtonDefault } from "./sidebar-button-default";

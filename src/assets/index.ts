@@ -1,3 +1,3 @@
-import iconImage from '../../src-tauri/icons/128x128.png'
+import iconImage from "../../src-tauri/icons/128x128.png";
 
-export { iconImage }
+export { iconImage };

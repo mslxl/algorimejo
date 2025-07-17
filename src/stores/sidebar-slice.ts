@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { contains } from "lodash/fp";
-import { act } from "react";
 import { algorimejo } from "@/lib/algorimejo";
 import type { PanelPosition } from "@/lib/algorimejo/algorimejo";
 

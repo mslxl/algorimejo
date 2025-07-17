@@ -6,7 +6,14 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"!src/lib/client.ts",
+			"!src/components/ui/**/*.tsx",
+			"!src/*.gen.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,

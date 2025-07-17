@@ -1,6 +1,13 @@
+#[cfg(debug_assertions)]
+use specta_typescript::BigIntExportBehavior;
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
 
+pub mod commands;
+pub mod config;
+pub mod database;
+pub mod model;
+pub mod schema;
 pub mod setup;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -9,7 +16,10 @@ pub fn run() {
 
     #[cfg(debug_assertions)]
     builder
-        .export(Typescript::default(), "../src/lib/client.ts")
+        .export(
+            Typescript::default().bigint(BigIntExportBehavior::BigInt),
+            "../src/lib/client.ts",
+        )
         .expect("failed to export typescript bindings");
 
     tauri::Builder::default()
@@ -17,6 +27,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
+            setup::setup_program_config(app)?;
+            setup::setup_database(app)?;
             builder.mount_events(app);
 
             Ok(())
