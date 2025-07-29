@@ -1,6 +1,6 @@
-#[cfg(debug_assertions)]
-use specta_typescript::BigIntExportBehavior;
 use specta_typescript::Typescript;
+#[cfg(debug_assertions)]
+use specta_typescript::{formatter, BigIntExportBehavior, FormatterFn};
 use tauri_specta::{collect_commands, Builder};
 
 pub mod commands;
@@ -12,12 +12,25 @@ pub mod setup;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![commands::get_problems,]);
+    let builder = Builder::<tauri::Wry>::new()
+        .error_handling(tauri_specta::ErrorHandlingMode::Throw)
+        .commands(collect_commands![
+            commands::get_problems,
+            commands::create_problem,
+            commands::create_solution,
+            commands::create_checker,
+            commands::delete_problem,
+            commands::delete_solution,
+            commands::update_problem,
+            commands::update_solution,
+        ]);
 
     #[cfg(debug_assertions)]
     builder
         .export(
-            Typescript::default().bigint(BigIntExportBehavior::BigInt),
+            Typescript::default()
+                // .bigint(BigIntExportBehavior::BigInt)
+                .formatter(formatter::biome),
             "../src/lib/client.ts",
         )
         .expect("failed to export typescript bindings");

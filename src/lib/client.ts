@@ -5,13 +5,29 @@
 
 
 export const commands = {
-async getProblems(params: GetProblemsParams) : Promise<Result<GetProblemsResult, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_problems", { params }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
+async getProblems(params: GetProblemsParams) : Promise<GetProblemsResult> {
+    return await TAURI_INVOKE("get_problems", { params });
+},
+async createProblem(params: CreateProblemParams) : Promise<CreateProblemResult> {
+    return await TAURI_INVOKE("create_problem", { params });
+},
+async createSolution(problemId: string, params: CreateSolutionParams) : Promise<CreateSolutionResult> {
+    return await TAURI_INVOKE("create_solution", { problemId, params });
+},
+async createChecker(params: CreateCheckerParams) : Promise<CreateCheckerResult> {
+    return await TAURI_INVOKE("create_checker", { params });
+},
+async deleteProblem(problemId: string) : Promise<null> {
+    return await TAURI_INVOKE("delete_problem", { problemId });
+},
+async deleteSolution(solutionId: string) : Promise<string> {
+    return await TAURI_INVOKE("delete_solution", { solutionId });
+},
+async updateProblem(problemId: string, params: ProblemChangeset) : Promise<null> {
+    return await TAURI_INVOKE("update_problem", { problemId, params });
+},
+async updateSolution(solutionId: string, params: SolutionChangeset) : Promise<null> {
+    return await TAURI_INVOKE("update_solution", { solutionId, params });
 }
 }
 
@@ -25,12 +41,21 @@ async getProblems(params: GetProblemsParams) : Promise<Result<GetProblemsResult,
 
 /** user-defined types **/
 
+export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
+export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
+export type CreateCheckerResult = { checker: Checker }
+export type CreateProblemParams = { name: string; url: string | null; description: string | null; statement: string | null; checker: string | null; initial_solution: CreateSolutionParams | null }
+export type CreateProblemResult = { problem: Problem }
+export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
+export type CreateSolutionResult = { solution: Solution }
 export type Document = { id: string; create_datetime: string; modified_datetime: string; filename: string }
-export type GetProblemsParams = { cursor: string | null; limit: bigint | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
+export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
 export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
-export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string; create_datetime: string; modified_datetime: string; solutions: Solution[] }
+export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; solutions: Solution[] }
+export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
+export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }
 export type SortOrder = "Asc" | "Desc"
 
 /** tauri-specta globals **/

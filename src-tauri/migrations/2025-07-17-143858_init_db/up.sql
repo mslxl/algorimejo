@@ -5,7 +5,7 @@ CREATE TABLE problems (
     url TEXT NULL,
     description TEXT NOT NULL DEFAULT '',
     statement TEXT NULL,
-    checker TEXT NOT NULL DEFAULT 'ncmp',
+    checker TEXT NULL,
     create_datetime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_datetime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

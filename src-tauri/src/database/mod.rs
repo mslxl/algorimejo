@@ -9,8 +9,12 @@ use diesel::{
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use uuid::Uuid;
 
-use crate::model::{Document, Problem, ProblemRow, Solution, SolutionRow};
+use crate::model::{
+    Checker, Document, Problem, ProblemChangeset, ProblemRow, Solution, SolutionChangeset,
+    SolutionRow,
+};
 
 pub struct DatabaseRepo {
     pool: Pool<ConnectionManager<SqliteConnection>>,
@@ -33,7 +37,7 @@ pub enum SortOrder {
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct GetProblemsParams {
     pub cursor: Option<String>,
-    pub limit: Option<i64>,
+    pub limit: Option<i32>,
     pub search: Option<String>,
     pub sort_by: Option<GetProblemsSortBy>, // "create_datetime" or "modified_datetime"
     pub sort_order: Option<SortOrder>,      // "asc" or "desc"
@@ -44,6 +48,47 @@ pub struct GetProblemsResult {
     pub problems: Vec<Problem>,
     pub next_cursor: Option<String>,
     pub has_more: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateProblemParams {
+    pub name: String,
+    pub url: Option<String>,
+    pub description: Option<String>,
+    pub statement: Option<String>,
+    pub checker: Option<String>,
+    pub initial_solution: Option<CreateSolutionParams>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateSolutionParams {
+    pub author: Option<String>,
+    pub name: String,
+    pub language: String,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateProblemResult {
+    pub problem: Problem,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateSolutionResult {
+    pub solution: Solution,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateCheckerParams {
+    pub name: String,
+    pub language: String,
+    pub description: Option<String>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CreateCheckerResult {
+    pub checker: Checker,
 }
 
 impl DatabaseRepo {
@@ -90,6 +135,219 @@ impl DatabaseRepo {
         }
 
         Ok(solutions)
+    }
+
+    pub fn create_problem(&self, params: CreateProblemParams) -> Result<CreateProblemResult> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Start a transaction
+        conn.transaction(|conn| {
+            let now = chrono::Utc::now().naive_utc();
+            let problem_id = Uuid::new_v4().to_string();
+            let description = params.description.unwrap_or_default();
+
+            // Create the problem
+            let new_problem = (
+                problems::id.eq(&problem_id),
+                problems::name.eq(&params.name),
+                problems::url.eq(&params.url),
+                problems::description.eq(&description),
+                problems::statement.eq(&params.statement),
+                problems::checker.eq(&params.checker),
+                problems::create_datetime.eq(now),
+                problems::modified_datetime.eq(now),
+            );
+
+            diesel::insert_into(problems::table)
+                .values(&new_problem)
+                .execute(conn)?;
+
+            // Create initial solution if provided
+            let mut solutions = Vec::new();
+            if let Some(solution_params) = params.initial_solution {
+                let solution = self.create_solution_internal(conn, &problem_id, solution_params)?;
+                solutions.push(solution);
+            }
+
+            // Build the result
+            let problem = Problem {
+                id: problem_id,
+                name: params.name,
+                url: params.url,
+                description: description,
+                statement: params.statement,
+                checker: params.checker,
+                create_datetime: now,
+                modified_datetime: now,
+                solutions,
+            };
+
+            Ok(CreateProblemResult { problem })
+        })
+    }
+
+    pub fn create_solution(
+        &self,
+        problem_id: &str,
+        params: CreateSolutionParams,
+    ) -> Result<CreateSolutionResult> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Verify the problem exists
+        let problem_exists = problems::table
+            .filter(problems::id.eq(problem_id))
+            .count()
+            .get_result::<i64>(&mut conn)?
+            > 0;
+
+        if !problem_exists {
+            return Err(anyhow::anyhow!("Problem with id {} not found", problem_id));
+        }
+
+        // Start a transaction
+        conn.transaction(|conn| {
+            let solution = self.create_solution_internal(conn, problem_id, params)?;
+            Ok(CreateSolutionResult { solution })
+        })
+    }
+
+    fn create_solution_internal(
+        &self,
+        conn: &mut SqliteConnection,
+        problem_id: &str,
+        params: CreateSolutionParams,
+    ) -> Result<Solution> {
+        let now = chrono::Utc::now().naive_utc();
+        let solution_id = Uuid::new_v4().to_string();
+        let document_id = Uuid::new_v4().to_string();
+        let document_filename = format!("{}.sol.bin", solution_id);
+        let author = params.author.unwrap_or_else(|| whoami::username());
+
+        // Create the document
+        let new_document = (
+            documents::id.eq(&document_id),
+            documents::create_datetime.eq(now),
+            documents::modified_datetime.eq(now),
+            documents::filename.eq(&document_filename),
+        );
+
+        diesel::insert_into(documents::table)
+            .values(&new_document)
+            .execute(conn)?;
+
+        // Create the solution
+        let new_solution = (
+            solutions::id.eq(&solution_id),
+            solutions::author.eq(&author),
+            solutions::name.eq(&params.name),
+            solutions::language.eq(&params.language),
+            solutions::problem_id.eq(problem_id),
+            solutions::document_id.eq(&document_id),
+        );
+
+        diesel::insert_into(solutions::table)
+            .values(&new_solution)
+            .execute(conn)?;
+
+        // Build the solution result
+        let document = Document {
+            id: document_id,
+            create_datetime: now,
+            modified_datetime: now,
+            filename: document_filename,
+        };
+
+        let solution = Solution {
+            id: solution_id,
+            author: author,
+            name: params.name,
+            language: params.language,
+            problem_id: problem_id.to_string(),
+            document: Some(document),
+        };
+
+        Ok(solution)
+    }
+
+    pub fn create_checker(&self, params: CreateCheckerParams) -> Result<CreateCheckerResult> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Start a transaction
+        conn.transaction(|conn| {
+            let now = chrono::Utc::now().naive_utc();
+            let checker_id = Uuid::new_v4().to_string();
+            let document_id = Uuid::new_v4().to_string();
+            let document_filename = format!("{}.chk.bin", checker_id);
+
+            // Create the document
+            let new_document = (
+                documents::id.eq(&document_id),
+                documents::create_datetime.eq(now),
+                documents::modified_datetime.eq(now),
+                documents::filename.eq(&document_filename),
+            );
+
+            diesel::insert_into(documents::table)
+                .values(&new_document)
+                .execute(conn)?;
+
+            // Create the checker
+            let new_checker = (
+                crate::schema::checker::id.eq(&checker_id),
+                crate::schema::checker::name.eq(&params.name),
+                crate::schema::checker::language.eq(&params.language),
+                crate::schema::checker::description.eq(&params.description),
+                crate::schema::checker::document_id.eq(&document_id),
+            );
+
+            diesel::insert_into(crate::schema::checker::table)
+                .values(&new_checker)
+                .execute(conn)?;
+
+            // Build the checker result
+            let document = Document {
+                id: document_id,
+                create_datetime: now,
+                modified_datetime: now,
+                filename: document_filename,
+            };
+
+            let checker = Checker {
+                id: checker_id,
+                name: params.name,
+                language: params.language,
+                description: params.description,
+                document_id: document.id.clone(),
+                document: Some(document),
+            };
+
+            Ok(CreateCheckerResult { checker })
+        })
+    }
+
+    pub fn delete_problem(&self, problem_id: &str) -> Result<()> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        diesel::delete(problems::table.filter(problems::id.eq(problem_id))).execute(&mut conn)?;
+        Ok(())
+    }
+
+    /// Deletes a solution from the database by its ID
+    ///
+    /// # Arguments
+    /// * `solution_id` - The ID of the solution to delete
+    ///
+    /// # Returns
+    /// * `Result<String>` - The ID of the problem that the solution belonged to
+    pub fn delete_solution(&self, solution_id: &str) -> Result<String> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let problem_id = solutions::table
+            .filter(solutions::id.eq(solution_id))
+            .select(solutions::problem_id)
+            .first::<String>(&mut conn)?;
+        diesel::delete(solutions::table.filter(solutions::id.eq(solution_id)))
+            .execute(&mut conn)?;
+        Ok(problem_id)
     }
 
     pub fn get_problems(&self, params: GetProblemsParams) -> Result<GetProblemsResult> {
@@ -162,7 +420,7 @@ impl DatabaseRepo {
         };
 
         // Apply limit
-        query = query.limit(limit + 1); // +1 to check if there are more results
+        query = query.limit((limit + 1).into()); // +1 to check if there are more results
 
         // Execute the query
         let results: Vec<ProblemRow> = query.select(ProblemRow::as_select()).load(&mut conn)?;
@@ -222,5 +480,23 @@ impl DatabaseRepo {
             next_cursor,
             has_more,
         })
+    }
+
+    pub fn update_problem(&self, problem_id: &str, params: ProblemChangeset) -> Result<()> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        diesel::update(problems::table.filter(problems::id.eq(problem_id)))
+            .set(&params)
+            .execute(&mut conn)?;
+        Ok(())
+    }
+
+    pub fn update_solution(&self, solution_id: &str, params: SolutionChangeset) -> Result<()> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        diesel::update(solutions::table.filter(solutions::id.eq(solution_id)))
+            .set(&params)
+            .execute(&mut conn)?;
+        Ok(())
     }
 }

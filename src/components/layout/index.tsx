@@ -82,7 +82,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 
 	return (
 		<div className={cn(className, "flex flex-col")} {...props}>
-			<div className="flex-1 flex">
+			<div className="flex-1 flex min-h-0">
 				<div
 					className={cn(
 						"border-r w-8 space-x-1",

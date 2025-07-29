@@ -26,7 +26,7 @@ diesel::table! {
         url -> Nullable<Text>,
         description -> Text,
         statement -> Nullable<Text>,
-        checker -> Text,
+        checker -> Nullable<Text>,
         create_datetime -> Timestamp,
         modified_datetime -> Timestamp,
     }

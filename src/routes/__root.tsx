@@ -9,8 +9,13 @@ export const Route = createRootRoute({
 function RootComponent() {
 	return (
 		<>
+			<ToastContainer
+				position="bottom-right"
+				autoClose={3000}
+				style={{ zIndex: 9999 }}
+			/>
+
 			<Outlet />
-			<ToastContainer />
 		</>
 	);
 }
