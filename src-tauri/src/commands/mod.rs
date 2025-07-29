@@ -4,7 +4,7 @@ use crate::{
         CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
         GetProblemsResult,
     },
-    model::{ProblemChangeset, SolutionChangeset},
+    model::{Problem, ProblemChangeset, SolutionChangeset},
 };
 use log::trace;
 use tauri::State;
@@ -84,4 +84,13 @@ pub async fn create_checker(
     db: State<'_, DatabaseRepo>,
 ) -> Result<CreateCheckerResult, String> {
     db.create_checker(params).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_problem(
+    problem_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Problem, String> {
+    db.get_problem(&problem_id).map_err(|e| e.to_string())
 }

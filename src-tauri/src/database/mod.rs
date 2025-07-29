@@ -19,6 +19,7 @@ use crate::model::{
 pub struct DatabaseRepo {
     pool: Pool<ConnectionManager<SqliteConnection>>,
     base_folder: PathBuf,
+    doc_folder: PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type, Clone, Copy)]
@@ -93,7 +94,12 @@ pub struct CreateCheckerResult {
 
 impl DatabaseRepo {
     pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>, base_folder: PathBuf) -> Self {
-        Self { pool, base_folder }
+        let doc_folder = base_folder.join("doc");
+        Self {
+            pool,
+            base_folder,
+            doc_folder,
+        }
     }
 
     pub fn get_document(&self, document_id: &str) -> Result<Option<Document>> {
@@ -353,6 +359,34 @@ impl DatabaseRepo {
         Ok(problem_id)
     }
 
+    pub fn get_problem(&self, problem_id: &str) -> Result<Problem> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // First get the problem row from database
+        let problem_row = problems::table
+            .filter(problems::id.eq(problem_id))
+            .select(ProblemRow::as_select())
+            .first::<ProblemRow>(&mut conn)?;
+
+        // Get solutions for this problem
+        let solutions = self.get_solutions_for_problem(&problem_row.id)?;
+
+        // Construct the Problem struct with populated solutions
+        let problem = Problem {
+            id: problem_row.id,
+            name: problem_row.name,
+            url: problem_row.url,
+            description: problem_row.description,
+            statement: problem_row.statement,
+            checker: problem_row.checker,
+            create_datetime: problem_row.create_datetime,
+            modified_datetime: problem_row.modified_datetime,
+            solutions,
+        };
+
+        Ok(problem)
+    }
+
     pub fn get_problems(&self, params: GetProblemsParams) -> Result<GetProblemsResult> {
         let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -507,5 +541,15 @@ impl DatabaseRepo {
             .set(&params)
             .execute(&mut conn)?;
         Ok(())
+    }
+
+    pub fn get_document_filepath(&self, document_id: &str) -> Result<PathBuf> {
+        let mut conn = self.pool.get()?;
+        let document = documents::table
+            .filter(documents::id.eq(document_id))
+            .first::<Document>(&mut conn)?;
+
+        let filepath = self.doc_folder.join(document.filename);
+        Ok(filepath)
     }
 }

@@ -3,17 +3,13 @@ import { contains } from "lodash/fp";
 import { algorimejo } from "@/lib/algorimejo";
 import type { PanelPosition } from "@/lib/algorimejo/algorimejo";
 
-interface PanelSelection {
-	key: string;
-	path: string | null;
-}
 export interface SidebarState {
 	left: string[];
-	leftSelected: PanelSelection | null;
+	leftSelected: string | null;
 	right: string[];
-	rightSelected: PanelSelection | null;
+	rightSelected: string | null;
 	bottom: string[];
-	bottomSelected: PanelSelection | null;
+	bottomSelected: string | null;
 }
 
 const selectedProp = [
@@ -92,7 +88,6 @@ const sidebarSlice = createSlice({
 			state,
 			action: PayloadAction<{
 				key: string;
-				path?: string;
 			}>,
 		) => {
 			const key = action.payload.key;
@@ -109,10 +104,7 @@ const sidebarSlice = createSlice({
 				existsPos = positionProp.indexOf(attrs.defaultPosition);
 			}
 			const propName = selectedProp[existsPos];
-			state[propName] = {
-				key,
-				path: action.payload.path ?? null,
-			};
+			state[propName] = key;
 		},
 	},
 });

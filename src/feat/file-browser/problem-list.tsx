@@ -125,12 +125,16 @@ function ProblemListItem({
 	const innerRef = useRef<HTMLDivElement | null>(null);
 	function handleOpen(value: boolean) {
 		onOpenChange(value);
-		setTimeout(() => {
-			if (innerRef.current) {
-				virtualizer.resizeItem(virtualRow.index, innerRef.current.scrollHeight);
-			}
-		});
 	}
+	useEffect(() => {
+		if (!innerRef.current) return;
+		const comp = innerRef.current;
+		const observer = new ResizeObserver(() => {
+			virtualizer.resizeItem(virtualRow.index, comp.scrollHeight);
+		});
+		observer.observe(comp);
+		return () => observer.disconnect();
+	}, [virtualRow.index, virtualizer]);
 	return (
 		<li
 			key={virtualRow.key}

@@ -10,9 +10,9 @@ import { algorimejo } from "@/lib/algorimejo";
 import type { PanelPosition } from "@/lib/algorimejo/algorimejo";
 import { cn } from "@/lib/utils";
 import { select, unselect } from "@/stores/sidebar-slice";
-import { MonacoEditor } from "../monaco";
 import stylesheet from "./index.module.scss";
 import { SidebarButtonDefault } from "./sidebar-button-default";
+import { TabContainer } from "./tab-container";
 
 interface AlgorimejoProps extends HTMLAttributes<HTMLDivElement> {}
 export function Algorimejo({ className, ...props }: AlgorimejoProps) {
@@ -30,7 +30,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 	const renderSidebarButton = useCallback(
 		(keys: string[], position: PanelPosition) => {
 			const handleToggle = (key: string) => {
-				if (sidebar[`${position}Selected`]?.key === key) {
+				if (sidebar[`${position}Selected`] === key) {
 					console.log(`unselect panel ${key}`);
 					dispatch(
 						unselect({
@@ -55,7 +55,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 					<Btn
 						key={key}
 						position={position}
-						isSelected={key === sidebar[`${position}Selected`]?.key}
+						isSelected={key === sidebar[`${position}Selected`]}
 						onClick={() => handleToggle(key)}
 					/>
 				);
@@ -71,11 +71,9 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 				return;
 			}
 
-			const attrs = algorimejo.getPanel(selection.key);
+			const attrs = algorimejo.getPanel(selection);
 			const Panel = attrs.fc;
-			return (
-				<Panel key={selection.key} position={position} path={selection.path} />
-			);
+			return <Panel key={selection} position={position} />;
 		},
 		[sidebar],
 	);
@@ -109,7 +107,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 					<ResizablePanel order={2}>
 						<ResizablePanelGroup className="size-full" direction="vertical">
 							<ResizablePanel order={1}>
-								<MonacoEditor className="size-full" />
+								<TabContainer className="size-full" />
 							</ResizablePanel>
 							{!openBottom ? null : (
 								<>

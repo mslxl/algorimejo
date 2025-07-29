@@ -4,8 +4,14 @@ import * as monaco from "monaco-editor";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 
-interface MonacoEditor extends HTMLAttributes<HTMLDivElement> {}
-export function MonacoEditor({ className, ...props }: MonacoEditor) {
+interface MonacoEditor extends HTMLAttributes<HTMLDivElement> {
+	documentID: string;
+}
+export function MonacoEditor({
+	className,
+	documentID,
+	...props
+}: MonacoEditor) {
 	const ref = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -15,7 +21,7 @@ export function MonacoEditor({ className, ...props }: MonacoEditor) {
 		}
 
 		const editor = monaco.editor.create(ref.current, {
-			value: "function hello() {\n\talert('hello world!');\n}",
+			value: `// Document ID: ${documentID}\nfunction hello() {\n\talert('hello world!');\n}`,
 			language: "javascript",
 			automaticLayout: true,
 		});
@@ -23,7 +29,7 @@ export function MonacoEditor({ className, ...props }: MonacoEditor) {
 		return () => {
 			editor.dispose();
 		};
-	}, []);
+	}, [documentID]);
 
 	return (
 		<div

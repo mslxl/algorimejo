@@ -6,6 +6,7 @@ use tauri_specta::{collect_commands, Builder};
 pub mod commands;
 pub mod config;
 pub mod database;
+pub mod document;
 pub mod model;
 pub mod schema;
 pub mod setup;
@@ -16,6 +17,7 @@ pub fn run() {
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
         .commands(collect_commands![
             commands::get_problems,
+            commands::get_problem,
             commands::create_problem,
             commands::create_solution,
             commands::create_checker,
@@ -31,7 +33,7 @@ pub fn run() {
             Typescript::default()
                 // .bigint(BigIntExportBehavior::BigInt)
                 .formatter(formatter::biome),
-            "../src/lib/client.ts",
+            "../src/lib/client/local.ts",
         )
         .expect("failed to export typescript bindings");
 

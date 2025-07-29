@@ -15,7 +15,7 @@ export function useProblemsInfiniteQuery(
 				search,
 				sort_by,
 				sort_order,
-				limit: 40,
+				limit: 20,
 			});
 		},
 		initialPageParam: { cursor: null as string | null },

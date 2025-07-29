@@ -1,3 +1,4 @@
+import * as log from "@tauri-apps/plugin-log";
 import { type HTMLAttributes, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import {
@@ -20,13 +21,20 @@ import {
 } from "@/components/ui/context-menu";
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset";
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter";
-import type { Solution } from "@/lib/client";
+import { algorimejo } from "@/lib/algorimejo";
+import type { Problem, Solution } from "@/lib/client";
+import { selectMonacoDocumentTabIndex } from "../editor/utils";
 import { TreeStyledLi } from "./tree-styled-item";
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
 	solution: Solution;
+	problem: Problem;
 }
-export function ProblemListItem({ solution, ...props }: ProblemListItemProps) {
+export function ProblemListItem({
+	solution,
+	problem,
+	...props
+}: ProblemListItemProps) {
 	const [isRenaming, setIsRenaming] = useState(false);
 	const solutionChangesetMutation = useSolutionChangeset();
 	const solutionDeleterMutation = useSolutionDeleter();
@@ -53,6 +61,16 @@ export function ProblemListItem({ solution, ...props }: ProblemListItemProps) {
 				onError: (error) => {
 					toast.error(`Fail to rename: ${error}`);
 				},
+				onSuccess: () => {
+					if (solution.document) {
+						const tabIndex = algorimejo.selectStateValue(
+							selectMonacoDocumentTabIndex(solution.document.id),
+						);
+						if (tabIndex !== -1) {
+							algorimejo.renameTab(tabIndex, `${newName} - ${problem.name}`);
+						}
+					}
+				},
 			},
 		);
 	}
@@ -61,13 +79,38 @@ export function ProblemListItem({ solution, ...props }: ProblemListItemProps) {
 			onError: (error) => {
 				toast.error(`Fail to delete: ${error}`);
 			},
+			onSuccess: () => {
+				if (solution.document) {
+					const tabIndex = algorimejo.selectStateValue(
+						selectMonacoDocumentTabIndex(solution.document.id),
+					);
+					if (tabIndex !== -1) {
+						algorimejo.closeTab(tabIndex);
+					}
+				}
+			},
 		});
+	}
+	function handleOpenSolution() {
+		if (solution.document) {
+			algorimejo.createEditorTab(solution.document.id, {
+				title: `${solution.name} - ${problem.name}`,
+			});
+		} else {
+			const msg = `Solution ${solution.name} has no document included! This should not happen! Please report this issue to the developer.`;
+
+			log.error(msg);
+			log.error("Below is the solution data:");
+			log.error(JSON.stringify(solution, null, 2));
+
+			toast.error(msg);
+		}
 	}
 	return (
 		<TreeStyledLi {...props}>
 			{isRenaming ? (
 				<input
-					className="w-full shadow-none ring-0"
+					className="w-full shadow-none outline-1 ring-0"
 					autoComplete="off"
 					type="text"
 					name="name"
@@ -83,7 +126,15 @@ export function ProblemListItem({ solution, ...props }: ProblemListItemProps) {
 				/>
 			) : (
 				<ContextMenu>
-					<ContextMenuTrigger>{solution.name}</ContextMenuTrigger>
+					<ContextMenuTrigger asChild>
+						<button
+							type="button"
+							onClick={handleOpenSolution}
+							className="size-full text-left"
+						>
+							{solution.name}
+						</button>
+					</ContextMenuTrigger>
 					<ContextMenuContent>
 						<ContextMenuItem>Open</ContextMenuItem>
 						<ContextMenuSeparator />

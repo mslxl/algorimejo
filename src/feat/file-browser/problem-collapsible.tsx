@@ -32,7 +32,9 @@ import {
 import { useProblemChangeset } from "@/hooks/use-problem-changeset";
 import { useProblemDeleter } from "@/hooks/use-problem-deleter";
 import { useSolutionCreator } from "@/hooks/use-solution-creator";
-import type { Problem } from "@/lib/client";
+import { algorimejo } from "@/lib/algorimejo";
+import { commands, type Problem } from "@/lib/client";
+import { selectMonacoDocumentTabIndex } from "../editor/utils";
 import { ProblemDetail } from "./problem-detail";
 import { ProblemListItem } from "./problem-list-item";
 
@@ -57,6 +59,18 @@ export function ProblemCollapsible({
 		problemDeleteMutation.mutate(problem.id, {
 			onError: (error) => {
 				toast.error(error.message);
+			},
+			onSuccess: () => {
+				for (const sol of problem.solutions) {
+					if (sol.document) {
+						const tabIndex = algorimejo.selectStateValue(
+							selectMonacoDocumentTabIndex(sol.document.id),
+						);
+						if (tabIndex !== -1) {
+							algorimejo.closeTab(tabIndex);
+						}
+					}
+				}
 			},
 		});
 	}
@@ -94,6 +108,18 @@ export function ProblemCollapsible({
 				onError: (error) => {
 					toast.error(`Fail to rename: ${error}`);
 				},
+				onSuccess: async () => {
+					for (const sol of problem.solutions) {
+						if (sol.document) {
+							const tabIndex = algorimejo.selectStateValue(
+								selectMonacoDocumentTabIndex(sol.document.id),
+							);
+							if (tabIndex !== -1) {
+								algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`);
+							}
+						}
+					}
+				},
 			},
 		);
 	}
@@ -111,7 +137,7 @@ export function ProblemCollapsible({
 							<LucideFile className="size-4" />
 						</span>
 						<input
-							className="w-full shadow-none ring-0"
+							className="w-full shadow-none outline-1 ring-0"
 							autoComplete="off"
 							type="text"
 							name="name"
@@ -178,6 +204,7 @@ export function ProblemCollapsible({
 						<ProblemListItem
 							key={solution.id}
 							solution={solution}
+							problem={problem}
 							className="text-sm"
 						/>
 					))}

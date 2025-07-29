@@ -8,6 +8,9 @@ export const commands = {
 async getProblems(params: GetProblemsParams) : Promise<GetProblemsResult> {
     return await TAURI_INVOKE("get_problems", { params });
 },
+async getProblem(problemId: string) : Promise<Problem> {
+    return await TAURI_INVOKE("get_problem", { problemId });
+},
 async createProblem(params: CreateProblemParams) : Promise<CreateProblemResult> {
     return await TAURI_INVOKE("create_problem", { params });
 },

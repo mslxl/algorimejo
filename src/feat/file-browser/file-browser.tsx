@@ -8,11 +8,13 @@ import {
 import { type CSSProperties, useState } from "react";
 import { toast } from "react-toastify";
 import { match } from "ts-pattern";
+import { Input } from "@/components/ui/input";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
 	Tooltip,
 	TooltipContent,
@@ -23,6 +25,7 @@ import {
 	PROBLEMS_LIST_QUERY_KEY,
 	useProblemsInfiniteQuery,
 } from "@/hooks/use-problems-list";
+import type { GetProblemsSortBy, SortOrder } from "@/lib/client";
 import { ProblemList } from "./problem-list";
 import { ProblemListSkeleton } from "./problem-list-skeleton";
 
@@ -32,10 +35,16 @@ const buttonStyle: CSSProperties = {
 };
 
 export function FileBrowser() {
-	const [sortOrder, _setSortOrder] = useState<"asc" | "desc">("asc");
+	const [sortOrder, setSortOrder] = useState<SortOrder>("Asc");
+	const [searchText, setSearchText] = useState("");
+	const [sortBy, setSortBy] = useState<GetProblemsSortBy>("CreateDatetime");
 	const queryClient = useQueryClient();
 	const problemCreateMutation = useProblemCreator();
-	const problemsQueryResult = useProblemsInfiniteQuery(); // TODO: add search, sort_by, sort_order
+	const problemsQueryResult = useProblemsInfiniteQuery(
+		searchText,
+		sortBy,
+		sortOrder,
+	);
 	function handleProblemCreate() {
 		problemCreateMutation.mutate(
 			{
@@ -99,12 +108,63 @@ export function FileBrowser() {
 					<PopoverTrigger asChild>
 						<button type="button" className="hover:bg-secondary rounded-md p-1">
 							{match(sortOrder)
-								.with("asc", () => <LucideSortAsc style={buttonStyle} />)
-								.with("desc", () => <LucideSortDesc style={buttonStyle} />)
+								.with("Asc", () => <LucideSortAsc style={buttonStyle} />)
+								.with("Desc", () => <LucideSortDesc style={buttonStyle} />)
 								.exhaustive()}
 						</button>
 					</PopoverTrigger>
-					<PopoverContent></PopoverContent>
+					<PopoverContent>
+						<div className="space-y-4 p-1">
+							<div className="space-y-1.5">
+								<div className="text-sm font-medium">Search</div>
+								<Input
+									value={searchText}
+									onChange={(e) => setSearchText(e.target.value)}
+									placeholder="Search problems..."
+									className="w-full"
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<div className="text-sm font-medium">Sort By</div>
+								<ToggleGroup
+									variant="outline"
+									type="single"
+									className="justify-start w-full"
+									value={sortBy}
+									onValueChange={(value) => {
+										setSortBy(
+											value as "Name" | "CreateDatetime" | "ModifiedDatetime",
+										);
+									}}
+								>
+									<ToggleGroupItem value="CreateDatetime">
+										Created
+									</ToggleGroupItem>
+									<ToggleGroupItem value="ModifiedDatetime">
+										Modified
+									</ToggleGroupItem>
+									<ToggleGroupItem value="Name">Name</ToggleGroupItem>
+								</ToggleGroup>
+							</div>
+
+							<div className="space-y-1.5">
+								<div className="text-sm font-medium">Order</div>
+								<ToggleGroup
+									variant="outline"
+									type="single"
+									className="justify-start w-full"
+									value={sortOrder}
+									onValueChange={(value) => {
+										setSortOrder(value as "Asc" | "Desc");
+									}}
+								>
+									<ToggleGroupItem value="Asc">Ascending</ToggleGroupItem>
+									<ToggleGroupItem value="Desc">Descending</ToggleGroupItem>
+								</ToggleGroup>
+							</div>
+						</div>
+					</PopoverContent>
 				</Popover>
 			</div>
 			<div className="flex-1 min-h-0">

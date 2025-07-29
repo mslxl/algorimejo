@@ -56,4 +56,10 @@ diesel::joinable!(checker -> documents (document_id));
 diesel::joinable!(solutions -> problems (problem_id));
 diesel::joinable!(test_cases -> problems (problem_id));
 
-diesel::allow_tables_to_appear_in_same_query!(checker, documents, problems, solutions, test_cases,);
+diesel::allow_tables_to_appear_in_same_query!(
+    checker,
+    documents,
+    problems,
+    solutions,
+    test_cases,
+);
