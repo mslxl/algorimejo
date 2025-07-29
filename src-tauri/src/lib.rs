@@ -12,7 +12,7 @@ pub mod setup;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![]);
+    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![commands::get_problems,]);
 
     #[cfg(debug_assertions)]
     builder

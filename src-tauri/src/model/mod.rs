@@ -1,5 +1,6 @@
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use diesel::Selectable;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -12,23 +13,49 @@ pub struct Problem {
     pub url: Option<String>,
     pub description: String,
     pub statement: Option<String>,
-    pub checker_name: String,
-    pub create_datetime: DateTime<Utc>,
-    pub modified_datetime: DateTime<Utc>,
+    pub checker: String,
+    pub create_datetime: NaiveDateTime,
+    pub modified_datetime: NaiveDateTime,
     pub solutions: Vec<Solution>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
 #[diesel(table_name = crate::schema::solutions)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(belongs_to(Problem))]
 pub struct Solution {
     pub id: String,
     pub author: String,
     pub name: String,
     pub language: String,
     pub problem_id: String,
+    pub document: Option<Document>,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::problems)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct ProblemRow {
+    pub id: String,
+    pub name: String,
+    pub url: Option<String>,
+    pub description: String,
+    pub statement: Option<String>,
+    pub checker: String,
+    pub create_datetime: NaiveDateTime,
+    pub modified_datetime: NaiveDateTime,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::solutions)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct SolutionRow {
+    pub id: String,
+    pub author: String,
+    pub name: String,
+    pub language: String,
+    pub problem_id: String,
     pub document_id: String,
-    pub document: Document,
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
@@ -40,14 +67,15 @@ pub struct Checker {
     pub language: String,
     pub description: Option<String>,
     pub document_id: String,
+    pub document: Option<Document>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Type)]
 #[diesel(table_name = crate::schema::documents)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Document {
     pub id: String,
-    pub create_datetime: DateTime<Utc>,
-    pub modified_datetime: DateTime<Utc>,
+    pub create_datetime: NaiveDateTime,
+    pub modified_datetime: NaiveDateTime,
     pub filename: String,
 }

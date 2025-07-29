@@ -5,7 +5,14 @@
 
 
 export const commands = {
-
+async getProblems(params: GetProblemsParams) : Promise<Result<GetProblemsResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_problems", { params }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+}
 }
 
 /** user-defined events **/
@@ -18,7 +25,13 @@ export const commands = {
 
 /** user-defined types **/
 
-
+export type Document = { id: string; create_datetime: string; modified_datetime: string; filename: string }
+export type GetProblemsParams = { cursor: string | null; limit: bigint | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
+export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
+export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
+export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string; create_datetime: string; modified_datetime: string; solutions: Solution[] }
+export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
+export type SortOrder = "Asc" | "Desc"
 
 /** tauri-specta globals **/
 
