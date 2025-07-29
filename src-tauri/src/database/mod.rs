@@ -142,7 +142,8 @@ impl DatabaseRepo {
 
         // Start a transaction
         conn.transaction(|conn| {
-            let now = chrono::Utc::now().naive_utc();
+            // Use local time to match SQLite's CURRENT_TIMESTAMP behavior
+            let now = chrono::Local::now().naive_local();
             let problem_id = Uuid::new_v4().to_string();
             let description = params.description.unwrap_or_default();
 
@@ -217,7 +218,8 @@ impl DatabaseRepo {
         problem_id: &str,
         params: CreateSolutionParams,
     ) -> Result<Solution> {
-        let now = chrono::Utc::now().naive_utc();
+        // Use local time to match SQLite's CURRENT_TIMESTAMP behavior
+        let now = chrono::Local::now().naive_local();
         let solution_id = Uuid::new_v4().to_string();
         let document_id = Uuid::new_v4().to_string();
         let document_filename = format!("{}.sol.bin", solution_id);
@@ -274,7 +276,8 @@ impl DatabaseRepo {
 
         // Start a transaction
         conn.transaction(|conn| {
-            let now = chrono::Utc::now().naive_utc();
+            // Use local time to match SQLite's CURRENT_TIMESTAMP behavior
+            let now = chrono::Local::now().naive_local();
             let checker_id = Uuid::new_v4().to_string();
             let document_id = Uuid::new_v4().to_string();
             let document_filename = format!("{}.chk.bin", checker_id);
@@ -374,23 +377,29 @@ impl DatabaseRepo {
 
         // Apply cursor-based pagination
         if let Some(cursor) = params.cursor {
-            let cursor_datetime = chrono::DateTime::parse_from_rfc3339(&cursor)
-                .map_err(|e| anyhow::anyhow!("Invalid cursor format: {}", e))?;
+            // For datetime-based cursors, parse as local time and convert to naive
+            let cursor_datetime = if cursor.contains('T') {
+                // This is a datetime cursor
+                chrono::DateTime::parse_from_rfc3339(&cursor)
+                    .map_err(|e| anyhow::anyhow!("Invalid cursor format: {}", e))?
+                    .naive_local()
+            } else {
+                // This is a name-based cursor, skip datetime filtering
+                chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc()
+            };
 
             match (sort_by, sort_order) {
                 (GetProblemsSortBy::CreateDatetime, SortOrder::Asc) => {
-                    query = query.filter(problems::create_datetime.gt(cursor_datetime.naive_utc()));
+                    query = query.filter(problems::create_datetime.gt(cursor_datetime));
                 }
                 (GetProblemsSortBy::CreateDatetime, SortOrder::Desc) => {
-                    query = query.filter(problems::create_datetime.lt(cursor_datetime.naive_utc()));
+                    query = query.filter(problems::create_datetime.lt(cursor_datetime));
                 }
                 (GetProblemsSortBy::ModifiedDatetime, SortOrder::Asc) => {
-                    query =
-                        query.filter(problems::modified_datetime.gt(cursor_datetime.naive_utc()));
+                    query = query.filter(problems::modified_datetime.gt(cursor_datetime));
                 }
                 (GetProblemsSortBy::ModifiedDatetime, SortOrder::Desc) => {
-                    query =
-                        query.filter(problems::modified_datetime.lt(cursor_datetime.naive_utc()));
+                    query = query.filter(problems::modified_datetime.lt(cursor_datetime));
                 }
                 (GetProblemsSortBy::Name, SortOrder::Asc) => {
                     query = query.order(problems::name.asc());
@@ -456,18 +465,18 @@ impl DatabaseRepo {
             let last_problem = problems.last().unwrap();
             match (sort_by, sort_order) {
                 (GetProblemsSortBy::CreateDatetime, _) => Some(
-                    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-                        last_problem.create_datetime,
-                        chrono::Utc,
-                    )
-                    .to_rfc3339(),
+                    last_problem
+                        .create_datetime
+                        .and_local_timezone(chrono::Local)
+                        .unwrap()
+                        .to_rfc3339(),
                 ),
                 (GetProblemsSortBy::ModifiedDatetime, _) => Some(
-                    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-                        last_problem.modified_datetime,
-                        chrono::Utc,
-                    )
-                    .to_rfc3339(),
+                    last_problem
+                        .modified_datetime
+                        .and_local_timezone(chrono::Local)
+                        .unwrap()
+                        .to_rfc3339(),
                 ),
                 (GetProblemsSortBy::Name, _) => Some(last_problem.name.clone()),
             }

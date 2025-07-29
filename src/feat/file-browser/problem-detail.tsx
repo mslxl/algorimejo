@@ -40,13 +40,13 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 					<tr>
 						<td>Created At</td>
 						<td>
-							{createDate.toLocaleString()} ({createDate.toNow()})
+							{createDate.toDate().toLocaleString()} ({createDate.toNow()})
 						</td>
 					</tr>
 					<tr>
 						<td>Updated At</td>
 						<td>
-							{modifiedDate.toLocaleString()} ({modifiedDate.toNow()})
+							{modifiedDate.toDate().toLocaleString()} ({modifiedDate.toNow()})
 						</td>
 					</tr>
 					<tr>
