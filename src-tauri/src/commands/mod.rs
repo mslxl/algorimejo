@@ -4,6 +4,7 @@ use crate::{
         CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
         GetProblemsResult,
     },
+    document::DocumentRepo,
     model::{Problem, ProblemChangeset, SolutionChangeset},
 };
 use log::trace;
@@ -93,4 +94,34 @@ pub async fn get_problem(
     db: State<'_, DatabaseRepo>,
 ) -> Result<Problem, String> {
     db.get_problem(&problem_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn load_document(
+    db: State<'_, DatabaseRepo>,
+    repo: State<'_, DocumentRepo>,
+    doc_id: String,
+) -> Result<Vec<u8>, String> {
+    let filepath = db
+        .get_document_filepath(&doc_id)
+        .map_err(|e| e.to_string())?;
+    log::trace!(
+        "start to load document {} from {}",
+        &doc_id,
+        &filepath.to_string_lossy()
+    );
+    let snapshot = repo.manage(doc_id, filepath).map_err(|e| e.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn apply_change(
+    doc_id: String,
+    change: Vec<u8>,
+    repo: State<'_, DocumentRepo>,
+) -> Result<(), String> {
+    repo.apply_change(&doc_id, change)
+        .map_err(|e| e.to_string())
 }

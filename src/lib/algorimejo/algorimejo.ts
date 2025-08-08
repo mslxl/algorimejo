@@ -163,7 +163,7 @@ export class Algorimejo {
 
 	createEditorTab(
 		documentID: string,
-		{ reuseTab = true, ...options }: CreateEditorTabOptions,
+		{ reuseTab = true, language, ...options }: CreateEditorTabOptions,
 	) {
 		const index = reuseTab
 			? this.selectStateValue(selectMonacoDocumentTabIndex(documentID))
@@ -173,6 +173,7 @@ export class Algorimejo {
 				"editor",
 				{
 					documentID,
+					language,
 				},
 				options,
 			);

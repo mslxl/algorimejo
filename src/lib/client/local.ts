@@ -31,6 +31,12 @@ async updateProblem(problemId: string, params: ProblemChangeset) : Promise<null>
 },
 async updateSolution(solutionId: string, params: SolutionChangeset) : Promise<null> {
     return await TAURI_INVOKE("update_solution", { solutionId, params });
+},
+async loadDocument(docId: string) : Promise<number[]> {
+    return await TAURI_INVOKE("load_document", { docId });
+},
+async applyChange(docId: string, change: number[]) : Promise<null> {
+    return await TAURI_INVOKE("apply_change", { docId, change });
 }
 }
 

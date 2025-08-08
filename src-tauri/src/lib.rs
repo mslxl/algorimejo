@@ -25,6 +25,9 @@ pub fn run() {
             commands::delete_solution,
             commands::update_problem,
             commands::update_solution,
+            // TODO: cataloging
+            commands::load_document,
+            commands::apply_change,
         ]);
 
     #[cfg(debug_assertions)]
@@ -44,6 +47,7 @@ pub fn run() {
         .setup(move |app| {
             setup::setup_program_config(app)?;
             setup::setup_database(app)?;
+            setup::setup_document_repo(app)?;
             builder.mount_events(app);
 
             Ok(())

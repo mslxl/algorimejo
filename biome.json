@@ -10,7 +10,7 @@
 		"includes": [
 			"src/**/*.ts",
 			"src/**/*.tsx",
-			"!src/lib/client.ts",
+			"!src/lib/client/local.ts",
 			"!src/components/ui/**/*.tsx",
 			"!src/*.gen.ts"
 		]

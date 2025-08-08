@@ -1,1 +1,1 @@
-export { MonacoEditor } from "./editor";
+export { MonacoCodeEditor } from "./code-editor";

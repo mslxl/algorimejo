@@ -8,7 +8,7 @@ use log::{info, trace};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 use tauri::{Manager, Runtime};
 
-use crate::{config::ProgramConfig, database};
+use crate::{config::ProgramConfig, database, document::DocumentRepo};
 
 pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     trace!("setup database");
@@ -61,6 +61,13 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
         config.save()?;
     }
 
+    Ok(())
+}
+
+pub fn setup_document_repo<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
+    trace!("setup document repo");
+    let repo = DocumentRepo::new();
+    app.manage(repo);
     Ok(())
 }
 

@@ -33,7 +33,7 @@ import { useProblemChangeset } from "@/hooks/use-problem-changeset";
 import { useProblemDeleter } from "@/hooks/use-problem-deleter";
 import { useSolutionCreator } from "@/hooks/use-solution-creator";
 import { algorimejo } from "@/lib/algorimejo";
-import { commands, type Problem } from "@/lib/client";
+import type { Problem } from "@/lib/client";
 import { selectMonacoDocumentTabIndex } from "../editor/utils";
 import { ProblemDetail } from "./problem-detail";
 import { ProblemListItem } from "./problem-list-item";

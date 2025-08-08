@@ -7,4 +7,5 @@ export interface CreateTabOptions {
 
 export interface CreateEditorTabOptions extends CreateTabOptions {
 	reuseTab?: boolean;
+	language?: string;
 }

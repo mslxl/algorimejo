@@ -1,5 +1,5 @@
 import * as log from "@tauri-apps/plugin-log";
-import { type FC, useEffect, useLayoutEffect, useState } from "react";
+import { type FC, useEffect, useState } from "react";
 import type * as z from "zod";
 import type { MainUIProps } from "@/lib/algorimejo/algorimejo";
 import { Skeleton } from "./ui/skeleton";
