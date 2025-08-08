@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
+	LucideFile,
 	LucideFilePlus2,
 	LucideRefreshCcw,
 	LucideSortAsc,
@@ -8,6 +9,7 @@ import {
 import { type CSSProperties, useState } from "react";
 import { toast } from "react-toastify";
 import { match } from "ts-pattern";
+import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default";
 import { Input } from "@/components/ui/input";
 import {
 	Popover,
@@ -20,14 +22,24 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useProblemCreator } from "@/hooks/use-problem-creator";
+import { useDefaultProblemCreator } from "@/hooks/use-problem-creator";
 import {
 	PROBLEMS_LIST_QUERY_KEY,
 	useProblemsInfiniteQuery,
 } from "@/hooks/use-problems-list";
+import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo";
 import type { GetProblemsSortBy, SortOrder } from "@/lib/client";
 import { ProblemList } from "./problem-list";
 import { ProblemListSkeleton } from "./problem-list-skeleton";
+
+export function FileBrowerButton(props: PanelButtonProps) {
+	return (
+		<SidebarButtonDefault {...props}>
+			<LucideFile className="size-4 rotate-90" />
+			FileBrower
+		</SidebarButtonDefault>
+	);
+}
 
 const buttonStyle: CSSProperties = {
 	width: "16px",
@@ -39,38 +51,23 @@ export function FileBrowser() {
 	const [searchText, setSearchText] = useState("");
 	const [sortBy, setSortBy] = useState<GetProblemsSortBy>("CreateDatetime");
 	const queryClient = useQueryClient();
-	const problemCreateMutation = useProblemCreator();
+	const problemCreateMutation = useDefaultProblemCreator();
 	const problemsQueryResult = useProblemsInfiniteQuery(
 		searchText,
 		sortBy,
 		sortOrder,
 	);
 	function handleProblemCreate() {
-		problemCreateMutation.mutate(
-			{
-				name: "Unamed Problem",
-				url: null,
-				description: null,
-				statement: null,
-				checker: null,
-				initial_solution: {
-					name: "Solution 1",
-					language: "cpp",
-					author: null,
-					content: null,
-				},
+		problemCreateMutation.mutate(undefined, {
+			onError: (error) => {
+				// Tauri errors are strings, not objects with message property
+				const errorMessage =
+					typeof error === "string"
+						? error
+						: error?.message || "An error occurred";
+				toast.error(`[Database Error]: ${errorMessage}`);
 			},
-			{
-				onError: (error) => {
-					// Tauri errors are strings, not objects with message property
-					const errorMessage =
-						typeof error === "string"
-							? error
-							: error?.message || "An error occurred";
-					toast.error(`[Database Error]: ${errorMessage}`);
-				},
-			},
-		);
+		});
 	}
 	function handleRefreshExplorer() {
 		queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] });

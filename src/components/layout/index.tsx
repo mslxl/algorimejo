@@ -11,6 +11,7 @@ import type { PanelPosition } from "@/lib/algorimejo/algorimejo";
 import { cn } from "@/lib/utils";
 import { select, unselect } from "@/stores/sidebar-slice";
 import stylesheet from "./index.module.scss";
+import { AlgorimejoMenubar } from "./menubar";
 import { SidebarButtonDefault } from "./sidebar-button-default";
 import { TabContainer } from "./tab-container";
 
@@ -80,6 +81,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 
 	return (
 		<div className={cn(className, "flex flex-col")} {...props}>
+			<AlgorimejoMenubar />
 			<div className="flex-1 flex min-h-0">
 				<div
 					className={cn(

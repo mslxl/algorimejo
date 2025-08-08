@@ -1,7 +1,7 @@
-use specta_typescript::Typescript;
 #[cfg(debug_assertions)]
-use specta_typescript::{formatter, BigIntExportBehavior, FormatterFn};
-use tauri_specta::{collect_commands, Builder};
+use specta_typescript::formatter;
+use specta_typescript::Typescript;
+use tauri_specta::{collect_commands, collect_events, Builder};
 
 pub mod commands;
 pub mod config;
@@ -15,7 +15,12 @@ pub mod setup;
 pub fn run() {
     let builder = Builder::<tauri::Wry>::new()
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
+        .events(collect_events![
+            commands::ProgramConfigUpdateEvent,
+            commands::WorkspaceConfigUpdateEvent,
+        ])
         .commands(collect_commands![
+            commands::exit_app::<tauri::Wry>,
             commands::get_problems,
             commands::get_problem,
             commands::create_problem,
@@ -25,6 +30,13 @@ pub fn run() {
             commands::delete_solution,
             commands::update_problem,
             commands::update_solution,
+            commands::create_testcase,
+            commands::delete_testcase,
+            commands::get_testcases,
+            commands::get_prog_config,
+            commands::set_prog_config::<tauri::Wry>,
+            commands::get_workspace_config,
+            commands::set_workspace_config::<tauri::Wry>,
             // TODO: cataloging
             commands::load_document,
             commands::apply_change,

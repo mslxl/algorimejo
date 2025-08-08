@@ -1,4 +1,4 @@
-dev: migrations lint-fix
+dev: 
     pnpm tauri dev
 
 migrations: && test-migrations
@@ -19,13 +19,19 @@ lint:
     pnpm biome lint
     # cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings
 
-build: migrations lint
+build: 
     pnpm tauri build
 
 clean:
     cd src-tauri && cargo clean
     if test -d dist/; then rm -rf dist; fi
+    
+beforeDev: migrations lint-fix
+    pnpm dev
+    
+beforeBuild: migrations lint
+    pnpm build
 
 [windows]
 install: build
-    $(find ./src-tauri/target/release/bundle/nsis/algorimejo*.exe | head)
+    $(find ./src-tauri/target/release/bundle/nsis/algorimejo*.exe | head) /S /VERYSILENT /SUPPRESSMSGBOXES /NORESTART

@@ -90,7 +90,7 @@ pub struct Checker {
     pub document: Option<Document>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Type)]
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Type, Insertable)]
 #[diesel(table_name = crate::schema::documents)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Document {
@@ -98,4 +98,14 @@ pub struct Document {
     pub create_datetime: NaiveDateTime,
     pub modified_datetime: NaiveDateTime,
     pub filename: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type, Selectable, Insertable)]
+#[diesel(table_name = crate::schema::test_cases)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct TestCase {
+    pub id: String,
+    pub problem_id: String,
+    pub input_document_id: String,
+    pub answer_document_id: String,
 }

@@ -1,5 +1,4 @@
 import { algorimejo } from "@/lib/algorimejo";
-import { FileBrowser } from "./file-browser";
-import { FileBrowerButton } from "./file-browser-button";
+import { FileBrowerButton, FileBrowser } from "./file-browser";
 
 algorimejo.providePanel("file-browser", FileBrowser, "left", FileBrowerButton);

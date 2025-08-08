@@ -5,6 +5,9 @@
 
 
 export const commands = {
+async exitApp() : Promise<null> {
+    return await TAURI_INVOKE("exit_app");
+},
 async getProblems(params: GetProblemsParams) : Promise<GetProblemsResult> {
     return await TAURI_INVOKE("get_problems", { params });
 },
@@ -32,6 +35,27 @@ async updateProblem(problemId: string, params: ProblemChangeset) : Promise<null>
 async updateSolution(solutionId: string, params: SolutionChangeset) : Promise<null> {
     return await TAURI_INVOKE("update_solution", { solutionId, params });
 },
+async createTestcase(problemId: string) : Promise<TestCase> {
+    return await TAURI_INVOKE("create_testcase", { problemId });
+},
+async deleteTestcase(testcaseId: string) : Promise<null> {
+    return await TAURI_INVOKE("delete_testcase", { testcaseId });
+},
+async getTestcases(problemId: string) : Promise<TestCase[]> {
+    return await TAURI_INVOKE("get_testcases", { problemId });
+},
+async getProgConfig() : Promise<ProgramConfigData> {
+    return await TAURI_INVOKE("get_prog_config");
+},
+async setProgConfig(data: ProgramConfigData) : Promise<null> {
+    return await TAURI_INVOKE("set_prog_config", { data });
+},
+async getWorkspaceConfig() : Promise<DatabaseConfig> {
+    return await TAURI_INVOKE("get_workspace_config");
+},
+async setWorkspaceConfig(data: DatabaseConfig) : Promise<null> {
+    return await TAURI_INVOKE("set_workspace_config", { data });
+},
 async loadDocument(docId: string) : Promise<number[]> {
     return await TAURI_INVOKE("load_document", { docId });
 },
@@ -43,6 +67,13 @@ async applyChange(docId: string, change: number[]) : Promise<null> {
 /** user-defined events **/
 
 
+export const events = __makeEvents__<{
+programConfigUpdateEvent: ProgramConfigUpdateEvent,
+workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
+}>({
+programConfigUpdateEvent: "program-config-update-event",
+workspaceConfigUpdateEvent: "workspace-config-update-event"
+})
 
 /** user-defined constants **/
 
@@ -50,6 +81,7 @@ async applyChange(docId: string, change: number[]) : Promise<null> {
 
 /** user-defined types **/
 
+export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string; cmd_after_run: string; cmd_run: string; lsp: string; lsp_connect: LanguageServerProtocolConnectionType }
 export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
 export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
 export type CreateCheckerResult = { checker: Checker }
@@ -57,15 +89,22 @@ export type CreateProblemParams = { name: string; url: string | null; descriptio
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
+export type DatabaseConfig = { langauge: Partial<{ [key in string]: AdvLanguageItem }> }
 export type Document = { id: string; create_datetime: string; modified_datetime: string; filename: string }
 export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
 export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
+export type LanguageBase = "Cpp" | "TypeScript" | "Python"
+export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null }
+export type ProgramConfigData = { workspace: string | null }
+export type ProgramConfigUpdateEvent = { new: ProgramConfigData }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
 export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }
 export type SortOrder = "Asc" | "Desc"
+export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
+export type WorkspaceConfigUpdateEvent = { new: DatabaseConfig }
 
 /** tauri-specta globals **/
 

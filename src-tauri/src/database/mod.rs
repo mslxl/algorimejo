@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
-use crate::schema::{documents, problems, solutions};
+use crate::database::config::DatabaseConfig;
+use crate::schema::{documents, problems, solutions, test_cases};
 use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{
@@ -13,11 +15,14 @@ use uuid::Uuid;
 
 use crate::model::{
     Checker, Document, Problem, ProblemChangeset, ProblemRow, Solution, SolutionChangeset,
-    SolutionRow,
+    SolutionRow, TestCase,
 };
+
+pub mod config;
 
 pub struct DatabaseRepo {
     pool: Pool<ConnectionManager<SqliteConnection>>,
+    pub config: Arc<RwLock<DatabaseConfig>>,
     base_folder: PathBuf,
     doc_folder: PathBuf,
 }
@@ -93,12 +98,17 @@ pub struct CreateCheckerResult {
 }
 
 impl DatabaseRepo {
-    pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>, base_folder: PathBuf) -> Self {
+    pub fn new(
+        pool: Pool<ConnectionManager<SqliteConnection>>,
+        base_folder: PathBuf,
+        config: DatabaseConfig,
+    ) -> Self {
         let doc_folder = base_folder.join("doc");
         Self {
             pool,
             base_folder,
             doc_folder,
+            config: Arc::new(RwLock::new(config)),
         }
     }
 
@@ -232,12 +242,18 @@ impl DatabaseRepo {
         let author = params.author.unwrap_or_else(|| whoami::username());
 
         // Create the document
-        let new_document = (
-            documents::id.eq(&document_id),
-            documents::create_datetime.eq(now),
-            documents::modified_datetime.eq(now),
-            documents::filename.eq(&document_filename),
-        );
+        // let new_document = (
+        //     documents::id.eq(&document_id),
+        //     documents::create_datetime.eq(now),
+        //     documents::modified_datetime.eq(now),
+        //     documents::filename.eq(&document_filename),
+        // );
+        let new_document = Document {
+            id: document_id.clone(),
+            create_datetime: now,
+            modified_datetime: now,
+            filename: document_filename.clone(),
+        };
 
         diesel::insert_into(documents::table)
             .values(&new_document)
@@ -551,5 +567,58 @@ impl DatabaseRepo {
 
         let filepath = self.doc_folder.join(document.filename);
         Ok(filepath)
+    }
+
+    pub fn get_testcases(&self, problem_id: &str) -> Result<Vec<TestCase>> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let testcases = test_cases::table
+            .filter(test_cases::problem_id.eq(problem_id))
+            .select(TestCase::as_select())
+            .load::<TestCase>(&mut conn)?;
+        Ok(testcases)
+    }
+    pub fn create_testcase(&self, problem_id: &str) -> Result<TestCase> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let input_document_id = Uuid::new_v4().to_string();
+        let answer_document_id = Uuid::new_v4().to_string();
+        let testcase_id = Uuid::new_v4().to_string();
+        let now = chrono::Local::now().naive_local();
+        let input_document = Document {
+            id: input_document_id.clone(),
+            create_datetime: now,
+            modified_datetime: now,
+            filename: format!("{}.in.bin", &testcase_id),
+        };
+        let answer_document = Document {
+            id: answer_document_id.clone(),
+            create_datetime: now,
+            modified_datetime: now,
+            filename: format!("{}.ans.bin", &testcase_id),
+        };
+        let testcase = TestCase {
+            id: testcase_id,
+            problem_id: problem_id.to_string(),
+            input_document_id,
+            answer_document_id,
+        };
+        conn.transaction(|txn| {
+            diesel::insert_into(documents::table)
+                .values(&input_document)
+                .execute(txn)?;
+            diesel::insert_into(documents::table)
+                .values(&answer_document)
+                .execute(txn)?;
+            diesel::insert_into(test_cases::table)
+                .values(&testcase)
+                .execute(txn)
+        })?;
+
+        Ok(testcase)
+    }
+    pub fn delete_testcase(&self, testcase_id: &str) -> Result<()> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        diesel::delete(test_cases::table.filter(test_cases::id.eq(testcase_id)))
+            .execute(&mut conn)?;
+        Ok(())
     }
 }

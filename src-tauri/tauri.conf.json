@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.algorimejo.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "just beforeDev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "just beforeBuild",
     "frontendDist": "../dist"
   },
   "app": {

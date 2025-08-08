@@ -93,10 +93,15 @@ export function ProblemListItem({
 	}
 	function handleOpenSolution() {
 		if (solution.document) {
-			algorimejo.createEditorTab(solution.document.id, {
-				title: `${solution.name} - ${problem.name}`,
-				language: solution.language,
-			});
+			algorimejo.createEditorTab(
+				solution.document.id,
+				problem.id,
+				solution.id,
+				{
+					title: `${solution.name} - ${problem.name}`,
+					language: solution.language,
+				},
+			);
 		} else {
 			const msg = `Solution ${solution.name} has no document included! This should not happen! Please report this issue to the developer.`;
 

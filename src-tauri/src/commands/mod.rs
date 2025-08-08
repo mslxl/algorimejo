@@ -1,14 +1,18 @@
 use crate::{
+    config::{ProgramConfig, ProgramConfigData},
     database::{
-        CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
-        CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
-        GetProblemsResult,
+        config::DatabaseConfig, CreateCheckerParams, CreateCheckerResult, CreateProblemParams,
+        CreateProblemResult, CreateSolutionParams, CreateSolutionResult, DatabaseRepo,
+        GetProblemsParams, GetProblemsResult,
     },
     document::DocumentRepo,
-    model::{Problem, ProblemChangeset, SolutionChangeset},
+    model::{Problem, ProblemChangeset, SolutionChangeset, TestCase},
 };
 use log::trace;
-use tauri::State;
+use serde::{Deserialize, Serialize};
+use specta::Type;
+use tauri::{Runtime, State};
+use tauri_specta::Event;
 
 #[tauri::command]
 #[specta::specta]
@@ -98,6 +102,40 @@ pub async fn get_problem(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn create_testcase(
+    problem_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<TestCase, String> {
+    trace!("create testcase for problem {:?}", problem_id);
+    let nu = db.create_testcase(&problem_id).map_err(|e| e.to_string());
+    trace!("testcase: {:?}", nu);
+    nu
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_testcase(
+    testcase_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<(), String> {
+    trace!("delete testcase {:?}", testcase_id);
+    db.delete_testcase(&testcase_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_testcases(
+    problem_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Vec<TestCase>, String> {
+    trace!("get testcases of problem {:?}", problem_id);
+    let cases = db.get_testcases(&problem_id).map_err(|e| e.to_string());
+    trace!("testcases: {:?}", cases);
+    cases
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn load_document(
     db: State<'_, DatabaseRepo>,
     repo: State<'_, DocumentRepo>,
@@ -124,4 +162,63 @@ pub async fn apply_change(
 ) -> Result<(), String> {
     repo.apply_change(&doc_id, change)
         .map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
+pub struct ProgramConfigUpdateEvent {
+    new: ProgramConfigData,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_prog_config(cfg: State<'_, ProgramConfig>) -> Result<ProgramConfigData, String> {
+    let guard = cfg.read().map_err(|e| e.to_string())?;
+    Ok(guard.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_prog_config<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    cfg: State<'_, ProgramConfig>,
+    data: ProgramConfigData,
+) -> Result<(), String> {
+    let mut guard = cfg.write().map_err(|e| e.to_string())?;
+    *guard = data.clone();
+    let event = ProgramConfigUpdateEvent { new: data };
+    event.emit(&app).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
+pub struct WorkspaceConfigUpdateEvent {
+    new: DatabaseConfig,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_workspace_config(db: State<'_, DatabaseRepo>) -> Result<DatabaseConfig, String> {
+    let guard = db.config.read().map_err(|e| e.to_string())?;
+    Ok(guard.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_workspace_config<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    db: State<'_, DatabaseRepo>,
+    data: DatabaseConfig,
+) -> Result<(), String> {
+    let mut guard = db.config.write().map_err(|e| e.to_string())?;
+    *guard = data.clone();
+    let event = WorkspaceConfigUpdateEvent { new: data };
+    event.emit(&app).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn exit_app<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+    app.exit(0);
+    Ok(())
 }

@@ -163,6 +163,8 @@ export class Algorimejo {
 
 	createEditorTab(
 		documentID: string,
+		problemID: string,
+		solutionID: string,
 		{ reuseTab = true, language, ...options }: CreateEditorTabOptions,
 	) {
 		const index = reuseTab
@@ -174,6 +176,8 @@ export class Algorimejo {
 				{
 					documentID,
 					language,
+					problemID,
+					solutionID,
 				},
 				options,
 			);

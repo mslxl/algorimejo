@@ -13,3 +13,27 @@ export function useProblemCreator() {
 		},
 	});
 }
+
+export function useDefaultProblemCreator() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async () => {
+			return await commands.createProblem({
+				name: "Unamed Problem",
+				url: null,
+				description: null,
+				statement: null,
+				checker: null,
+				initial_solution: {
+					name: "Solution 1",
+					language: "cpp",
+					author: null,
+					content: null,
+				},
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] });
+		},
+	});
+}

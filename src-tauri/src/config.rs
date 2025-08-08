@@ -1,4 +1,5 @@
 use anyhow::Result;
+use specta::Type;
 use std::{
     path::PathBuf,
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
@@ -6,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Type)]
 pub struct ProgramConfigData {
     pub workspace: Option<PathBuf>,
 }

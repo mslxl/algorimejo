@@ -13,7 +13,7 @@ function RouteComponent() {
 	useEffect(() => {
 		dispatch(
 			replace({
-				left: ["file-browser"],
+				left: ["file-browser", "testcase"],
 				right: [],
 				bottom: [],
 			}),

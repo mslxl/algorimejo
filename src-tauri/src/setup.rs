@@ -8,7 +8,11 @@ use log::{info, trace};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 use tauri::{Manager, Runtime};
 
-use crate::{config::ProgramConfig, database, document::DocumentRepo};
+use crate::{
+    config::ProgramConfig,
+    database::{self, config::DatabaseConfig},
+    document::DocumentRepo,
+};
 
 pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     trace!("setup database");
@@ -17,6 +21,7 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     let mut writer = config.write()?;
     let mut is_config_modified = false;
 
+    // set workspace if not set
     if writer.workspace.is_none() {
         let workspace = app
             .path()
@@ -52,7 +57,14 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
         .run_pending_migrations(MIGRATIONS)
         .unwrap();
 
-    let repository = database::DatabaseRepo::new(pool, workspace.clone());
+    let db_config_path = workspace.join("config.toml");
+    let db_config = if !db_config_path.exists() {
+        DatabaseConfig::default()
+    } else {
+        toml::from_str(&std::fs::read_to_string(db_config_path)?)?
+    };
+
+    let repository = database::DatabaseRepo::new(pool, workspace.clone(), db_config);
 
     app.manage(repository);
 
