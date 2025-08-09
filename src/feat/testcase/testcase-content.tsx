@@ -10,8 +10,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { match, P } from "ts-pattern"
+import { CodeEditor } from "@/components/editor"
 import { ErrorLabel } from "@/components/error-label"
-import { MonacoCodeEditor } from "@/components/monaco"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -165,9 +165,11 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 											</span>
 										</div>
 										<div className="flex-1 overflow-hidden rounded-md border">
-											<MonacoCodeEditor
+											<CodeEditor
 												className="size-full min-h-32"
 												documentID={testcase.input_document_id}
+												language="text"
+												textarea
 											/>
 										</div>
 									</div>
@@ -180,9 +182,11 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 											</span>
 										</div>
 										<div className="flex-1 overflow-hidden rounded-md border">
-											<MonacoCodeEditor
+											<CodeEditor
 												className="size-full min-h-32"
 												documentID={testcase.answer_document_id}
+												language="text"
+												textarea
 											/>
 										</div>
 									</div>

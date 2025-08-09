@@ -60,6 +60,9 @@ export function MenubarFileItem() {
 	function handleExit() {
 		commands.exitApp()
 	}
+	function handleOpenWorkspacePrefs() {
+		algorimejo.createWorkspacePrefTab()
+	}
 	return (
 		<MenubarMenu>
 			<MenubarTrigger>File</MenubarTrigger>
@@ -78,7 +81,7 @@ export function MenubarFileItem() {
 				<MenubarSub>
 					<MenubarSubTrigger>Preferences</MenubarSubTrigger>
 					<MenubarSubContent>
-						<MenubarItem>Workspace Settings</MenubarItem>
+						<MenubarItem onClick={handleOpenWorkspacePrefs}>Workspace Settings</MenubarItem>
 						<MenubarItem>Algorimejo Settings</MenubarItem>
 					</MenubarSubContent>
 				</MenubarSub>

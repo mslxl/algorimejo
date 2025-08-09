@@ -4,8 +4,10 @@ import { configureStore } from "@reduxjs/toolkit"
 import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
+import { LucideColumnsSettings } from "lucide-react"
 import { Editor } from "@/feat/editor/editor"
 import { selectMonacoDocumentTabIndex } from "@/feat/editor/utils"
+import { WorkspacePref } from "@/feat/workspace-pref/workspace-pref"
 import { reducer as sidebarReducer } from "@/stores/sidebar-slice"
 import * as tabActions from "@/stores/tab-slice"
 import { reducer as tabReducer } from "@/stores/tab-slice"
@@ -63,6 +65,7 @@ export class Algorimejo {
 	constructor() {
 		(async () => {
 			this.provideUI("editor", Editor)
+			this.provideUI("workspace-pref", WorkspacePref)
 			await Promise.all([
 				AlgorimejoApp.create().then((app) => {
 					this._app = app
@@ -166,6 +169,13 @@ export class Algorimejo {
 		)
 		// TODO: set title and icon from options
 		return id
+	}
+
+	createWorkspacePrefTab() {
+		this.createTab("workspace-pref", {}, {
+			title: "Workspace Pref",
+			icon: LucideColumnsSettings,
+		})
 	}
 
 	createEditorTab(

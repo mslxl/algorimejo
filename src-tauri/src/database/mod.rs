@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use crate::database::config::DatabaseConfig;
+use crate::database::config::{AdvLanguageItem, DatabaseConfig};
 use crate::schema::{documents, problems, solutions, test_cases};
 use anyhow::Result;
 use diesel::prelude::*;
@@ -19,6 +20,7 @@ use crate::model::{
 };
 
 pub mod config;
+pub mod language;
 
 pub struct DatabaseRepo {
     pool: Pool<ConnectionManager<SqliteConnection>>,
@@ -620,5 +622,15 @@ impl DatabaseRepo {
         diesel::delete(test_cases::table.filter(test_cases::id.eq(testcase_id)))
             .execute(&mut conn)?;
         Ok(())
+    }
+    pub fn get_language_item(&self, language: &str) -> Result<AdvLanguageItem> {
+        let config = self.config.read().unwrap();
+        let language_config = config.langauge.get(language).ok_or(anyhow::anyhow!("Language {} not found", language))?;
+        Ok(language_config.clone())
+    }
+    pub fn get_languages(&self) -> Result<HashMap<String, AdvLanguageItem>> {
+        let config = self.config.read().unwrap();
+        let languages = config.langauge.clone();
+        Ok(languages)
     }
 }

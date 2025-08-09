@@ -81,7 +81,7 @@ workspaceConfigUpdateEvent: "workspace-config-update-event"
 
 /** user-defined types **/
 
-export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string; cmd_after_run: string; cmd_run: string; lsp: string; lsp_connect: LanguageServerProtocolConnectionType }
+export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string | null; cmd_after_run: string | null; cmd_run: string; lsp: string | null; lsp_connect: LanguageServerProtocolConnectionType | null }
 export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
 export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
 export type CreateCheckerResult = { checker: Checker }

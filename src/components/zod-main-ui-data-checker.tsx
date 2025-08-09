@@ -2,7 +2,6 @@ import type { FC } from "react"
 import type * as z from "zod"
 import type { MainUIProps } from "@/lib/algorimejo/algorimejo"
 import * as log from "@tauri-apps/plugin-log"
-import { useState } from "react"
 
 export function withMainUIData<Z extends z.ZodObject, T extends z.infer<Z>>(
 	schema: Z,
