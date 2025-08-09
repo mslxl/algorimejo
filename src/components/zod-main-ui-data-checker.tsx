@@ -1,60 +1,46 @@
-import * as log from "@tauri-apps/plugin-log";
-import { type FC, useEffect, useState } from "react";
-import type * as z from "zod";
-import type { MainUIProps } from "@/lib/algorimejo/algorimejo";
-import { Skeleton } from "./ui/skeleton";
+import type { FC } from "react"
+import type * as z from "zod"
+import type { MainUIProps } from "@/lib/algorimejo/algorimejo"
+import * as log from "@tauri-apps/plugin-log"
+import { useState } from "react"
 
 export function withMainUIData<Z extends z.ZodObject, T extends z.infer<Z>>(
 	schema: Z,
 	component: FC<MainUIProps<T>>,
 ) {
-	const Content = component;
+	const Content = component
 	return ({ data }: MainUIProps<T>) => {
-		const [isFinsih, setFinish] = useState(false);
-		const [isValid, setIsValid] = useState(false);
-		const [message, setErrorMessage] = useState<string | null>(null);
+		const result = schema.safeParse(data)
+		const isValid = result.success
+		const errorMessage = result.error?.message ?? ""
 
-		useEffect(() => {
-			const result = schema.safeParse(data);
-			setIsValid(result.success);
-
-			if (!result.success) {
-				log.error("Main UI Component error");
-				log.error(`Invalid data: ${JSON.stringify(result.error, null, 2)}`);
-				setErrorMessage(result.error.message);
-			}
-			setFinish(true);
-		}, [data, schema]);
-
-		if (!isFinsih) {
-			return (
-				<div className="p-4 space-y-2">
-					<Skeleton className="h-[1em]" />
-					<Skeleton className="h-[1em]" />
-					<Skeleton className="h-[1em]" />
-				</div>
-			);
+		if (!result.success) {
+			log.error("Main UI Component error")
+			log.error(`Invalid data: ${JSON.stringify(result.error, null, 2)}`)
 		}
 
-		if (isValid) return <Content data={data} />;
+		if (isValid)
+			return <Content data={data} />
 
 		return (
-			<div className="p-8 max-w-2xl mx-auto">
-				<div className="bg-destructive/10 border border-destructive rounded-lg p-6">
-					<h3 className="text-2xl font-semibold text-destructive mb-4">
-						Invalid Data Error: {message}
+			<div className="mx-auto max-w-2xl p-8">
+				<div className="rounded-lg border border-destructive bg-destructive/10 p-6">
+					<h3 className="mb-4 text-2xl font-semibold text-destructive">
+						Invalid Data Error:
+						{" "}
+						{errorMessage}
 					</h3>
-					<p className="text-muted-foreground mb-6">
+					<p className="mb-6 text-muted-foreground">
 						An error occurred while validating the data. Please report this
 						issue to the developer with the details below to help resolve it.
 					</p>
-					<div className="bg-muted rounded-md p-4 overflow-auto">
+					<div className="overflow-auto rounded-md bg-muted p-4">
 						<pre className="text-sm">
 							<code>{JSON.stringify(data, null, 2)}</code>
 						</pre>
 					</div>
 				</div>
 			</div>
-		);
-	};
+		)
+	}
 }

@@ -1,5 +1,5 @@
-import type { HTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import type { HTMLAttributes } from "react"
+import { cn } from "@/lib/utils"
 
 export function TreeStyledLi({
 	className,
@@ -17,5 +17,5 @@ export function TreeStyledLi({
 				"last:before:h-1/2",
 			)}
 		/>
-	);
+	)
 }

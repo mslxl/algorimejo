@@ -1,13 +1,6 @@
-import * as z from "zod";
-import { MonacoCodeEditor } from "@/components/monaco";
-import { withMainUIData } from "@/components/zod-main-ui-data-checker";
-
-export const monacoEditorPageDataSchema = z.object({
-	documentID: z.string(),
-	language: z.string().default("text"),
-	problemID: z.string(),
-	solutionID: z.string(),
-});
+import { MonacoCodeEditor } from "@/components/monaco"
+import { withMainUIData } from "@/components/zod-main-ui-data-checker"
+import { monacoEditorPageDataSchema } from "./schema"
 
 export const Editor = withMainUIData(monacoEditorPageDataSchema, (data) => {
 	return (
@@ -15,5 +8,5 @@ export const Editor = withMainUIData(monacoEditorPageDataSchema, (data) => {
 			documentID={data.data.documentID}
 			language={data.data.language}
 		/>
-	);
-});
+	)
+})

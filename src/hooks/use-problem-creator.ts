@@ -1,21 +1,22 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type CreateProblemParams, commands } from "@/lib/client";
-import { PROBLEMS_LIST_QUERY_KEY } from "./use-problems-list";
+import type { CreateProblemParams } from "@/lib/client"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { commands } from "@/lib/client"
+import { PROBLEMS_LIST_QUERY_KEY } from "./use-problems-list"
 
 export function useProblemCreator() {
-	const queryClient = useQueryClient();
+	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: async (params: CreateProblemParams) => {
-			return await commands.createProblem(params);
+			return await commands.createProblem(params)
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] });
+			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })
 		},
-	});
+	})
 }
 
 export function useDefaultProblemCreator() {
-	const queryClient = useQueryClient();
+	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: async () => {
 			return await commands.createProblem({
@@ -30,10 +31,10 @@ export function useDefaultProblemCreator() {
 					author: null,
 					content: null,
 				},
-			});
+			})
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] });
+			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })
 		},
-	});
+	})
 }

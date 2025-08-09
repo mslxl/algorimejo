@@ -1,6 +1,7 @@
-import { LucideFile } from "lucide-react";
-import { useRef, useState } from "react";
-import { toast } from "react-toastify";
+import type { Problem } from "@/lib/client"
+import { LucideFile } from "lucide-react"
+import { useRef, useState } from "react"
+import { toast } from "react-toastify"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -11,37 +12,36 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/collapsible"
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@/components/ui/context-menu"
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useProblemChangeset } from "@/hooks/use-problem-changeset";
-import { useProblemDeleter } from "@/hooks/use-problem-deleter";
-import { useSolutionCreator } from "@/hooks/use-solution-creator";
-import { algorimejo } from "@/lib/algorimejo";
-import type { Problem } from "@/lib/client";
-import { selectMonacoDocumentTabIndex } from "../editor/utils";
-import { ProblemDetail } from "./problem-detail";
-import { ProblemListItem } from "./problem-list-item";
+} from "@/components/ui/tooltip"
+import { useProblemChangeset } from "@/hooks/use-problem-changeset"
+import { useProblemDeleter } from "@/hooks/use-problem-deleter"
+import { useSolutionCreator } from "@/hooks/use-solution-creator"
+import { algorimejo } from "@/lib/algorimejo"
+import { selectMonacoDocumentTabIndex } from "../editor/utils"
+import { ProblemDetail } from "./problem-detail"
+import { ProblemListItem } from "./problem-list-item"
 
 interface ProblemCollapsibleProps {
-	problem: Problem;
-	onOpenChange: (value: boolean) => void;
-	open: boolean;
+	problem: Problem
+	onOpenChange: (value: boolean) => void
+	open: boolean
 }
 
 export function ProblemCollapsible({
@@ -49,30 +49,30 @@ export function ProblemCollapsible({
 	onOpenChange,
 	open,
 }: ProblemCollapsibleProps) {
-	const [isRenaming, setIsRenaming] = useState(false);
-	const problemDeleteMutation = useProblemDeleter();
-	const problemChangesetMutation = useProblemChangeset();
-	const solutionCreateMutation = useSolutionCreator();
+	const [isRenaming, setIsRenaming] = useState(false)
+	const problemDeleteMutation = useProblemDeleter()
+	const problemChangesetMutation = useProblemChangeset()
+	const solutionCreateMutation = useSolutionCreator()
 
-	const inputRenameRef = useRef<HTMLInputElement>(null);
+	const inputRenameRef = useRef<HTMLInputElement>(null)
 	function handleDeleteProblem() {
 		problemDeleteMutation.mutate(problem.id, {
 			onError: (error) => {
-				toast.error(error.message);
+				toast.error(error.message)
 			},
 			onSuccess: () => {
 				for (const sol of problem.solutions) {
 					if (sol.document) {
 						const tabIndex = algorimejo.selectStateValue(
 							selectMonacoDocumentTabIndex(sol.document.id),
-						);
+						)
 						if (tabIndex !== -1) {
-							algorimejo.closeTab(tabIndex);
+							algorimejo.closeTab(tabIndex)
 						}
 					}
 				}
 			},
-		});
+		})
 	}
 	function handleCreateSolution() {
 		solutionCreateMutation.mutate({
@@ -83,16 +83,16 @@ export function ProblemCollapsible({
 				language: "cpp",
 				content: null,
 			},
-		});
+		})
 	}
 	function handleStartRename() {
-		setIsRenaming(true);
+		setIsRenaming(true)
 		setTimeout(() => {
-			inputRenameRef.current?.focus();
-		}, 100);
+			inputRenameRef.current?.focus()
+		}, 100)
 	}
 	function handleProblemRename(newName: string) {
-		setIsRenaming(false);
+		setIsRenaming(false)
 		problemChangesetMutation.mutate(
 			{
 				id: problem.id,
@@ -106,22 +106,22 @@ export function ProblemCollapsible({
 			},
 			{
 				onError: (error) => {
-					toast.error(`Fail to rename: ${error}`);
+					toast.error(`Fail to rename: ${error}`)
 				},
 				onSuccess: async () => {
 					for (const sol of problem.solutions) {
 						if (sol.document) {
 							const tabIndex = algorimejo.selectStateValue(
 								selectMonacoDocumentTabIndex(sol.document.id),
-							);
+							)
 							if (tabIndex !== -1) {
-								algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`);
+								algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`)
 							}
 						}
 					}
 				},
 			},
-		);
+		)
 	}
 
 	return (
@@ -131,46 +131,48 @@ export function ProblemCollapsible({
 			open={open}
 		>
 			<ContextMenu>
-				{isRenaming ? (
-					<div className="flex w-full items-center gap-1 text-sm">
-						<span>
-							<LucideFile className="size-4" />
-						</span>
-						<input
-							className="w-full shadow-none outline-1 ring-0"
-							autoComplete="off"
-							type="text"
-							name="name"
-							defaultValue={problem.name}
-							onBlur={(e) => handleProblemRename(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									handleProblemRename(e.currentTarget.value);
-								}
-							}}
-							onFocus={(e) => e.target.select()}
-							ref={inputRenameRef}
-						/>
-					</div>
-				) : (
-					<Tooltip delayDuration={1000}>
-						<ContextMenuTrigger asChild>
-							<CollapsibleTrigger
-								className="flex hover:bg-secondary w-full items-center gap-1 text-sm"
-								asChild
-							>
-								<TooltipTrigger>
+				{isRenaming
+					? (
+							<div className="flex w-full items-center gap-1 text-sm">
+								<span>
 									<LucideFile className="size-4" />
-									{/* <LucideFileCheck/> */}
-									{problem.name}
-								</TooltipTrigger>
-							</CollapsibleTrigger>
-						</ContextMenuTrigger>
-						<TooltipContent>
-							<ProblemDetail problem={problem} />
-						</TooltipContent>
-					</Tooltip>
-				)}
+								</span>
+								<input
+									className="w-full shadow-none ring-0 outline-1"
+									autoComplete="off"
+									type="text"
+									name="name"
+									defaultValue={problem.name}
+									onBlur={e => handleProblemRename(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											handleProblemRename(e.currentTarget.value)
+										}
+									}}
+									onFocus={e => e.target.select()}
+									ref={inputRenameRef}
+								/>
+							</div>
+						)
+					: (
+							<Tooltip delayDuration={1000}>
+								<ContextMenuTrigger asChild>
+									<CollapsibleTrigger
+										className="flex w-full items-center gap-1 text-sm hover:bg-secondary"
+										asChild
+									>
+										<TooltipTrigger>
+											<LucideFile className="size-4" />
+											{/* <LucideFileCheck/> */}
+											{problem.name}
+										</TooltipTrigger>
+									</CollapsibleTrigger>
+								</ContextMenuTrigger>
+								<TooltipContent>
+									<ProblemDetail problem={problem} />
+								</TooltipContent>
+							</Tooltip>
+						)}
 				<ContextMenuContent>
 					<ContextMenuItem onClick={handleCreateSolution}>
 						New Solution
@@ -200,7 +202,7 @@ export function ProblemCollapsible({
 			</ContextMenu>
 			<CollapsibleContent asChild>
 				<ul>
-					{problem.solutions.map((solution) => (
+					{problem.solutions.map(solution => (
 						<ProblemListItem
 							key={solution.id}
 							solution={solution}
@@ -211,5 +213,5 @@ export function ProblemCollapsible({
 				</ul>
 			</CollapsibleContent>
 		</Collapsible>
-	);
+	)
 }

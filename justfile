@@ -11,12 +11,11 @@ test-migrations:
     cd src-tauri && diesel migration redo
 
 lint-fix:
-    pnpm biome format --fix
-    pnpm biome lint --fix --unsafe
+    pnpm eslint --fix ./src
     cd src-tauri && cargo fmt
 
 lint:
-    pnpm biome lint
+    pnpm eslint ./src
     # cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings
 
 build: 

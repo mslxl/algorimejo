@@ -1,30 +1,31 @@
-import { LucideFileCode2, LucideX } from "lucide-react";
-import type { HTMLAttributes } from "react";
-import { useAppDispatch } from "@/hooks/use-app-dispatch";
-import { useAppSelector } from "@/hooks/use-app-selector";
-import { algorimejo } from "@/lib/algorimejo";
-import { cn } from "@/lib/utils";
-import { close, type OpenedTab, select } from "@/stores/tab-slice";
-import { ScrollArea, ScrollBar } from "../ui/scroll-area";
-import { WelcomePage } from "../welcome-page";
+import type { HTMLAttributes } from "react"
+import type { OpenedTab } from "@/stores/tab-slice"
+import { LucideFileCode2, LucideX } from "lucide-react"
+import { useAppDispatch } from "@/hooks/use-app-dispatch"
+import { useAppSelector } from "@/hooks/use-app-selector"
+import { algorimejo } from "@/lib/algorimejo"
+import { cn } from "@/lib/utils"
+import { close, select } from "@/stores/tab-slice"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import { WelcomePage } from "../welcome-page"
 
 interface TabBarProps extends HTMLAttributes<HTMLDivElement> {}
 
 function TabBar({ className, ...props }: TabBarProps) {
-	const tabs = useAppSelector((state) => state.tab.tabs);
-	const selectedIndex = useAppSelector((state) => state.tab.selected);
-	const dispatch = useAppDispatch();
+	const tabs = useAppSelector(state => state.tab.tabs)
+	const selectedIndex = useAppSelector(state => state.tab.selected)
+	const dispatch = useAppDispatch()
 	function handleClickTab(idx: number) {
-		dispatch(close(idx));
+		dispatch(close(idx))
 	}
 	function handleSelectTab(idx: number) {
-		dispatch(select(idx));
+		dispatch(select(idx))
 	}
 	return (
 		<ScrollArea className={cn("bg-secondary select-none", className)}>
 			<div className="flex w-max items-stretch justify-stretch" {...props}>
 				{tabs.map((tab, index) => {
-					const isSelected = index === selectedIndex;
+					const isSelected = index === selectedIndex
 					return (
 						<div
 							key={tab.id}
@@ -36,15 +37,17 @@ function TabBar({ className, ...props }: TabBarProps) {
 						>
 							<button
 								type="button"
-								className="flex pl-2 items-center"
+								className="flex items-center pl-2"
 								onClick={() => handleSelectTab(index)}
 							>
-								{tab.icon ? (
-									<tab.icon className="size-4" />
-								) : (
-									<LucideFileCode2 className="size-4" />
-								)}
-								<span className="text-sm ml-2 mr-1">{tab.title}</span>
+								{tab.icon
+									? (
+											<tab.icon className="size-4" />
+										)
+									: (
+											<LucideFileCode2 className="size-4" />
+										)}
+								<span className="mr-1 ml-2 text-sm">{tab.title}</span>
 							</button>
 							<button
 								type="button"
@@ -55,57 +58,59 @@ function TabBar({ className, ...props }: TabBarProps) {
 									},
 								)}
 								onClick={() => {
-									handleClickTab(index);
+									handleClickTab(index)
 								}}
 							>
 								<LucideX className="size-3" />
 							</button>
 						</div>
-					);
+					)
 				})}
 			</div>
 			<ScrollBar orientation="horizontal" />
 		</ScrollArea>
-	);
+	)
 }
 
 interface TabContentProps {
-	tab: OpenedTab;
+	tab: OpenedTab
 }
 
 function TabContent({ tab }: TabContentProps) {
-	const UI = algorimejo.getUI(tab.key);
+	const UI = algorimejo.getUI(tab.key)
 	if (UI) {
-		return <UI data={tab.data} key={tab.id} />;
+		return <UI data={tab.data} key={tab.id} />
 	}
 	return (
-		<div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center select-none">
+		<div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center select-none">
 			<h1 className="text-3xl font-bold text-gray-800">
-				Page "{tab.key}" does not exist!
+				Page "
+				{tab.key}
+				" does not exist!
 			</h1>
 			<p className="text-muted-foreground">
 				The requested page could not be found. Here is the page data:
 			</p>
-			<code className="p-4 bg-secondary rounded-lg text-sm font-mono overflow-auto max-w-full text-left select-all">
+			<code className="max-w-full overflow-auto rounded-lg bg-secondary p-4 text-left font-mono text-sm select-all">
 				<pre>{JSON.stringify(tab, null, 2)}</pre>
 			</code>
 		</div>
-	);
+	)
 }
 
 interface TabContainerProps extends HTMLAttributes<HTMLDivElement> {}
 export function TabContainer({ className, ...props }: TabContainerProps) {
 	const currentTab = useAppSelector(
-		(state) =>
+		state =>
 			(state.tab.tabs[state.tab.selected] as undefined | OpenedTab) ?? null,
-	);
+	)
 
 	return (
 		<div className={cn(className, "flex flex-col")} {...props}>
 			<TabBar />
-			<div className="flex-1 min-h-0 [&>*:first-child]:size-full">
+			<div className="min-h-0 flex-1 [&>*:first-child]:size-full">
 				{currentTab ? <TabContent tab={currentTab} /> : <WelcomePage />}
 			</div>
 		</div>
-	);
+	)
 }

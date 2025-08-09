@@ -1,4 +1,4 @@
-import type { algorimejo } from "@/lib/algorimejo";
+import type { algorimejo } from "@/lib/algorimejo"
 
-export type RootState = ReturnType<typeof algorimejo.store.getState>;
-export type AppDispatch = typeof algorimejo.store.dispatch;
+export type RootState = ReturnType<typeof algorimejo.store.getState>
+export type AppDispatch = typeof algorimejo.store.dispatch

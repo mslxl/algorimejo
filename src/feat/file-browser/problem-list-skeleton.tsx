@@ -1,12 +1,13 @@
+import type { HTMLAttributes } from "react"
 import {
 	forwardRef,
-	type HTMLAttributes,
+
 	useEffect,
 	useRef,
 	useState,
-} from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+} from "react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 interface ProblemListSkeletonItemProps extends HTMLAttributes<HTMLDivElement> {}
 export const ProblemListSkeletonItem = forwardRef<
@@ -19,10 +20,10 @@ export const ProblemListSkeletonItem = forwardRef<
 			<Skeleton className="h-4 w-full rounded-full" />
 		</div>
 	</div>
-));
+))
 
 interface ProblemListSkeletonProps extends HTMLAttributes<HTMLDivElement> {
-	shrinkRatio?: number;
+	shrinkRatio?: number
 }
 
 export function ProblemListSkeleton({
@@ -30,26 +31,27 @@ export function ProblemListSkeleton({
 	shrinkRatio = 2,
 	...props
 }: ProblemListSkeletonProps) {
-	const skeletonRef = useRef<HTMLDivElement>(null);
-	const skeletonItemRef = useRef<HTMLDivElement>(null);
+	const skeletonRef = useRef<HTMLDivElement>(null)
+	const skeletonItemRef = useRef<HTMLDivElement>(null)
 
-	const [itemsNum, setItemsNum] = useState(0);
+	const [itemsNum, setItemsNum] = useState(0)
 	useEffect(() => {
-		if (!skeletonRef.current || !skeletonItemRef.current) return () => {};
-		const parent = skeletonRef.current;
-		const element = skeletonItemRef.current;
+		if (!skeletonRef.current || !skeletonItemRef.current)
+			return () => {}
+		const parent = skeletonRef.current
+		const element = skeletonItemRef.current
 		const observer = new ResizeObserver(() => {
 			const nums = Math.floor(
 				parent.clientHeight / shrinkRatio / element.clientHeight,
-			);
-			setItemsNum(Math.max(nums - 2, 0));
-		});
+			)
+			setItemsNum(Math.max(nums - 2, 0))
+		})
 
-		observer.observe(skeletonRef.current);
+		observer.observe(skeletonRef.current)
 		return () => {
-			observer.disconnect();
-		};
-	}, [shrinkRatio]);
+			observer.disconnect()
+		}
+	}, [shrinkRatio])
 
 	return (
 		<div
@@ -59,9 +61,9 @@ export function ProblemListSkeleton({
 		>
 			<ProblemListSkeletonItem ref={skeletonItemRef} />
 			{Array.from({ length: itemsNum }).map((_, index) => (
-				// biome-ignore lint/suspicious/noArrayIndexKey: false
+				// eslint-disable-next-line react/no-array-index-key
 				<ProblemListSkeletonItem key={index} />
 			))}
 		</div>
-	);
+	)
 }

@@ -1,10 +1,10 @@
-import { LucideMoreHorizontal } from "lucide-react";
-import type { ReactNode } from "react";
-import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo";
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react"
+import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo"
+import { LucideMoreHorizontal } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface SidebarButtonDefaultProps extends PanelButtonProps {
-	children?: ReactNode;
+	children?: ReactNode
 }
 
 export function SidebarButtonDefault({
@@ -28,5 +28,5 @@ export function SidebarButtonDefault({
 				</>
 			)}
 		</button>
-	);
+	)
 }

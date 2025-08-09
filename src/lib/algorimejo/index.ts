@@ -1,3 +1,3 @@
-import { Algorimejo } from "./algorimejo";
+import { Algorimejo } from "./algorimejo"
 
-export const algorimejo = new Algorimejo();
+export const algorimejo = new Algorimejo()

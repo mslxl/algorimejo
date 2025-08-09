@@ -1,3 +1,3 @@
-//TODO: add remote server
+// TODO: add remote server
 
-export * from "./local";
+export * from "./local"

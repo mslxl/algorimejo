@@ -1,36 +1,37 @@
-import { useQueryClient } from "@tanstack/react-query";
+import type { CSSProperties } from "react"
+import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo"
+import type { GetProblemsSortBy, SortOrder } from "@/lib/client"
+import { useQueryClient } from "@tanstack/react-query"
 import {
 	LucideFile,
 	LucideFilePlus2,
 	LucideRefreshCcw,
 	LucideSortAsc,
 	LucideSortDesc,
-} from "lucide-react";
-import { type CSSProperties, useState } from "react";
-import { toast } from "react-toastify";
-import { match } from "ts-pattern";
-import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default";
-import { Input } from "@/components/ui/input";
+} from "lucide-react"
+import { useState } from "react"
+import { toast } from "react-toastify"
+import { match } from "ts-pattern"
+import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default"
+import { Input } from "@/components/ui/input"
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-} from "@/components/ui/popover";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+} from "@/components/ui/popover"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useDefaultProblemCreator } from "@/hooks/use-problem-creator";
+} from "@/components/ui/tooltip"
+import { useDefaultProblemCreator } from "@/hooks/use-problem-creator"
 import {
 	PROBLEMS_LIST_QUERY_KEY,
 	useProblemsInfiniteQuery,
-} from "@/hooks/use-problems-list";
-import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo";
-import type { GetProblemsSortBy, SortOrder } from "@/lib/client";
-import { ProblemList } from "./problem-list";
-import { ProblemListSkeleton } from "./problem-list-skeleton";
+} from "@/hooks/use-problems-list"
+import { ProblemList } from "./problem-list"
+import { ProblemListSkeleton } from "./problem-list-skeleton"
 
 export function FileBrowerButton(props: PanelButtonProps) {
 	return (
@@ -38,49 +39,49 @@ export function FileBrowerButton(props: PanelButtonProps) {
 			<LucideFile className="size-4 rotate-90" />
 			FileBrower
 		</SidebarButtonDefault>
-	);
+	)
 }
 
 const buttonStyle: CSSProperties = {
 	width: "16px",
 	height: "16px",
-};
+}
 
 export function FileBrowser() {
-	const [sortOrder, setSortOrder] = useState<SortOrder>("Asc");
-	const [searchText, setSearchText] = useState("");
-	const [sortBy, setSortBy] = useState<GetProblemsSortBy>("CreateDatetime");
-	const queryClient = useQueryClient();
-	const problemCreateMutation = useDefaultProblemCreator();
+	const [sortOrder, setSortOrder] = useState<SortOrder>("Asc")
+	const [searchText, setSearchText] = useState("")
+	const [sortBy, setSortBy] = useState<GetProblemsSortBy>("CreateDatetime")
+	const queryClient = useQueryClient()
+	const problemCreateMutation = useDefaultProblemCreator()
 	const problemsQueryResult = useProblemsInfiniteQuery(
 		searchText,
 		sortBy,
 		sortOrder,
-	);
+	)
 	function handleProblemCreate() {
 		problemCreateMutation.mutate(undefined, {
 			onError: (error) => {
 				// Tauri errors are strings, not objects with message property
-				const errorMessage =
-					typeof error === "string"
+				const errorMessage
+					= typeof error === "string"
 						? error
-						: error?.message || "An error occurred";
-				toast.error(`[Database Error]: ${errorMessage}`);
+						: error?.message || "An error occurred"
+				toast.error(`[Database Error]: ${errorMessage}`)
 			},
-		});
+		})
 	}
 	function handleRefreshExplorer() {
-		queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] });
+		queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })
 	}
 
 	return (
-		<div className="flex flex-col min-h-0">
+		<div className="flex min-h-0 flex-col">
 			<div className="flex justify-end gap-0.5 border-b">
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="hover:bg-secondary rounded-md p-1"
+							className="rounded-md p-1 hover:bg-secondary"
 							onClick={handleProblemCreate}
 						>
 							<LucideFilePlus2 style={buttonStyle} />
@@ -92,7 +93,7 @@ export function FileBrowser() {
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="hover:bg-secondary rounded-md p-1"
+							className="rounded-md p-1 hover:bg-secondary"
 							onClick={handleRefreshExplorer}
 						>
 							<LucideRefreshCcw style={buttonStyle} />
@@ -103,7 +104,7 @@ export function FileBrowser() {
 
 				<Popover>
 					<PopoverTrigger asChild>
-						<button type="button" className="hover:bg-secondary rounded-md p-1">
+						<button type="button" className="rounded-md p-1 hover:bg-secondary">
 							{match(sortOrder)
 								.with("Asc", () => <LucideSortAsc style={buttonStyle} />)
 								.with("Desc", () => <LucideSortDesc style={buttonStyle} />)
@@ -116,7 +117,7 @@ export function FileBrowser() {
 								<div className="text-sm font-medium">Search</div>
 								<Input
 									value={searchText}
-									onChange={(e) => setSearchText(e.target.value)}
+									onChange={e => setSearchText(e.target.value)}
 									placeholder="Search problems..."
 									className="w-full"
 								/>
@@ -127,12 +128,12 @@ export function FileBrowser() {
 								<ToggleGroup
 									variant="outline"
 									type="single"
-									className="justify-start w-full"
+									className="w-full justify-start"
 									value={sortBy}
 									onValueChange={(value) => {
 										setSortBy(
 											value as "Name" | "CreateDatetime" | "ModifiedDatetime",
-										);
+										)
 									}}
 								>
 									<ToggleGroupItem value="CreateDatetime">
@@ -150,10 +151,10 @@ export function FileBrowser() {
 								<ToggleGroup
 									variant="outline"
 									type="single"
-									className="justify-start w-full"
+									className="w-full justify-start"
 									value={sortOrder}
 									onValueChange={(value) => {
-										setSortOrder(value as "Asc" | "Desc");
+										setSortOrder(value as "Asc" | "Desc")
 									}}
 								>
 									<ToggleGroupItem value="Asc">Ascending</ToggleGroupItem>
@@ -164,25 +165,25 @@ export function FileBrowser() {
 					</PopoverContent>
 				</Popover>
 			</div>
-			<div className="flex-1 min-h-0">
+			<div className="min-h-0 flex-1">
 				{match(problemsQueryResult)
 					.with({ status: "pending" }, () => (
 						<ProblemListSkeleton className="size-full" />
 					))
-					.with({ status: "success" }, (result) => (
+					.with({ status: "success" }, result => (
 						<ProblemList
-							className="px-2 h-full overflow-y-auto"
-							problems={result.data.pages.flatMap((page) => page.problems)}
+							className="h-full overflow-y-auto px-2"
+							problems={result.data.pages.flatMap(page => page.problems)}
 							hasNextPage={result.hasNextPage}
 							fetchNextPage={result.fetchNextPage}
 							isFetchingNextPage={result.isFetchingNextPage}
 						/>
 					))
-					.with({ status: "error" }, (result) => (
+					.with({ status: "error" }, result => (
 						<span>{result.error.message}</span>
 					))
 					.exhaustive()}
 			</div>
 		</div>
-	);
+	)
 }

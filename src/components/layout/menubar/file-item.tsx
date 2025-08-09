@@ -1,4 +1,4 @@
-import { toast } from "react-toastify";
+import { toast } from "react-toastify"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -9,7 +9,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 import {
 	MenubarContent,
 	MenubarItem,
@@ -19,25 +19,25 @@ import {
 	MenubarSubContent,
 	MenubarSubTrigger,
 	MenubarTrigger,
-} from "@/components/ui/menubar";
-import { useDefaultProblemCreator } from "@/hooks/use-problem-creator";
-import { algorimejo } from "@/lib/algorimejo";
-import { commands } from "@/lib/client";
+} from "@/components/ui/menubar"
+import { useDefaultProblemCreator } from "@/hooks/use-problem-creator"
+import { algorimejo } from "@/lib/algorimejo"
+import { commands } from "@/lib/client"
 
 export function MenubarFileItem() {
-	const problemCreateMutation = useDefaultProblemCreator();
+	const problemCreateMutation = useDefaultProblemCreator()
 	function handleCreateProblem() {
 		problemCreateMutation.mutate(undefined, {
 			onError: (error) => {
 				// Tauri errors are strings, not objects with message property
-				const errorMessage =
-					typeof error === "string"
+				const errorMessage
+					= typeof error === "string"
 						? error
-						: error?.message || "An error occurred";
-				toast.error(`[Database Error]: ${errorMessage}`);
+						: error?.message || "An error occurred"
+				toast.error(`[Database Error]: ${errorMessage}`)
 			},
 			onSuccess: (data) => {
-				const problem = data.problem;
+				const problem = data.problem
 				if (problem.solutions[0].document) {
 					algorimejo.createEditorTab(
 						problem.solutions[0].document.id,
@@ -47,17 +47,18 @@ export function MenubarFileItem() {
 							title: `${problem.name} - ${problem.solutions[0].name}`,
 							language: problem.solutions[0].language,
 						},
-					);
-				} else {
+					)
+				}
+				else {
 					toast.error(
 						`[Database Error]: Solution ${problem.solutions[0].name} has no document included! This should not happen! Please report this issue to the developer.`,
-					);
+					)
 				}
 			},
-		});
+		})
 	}
 	function handleExit() {
-		commands.exitApp();
+		commands.exitApp()
 	}
 	return (
 		<MenubarMenu>
@@ -69,7 +70,7 @@ export function MenubarFileItem() {
 				<MenubarSeparator />
 				{/* TODO */}
 				{/* <MenubarItem>Open Recent</MenubarItem>
-					<MenubarItem>Import External File...</MenubarItem> 
+					<MenubarItem>Import External File...</MenubarItem>
 					<MenubarSeparator /> */}
 				{/* TODO */}
 				{/* <MenubarItem>Export to...</MenubarItem> */}
@@ -91,7 +92,7 @@ export function MenubarFileItem() {
 							<AlertDialogTitle>Are you sure?</AlertDialogTitle>
 							<AlertDialogDescription>
 								Some unsaved changes will be lost forever!(A long time!).
-								{/* The emph way from Minecraft. lol*/}
+								{/* The emph way from Minecraft. lol */}
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
@@ -102,5 +103,5 @@ export function MenubarFileItem() {
 				</AlertDialog>
 			</MenubarContent>
 		</MenubarMenu>
-	);
+	)
 }

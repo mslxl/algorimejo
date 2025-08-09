@@ -1,18 +1,18 @@
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import { LucideX } from "lucide-react";
-import type { HTMLAttributes } from "react";
-import type { Problem } from "@/lib/client";
-import styles from "./problem-detail.module.css";
+import type { HTMLAttributes } from "react"
+import type { Problem } from "@/lib/client"
+import dayjs from "dayjs"
+import relativeTime from "dayjs/plugin/relativeTime"
+import { LucideX } from "lucide-react"
+import styles from "./problem-detail.module.css"
 
-dayjs.extend(relativeTime);
+dayjs.extend(relativeTime)
 
 interface ProblemDetailProps extends HTMLAttributes<HTMLDivElement> {
-	problem: Problem;
+	problem: Problem
 }
 export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
-	const createDate = dayjs(problem.create_datetime);
-	const modifiedDate = dayjs(problem.modified_datetime);
+	const createDate = dayjs(problem.create_datetime)
+	const modifiedDate = dayjs(problem.modified_datetime)
 	return (
 		<div {...props}>
 			<h3 className="font-semibold">{problem.name}</h3>
@@ -40,13 +40,21 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 					<tr>
 						<td>Created At</td>
 						<td>
-							{createDate.toDate().toLocaleString()} ({createDate.toNow()})
+							{createDate.toDate().toLocaleString()}
+							{" "}
+							(
+							{createDate.toNow()}
+							)
 						</td>
 					</tr>
 					<tr>
 						<td>Updated At</td>
 						<td>
-							{modifiedDate.toDate().toLocaleString()} ({modifiedDate.toNow()})
+							{modifiedDate.toDate().toLocaleString()}
+							{" "}
+							(
+							{modifiedDate.toNow()}
+							)
 						</td>
 					</tr>
 					<tr>
@@ -56,5 +64,5 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 				</tbody>
 			</table>
 		</div>
-	);
+	)
 }
