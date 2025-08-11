@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::{
     config::{ProgramConfig, ProgramConfigData},
     database::{
-        config::{AdvLanguageItem, DatabaseConfig}, CreateCheckerParams, CreateCheckerResult, CreateProblemParams,
-        CreateProblemResult, CreateSolutionParams, CreateSolutionResult, DatabaseRepo,
-        GetProblemsParams, GetProblemsResult,
+        config::{AdvLanguageItem, DatabaseConfig},
+        CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
+        CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
+        GetProblemsResult,
     },
     document::DocumentRepo,
     model::{Problem, ProblemChangeset, SolutionChangeset, TestCase},
@@ -227,6 +228,8 @@ pub async fn exit_app<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_languages(db: State<'_, DatabaseRepo>) -> Result<HashMap<String, AdvLanguageItem>, String> {
+pub async fn get_languages(
+    db: State<'_, DatabaseRepo>,
+) -> Result<HashMap<String, AdvLanguageItem>, String> {
     db.get_languages().map_err(|e| e.to_string())
 }

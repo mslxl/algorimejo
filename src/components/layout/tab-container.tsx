@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from "react"
 import type { OpenedTab } from "@/stores/tab-slice"
 import { LucideFileCode2, LucideX } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
 import { useAppDispatch } from "@/hooks/use-app-dispatch"
 import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
@@ -24,48 +25,60 @@ function TabBar({ className, ...props }: TabBarProps) {
 	return (
 		<ScrollArea className={cn("bg-secondary select-none", className)}>
 			<div className="flex w-max items-stretch justify-stretch" {...props}>
-				{tabs.map((tab, index) => {
-					const isSelected = index === selectedIndex
-					return (
-						<div
-							key={tab.id}
-							data-tab-id={tab.id}
-							data-tab-key={tab.key}
-							className={cn("h-6 pr-1 tab-item flex items-center group", {
-								"bg-white": isSelected,
-							})}
-						>
-							<button
-								type="button"
-								className="flex items-center pl-2"
-								onClick={() => handleSelectTab(index)}
-							>
-								{tab.icon
-									? (
-											<tab.icon className="size-4" />
-										)
-									: (
-											<LucideFileCode2 className="size-4" />
-										)}
-								<span className="mr-1 ml-2 text-sm">{tab.title}</span>
-							</button>
-							<button
-								type="button"
-								className={cn(
-									"hover:bg-secondary invisible group-hover:visible border border-background group-hover:border-white p-1 rounded-sm",
-									{
-										visible: isSelected,
-									},
-								)}
-								onClick={() => {
-									handleClickTab(index)
+				<AnimatePresence>
+					{tabs.map((tab, index) => {
+						const isSelected = index === selectedIndex
+						return (
+							<motion.div
+								initial={{
+									width: "0",
 								}}
+								animate={{
+									width: "auto",
+								}}
+								exit={{
+									width: "0",
+								}}
+								key={tab.id}
+								data-tab-id={tab.id}
+								data-tab-key={tab.key}
+								className={cn("h-6 pr-1 tab-item flex items-center group", {
+									"bg-white": isSelected,
+								})}
 							>
-								<LucideX className="size-3" />
-							</button>
-						</div>
-					)
-				})}
+								<button
+									type="button"
+									className="flex items-center truncate  pl-2"
+									onClick={() => handleSelectTab(index)}
+								>
+									{tab.icon
+										? (
+												<tab.icon className="size-4" />
+											)
+										: (
+												<LucideFileCode2 className="size-4" />
+											)}
+									<span className="mr-1 ml-2 text-sm">{tab.title}</span>
+								</button>
+								<button
+									type="button"
+									className={cn(
+										"hover:bg-secondary invisible group-hover:visible border border-background group-hover:border-white p-1 rounded-sm",
+										{
+											visible: isSelected,
+										},
+									)}
+									onClick={() => {
+										handleClickTab(index)
+									}}
+								>
+									<LucideX className="size-3" />
+								</button>
+							</motion.div>
+						)
+					})}
+
+				</AnimatePresence>
 			</div>
 			<ScrollBar orientation="horizontal" />
 		</ScrollArea>

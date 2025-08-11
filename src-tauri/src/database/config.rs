@@ -35,15 +35,18 @@ pub struct DatabaseConfig {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         let mut language = HashMap::new();
-        language.insert("Cpp".to_string(), AdvLanguageItem {
-            base: LanguageBase::Cpp,
-            cmd_compile: "g++ -std=c++17 -o $target".to_string(),
-            cmd_before_run: None,
-            cmd_after_run: None,
-            cmd_run: "$target".to_string(),
-            lsp: None,
-            lsp_connect: None 
-        });
+        language.insert(
+            "Cpp".to_string(),
+            AdvLanguageItem {
+                base: LanguageBase::Cpp,
+                cmd_compile: "g++ -std=c++17 -o $target".to_string(),
+                cmd_before_run: None,
+                cmd_after_run: None,
+                cmd_run: "$target".to_string(),
+                lsp: None,
+                lsp_connect: None,
+            },
+        );
         Self { langauge: language }
     }
 }

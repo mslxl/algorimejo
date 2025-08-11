@@ -1,10 +1,9 @@
 import type { Language } from "./language"
-import { text } from "node:stream/consumers"
 import * as log from "@tauri-apps/plugin-log"
 
-import CodeMirror, { basicSetup } from "@uiw/react-codemirror"
-import { capitalize, debounce } from "lodash/fp"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import CodeMirror from "@uiw/react-codemirror"
+import { capitalize } from "lodash/fp"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import { yCollab, YSyncConfig } from "y-codemirror.next"
 import * as Y from "yjs"

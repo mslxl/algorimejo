@@ -173,7 +173,7 @@ export class Algorimejo {
 
 	createWorkspacePrefTab() {
 		this.createTab("workspace-pref", {}, {
-			title: "Workspace Pref",
+			title: "Workspace Preferences",
 			icon: LucideColumnsSettings,
 		})
 	}
