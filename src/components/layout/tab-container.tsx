@@ -7,7 +7,8 @@ import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
 import { cn } from "@/lib/utils"
 import { close, select } from "@/stores/tab-slice"
-import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import { LucideIcon } from "../lucide-icon"
+import { TabbarScrollArea } from "../tabbar-scroll-area"
 import { WelcomePage } from "../welcome-page"
 
 interface TabBarProps extends HTMLAttributes<HTMLDivElement> {}
@@ -23,7 +24,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 		dispatch(select(idx))
 	}
 	return (
-		<ScrollArea className={cn("bg-secondary select-none", className)}>
+		<TabbarScrollArea className={cn("bg-secondary/40 select-none", className)}>
 			<div className="flex w-max items-stretch justify-stretch" {...props}>
 				<AnimatePresence>
 					{tabs.map((tab, index) => {
@@ -43,7 +44,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 								data-tab-id={tab.id}
 								data-tab-key={tab.key}
 								className={cn("h-6 pr-1 tab-item flex items-center group", {
-									"bg-white": isSelected,
+									"bg-secondary/80": isSelected,
 								})}
 							>
 								<button
@@ -53,7 +54,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 								>
 									{tab.icon
 										? (
-												<tab.icon className="size-4" />
+												<LucideIcon name={tab.icon} className="size-4" />
 											)
 										: (
 												<LucideFileCode2 className="size-4" />
@@ -80,8 +81,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 
 				</AnimatePresence>
 			</div>
-			<ScrollBar orientation="horizontal" />
-		</ScrollArea>
+		</TabbarScrollArea>
 	)
 }
 

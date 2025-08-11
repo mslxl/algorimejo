@@ -10,6 +10,7 @@ use diesel::{
     r2d2::{ConnectionManager, Pool},
     SqliteConnection,
 };
+use log::trace;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
@@ -112,6 +113,14 @@ impl DatabaseRepo {
             doc_folder,
             config: Arc::new(RwLock::new(config)),
         }
+    }
+    pub fn save_config(&self, filename: &str) -> Result<()> {
+        let guard = self.config.read().unwrap();
+        let content = toml::to_string_pretty(&*guard)?;
+        let config_file = self.base_folder.join(filename);
+        trace!("save config {:?}: {}", config_file.display(), &content);
+        std::fs::write(config_file, content)?;
+        Ok(())
     }
 
     pub fn get_document(&self, document_id: &str) -> Result<Option<Document>> {
@@ -626,14 +635,14 @@ impl DatabaseRepo {
     pub fn get_language_item(&self, language: &str) -> Result<AdvLanguageItem> {
         let config = self.config.read().unwrap();
         let language_config = config
-            .langauge
+            .language
             .get(language)
             .ok_or(anyhow::anyhow!("Language {} not found", language))?;
         Ok(language_config.clone())
     }
     pub fn get_languages(&self) -> Result<HashMap<String, AdvLanguageItem>> {
         let config = self.config.read().unwrap();
-        let languages = config.langauge.clone();
+        let languages = config.language.clone();
         Ok(languages)
     }
 }

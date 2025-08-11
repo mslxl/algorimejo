@@ -137,7 +137,7 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 					<div className="sticky top-0 mb-4 flex flex-wrap gap-0.5 rounded-md border bg-background p-2">
 						{testcases.map(testcase => (
 							<span
-								className="size-4 rounded-sm border transition-colors hover:bg-gray-100"
+								className="size-4 rounded-sm border bg-gray-100 transition-colors"
 								key={testcase.id}
 								title={`Testcase #${testcase.id}`}
 							/>

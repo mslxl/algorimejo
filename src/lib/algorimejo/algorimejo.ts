@@ -4,7 +4,6 @@ import { configureStore } from "@reduxjs/toolkit"
 import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
-import { LucideColumnsSettings } from "lucide-react"
 import { Editor } from "@/feat/editor/editor"
 import { selectMonacoDocumentTabIndex } from "@/feat/editor/utils"
 import { WorkspacePref } from "@/feat/workspace-pref/workspace-pref"
@@ -174,7 +173,7 @@ export class Algorimejo {
 	createWorkspacePrefTab() {
 		this.createTab("workspace-pref", {}, {
 			title: "Workspace Preferences",
-			icon: LucideColumnsSettings,
+			icon: "LucideColumnsSettings",
 		})
 	}
 

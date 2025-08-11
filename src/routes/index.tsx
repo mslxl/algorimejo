@@ -19,5 +19,7 @@ function RouteComponent() {
 			}),
 		)
 	}, [dispatch])
-	return <Algorimejo className="size-full" />
+	return (
+		<Algorimejo className="size-full" />
+	)
 }

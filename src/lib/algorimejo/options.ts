@@ -1,8 +1,8 @@
-import type { FC, SVGAttributes } from "react"
+import type { LucideIconName } from "@/components/lucide-icon"
 
 export interface CreateTabOptions {
 	title: string
-	icon?: FC<SVGAttributes<SVGElement>>
+	icon?: LucideIconName
 }
 
 export interface CreateEditorTabOptions extends CreateTabOptions {

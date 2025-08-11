@@ -1,1 +1,1 @@
-export { CodeEditor } from "./code-editor"
+export { CodeEditorSuspend as CodeEditor } from "./code-editor"

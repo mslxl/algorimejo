@@ -1,16 +1,19 @@
+import type { Extension } from "@codemirror/state"
 import type { Language } from "./language"
+import { Compartment, EditorState } from "@codemirror/state"
+import { EditorView } from "@codemirror/view"
 import * as log from "@tauri-apps/plugin-log"
-
-import CodeMirror from "@uiw/react-codemirror"
+import { basicSetup } from "@uiw/codemirror-extensions-basic-setup"
 import { capitalize } from "lodash/fp"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { yCollab, YSyncConfig } from "y-codemirror.next"
 import * as Y from "yjs"
+import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
 import { commands } from "@/lib/client"
-import { cn } from "@/lib/utils"
 import { ErrorLabel } from "../error-label"
 import { Skeleton } from "../ui/skeleton"
+import { configExtension } from "./config-extension"
 import { useLanguageExtension } from "./language"
 
 interface CodeEditorProps {
@@ -19,12 +22,8 @@ interface CodeEditorProps {
 	language?: string
 	textarea?: boolean
 }
-export function CodeEditor({
-	className,
-	documentID,
-	language = "text",
-	textarea,
-}: CodeEditorProps) {
+
+export function CodeEditorSuspend({ className,	documentID,	language = "text",	textarea }: CodeEditorProps) {
 	const [isDocumentLoaded, setIsDocumentLoaded] = useState(false)
 	const ydoc = useMemo(() => {
 		const doc = new Y.Doc()
@@ -49,8 +48,6 @@ export function CodeEditor({
 
 	const ytext = useMemo(() => ydoc.getText("content"), [ydoc])
 
-	const undoManager = useMemo(() => new Y.UndoManager(ytext), [ytext])
-
 	useEffect(() => {
 		const cb = (update: Uint8Array, origin: any, _doc: Y.Doc, _transaction: Y.Transaction) => {
 			if (origin instanceof YSyncConfig) {
@@ -65,11 +62,17 @@ export function CodeEditor({
 		}
 	}, [ydoc, documentID])
 
+	const workspaceConfig = useWorkspaceConfig()
+
 	const languageExtension = useLanguageExtension(capitalize(language) as Language)
+
 	if (languageExtension.status === "error") {
-		return <ErrorLabel message={languageExtension.error.message} />
+		return <ErrorLabel message={languageExtension.error} />
 	}
-	else if (languageExtension.status === "pending" || !isDocumentLoaded) {
+	else if (workspaceConfig.status === "error") {
+		return <ErrorLabel message={workspaceConfig.error} />
+	}
+	else if (languageExtension.status === "pending" || !isDocumentLoaded || workspaceConfig.status === "pending") {
 		return (
 			<div className="space-y-1 p-2">
 				<Skeleton className="h-[1em] w-full" />
@@ -80,24 +83,83 @@ export function CodeEditor({
 			</div>
 		)
 	}
-
 	return (
-		<CodeMirror
-			height="100%"
-			value={ytext.toString()}
-			basicSetup={{
-				lineNumbers: !textarea,
-				foldGutter: !textarea,
-				indentOnInput: !textarea,
-			}}
-			extensions={[
+		<CodeEditor
+			className={className}
+			documentID={documentID}
+			language={language}
+			textarea={textarea}
+			ydoc={ydoc}
+			ytext={ytext}
+			externalExtension={[
+				languageExtension.data,
+				configExtension(workspaceConfig.data),
+				basicSetup({
+					lineNumbers: !textarea,
+					foldGutter: !textarea,
+					indentOnInput: !textarea,
+				}),
+			]}
+		/>
+	)
+}
+
+function CodeEditor({
+	className,
+	language = "text",
+	documentID,
+	ytext,
+	externalExtension,
+}: CodeEditorProps & {
+	ytext: Y.Text
+	ydoc: Y.Doc
+	externalExtension: Extension[]
+}) {
+	const containerRef = useRef<HTMLDivElement>(null)
+	const viewRef = useRef<EditorView | null>(null)
+	const stateRef = useRef<EditorState | null>(null)
+	const undoManager = useMemo(() => new Y.UndoManager(ytext), [ytext])
+	const externalExtensionCompartment = useMemo(() => new Compartment(), [])
+
+	useEffect(() => {
+		const state = EditorState.create({
+			doc: ytext.toString(),
+			extensions: [
 				yCollab(ytext, null, {
 					undoManager,
 				}),
-				languageExtension.data,
-			]}
+				externalExtensionCompartment.of(externalExtension),
+			],
+		})
+		const view = new EditorView({
+			state,
+			parent: containerRef.current!,
+		})
+		viewRef.current = view
+		stateRef.current = state
+		return () => {
+			view.destroy()
+			viewRef.current = null
+			stateRef.current = null
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [externalExtension])
+	useEffect(() => {
+		if (!viewRef.current)
+			return
+		viewRef.current.dispatch({
+			effects: externalExtensionCompartment.reconfigure(externalExtension),
+		})
+		log.trace("dispatch reconfigure effects to codemirror editor")
+	}, [externalExtension, externalExtensionCompartment])
+
+	return (
+		<div
+			ref={containerRef}
 			data-language={language}
-			className={cn(className, "codemirror-container")}
-		/>
+			data-document={documentID}
+			className={className}
+		>
+		</div>
 	)
 }

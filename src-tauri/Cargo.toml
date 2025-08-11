@@ -22,7 +22,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-whoami = "1.6.0"
+whoami = "1.6.1"
 specta = { version = "=2.0.0-rc.22", features = ["uuid", "url", "serde", "serde_json", "time", "bigdecimal", "chrono"] }
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }

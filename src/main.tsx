@@ -8,6 +8,7 @@ import { iconImage } from "@/assets"
 import { loadFeatures } from "@/feat"
 import { algorimejo } from "@/lib/algorimejo"
 import { routeTree } from "@/routeTree.gen"
+import "@fontsource/jetbrains-mono"
 import "@/index.css"
 
 function initIcon() {

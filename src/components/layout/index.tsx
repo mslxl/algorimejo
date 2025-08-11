@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from "react"
 import type { PanelPosition } from "@/lib/algorimejo/algorimejo"
+import { css } from "@emotion/css"
 import * as log from "@tauri-apps/plugin-log"
 import { useCallback, useState } from "react"
 import {
@@ -12,12 +13,26 @@ import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
 import { cn } from "@/lib/utils"
 import { select, unselect } from "@/stores/sidebar-slice"
-import stylesheet from "./index.module.scss"
 import { AlgorimejoMenubar } from "./menubar"
 import { SidebarButtonDefault } from "./sidebar-button-default"
 import { TabContainer } from "./tab-container"
 
 interface AlgorimejoProps extends HTMLAttributes<HTMLDivElement> {}
+
+const sidebarButtonClassname = css`
+& > * {
+	writing-mode: vertical-rl;
+	width: 100%;
+}
+`
+
+const sidebarPanelClassname = css`
+&>* {
+	width: 100%;
+	height: 100%;
+}
+`
+
 export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 	const sidebar = useAppSelector(state => state.sidebar)
 	const dispatch = useAppDispatch()
@@ -89,7 +104,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 				<div
 					className={cn(
 						"border-r w-8 space-x-1",
-						stylesheet.sidebarButtonGroup,
+						sidebarButtonClassname,
 					)}
 				>
 					{renderSidebarButton(sidebar.left, "left")}
@@ -100,10 +115,11 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 						: (
 								<>
 									<ResizablePanel
+										id="left-panel"
 										order={1}
 										onResize={setOpenLeftSize}
 										defaultSize={openLeftSize}
-										className={stylesheet.sidebarPanel}
+										className={sidebarPanelClassname}
 									>
 										{renderSidebarPanel("left")}
 									</ResizablePanel>
@@ -111,9 +127,9 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 								</>
 							)}
 
-					<ResizablePanel order={2}>
+					<ResizablePanel id="center-container-panel" order={2}>
 						<ResizablePanelGroup className="size-full" direction="vertical">
-							<ResizablePanel order={1}>
+							<ResizablePanel id="tab-container-panel" order={1}>
 								<TabContainer className="size-full" />
 							</ResizablePanel>
 							{!openBottom
@@ -122,10 +138,11 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 										<>
 											<ResizableHandle />
 											<ResizablePanel
+												id="bottom-panel"
 												order={2}
 												defaultSize={openBottomSize}
 												onResize={setOpenBottomSize}
-												className={stylesheet.sidebarPanel}
+												className={sidebarPanelClassname}
 											>
 												{renderSidebarPanel("bottom")}
 											</ResizablePanel>
@@ -139,17 +156,18 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 								<>
 									<ResizableHandle />
 									<ResizablePanel
+										id="right-panel"
 										order={3}
 										onResize={setOpenRightSize}
 										defaultSize={openRightSize}
-										className={stylesheet.sidebarPanel}
+										className={sidebarPanelClassname}
 									>
 										{renderSidebarPanel("right")}
 									</ResizablePanel>
 								</>
 							)}
 				</ResizablePanelGroup>
-				<div className={cn("border-l w-8", stylesheet.sidebarButtonGroup)}>
+				<div className={cn("border-l w-8", sidebarButtonClassname)}>
 					{renderSidebarButton(sidebar.right, "right")}
 				</div>
 			</div>

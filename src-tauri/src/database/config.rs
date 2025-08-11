@@ -1,7 +1,8 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use whoami::lang;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum LanguageBase {
@@ -29,11 +30,27 @@ pub struct AdvLanguageItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DatabaseConfig {
-    pub langauge: HashMap<String, AdvLanguageItem>,
+    //TODO: Move the config item "theme" to program config
+    #[serde(default = "DatabaseConfig::default_theme")]
+    pub theme: String,
+    #[serde(default = "DatabaseConfig::default_font_family")]
+    pub font_family: String,
+    #[serde(default = "DatabaseConfig::default_font_size")]
+    pub font_size: u32,
+    #[serde(default = "DatabaseConfig::default_language")]
+    pub language: HashMap<String, AdvLanguageItem>,
 }
-
-impl Default for DatabaseConfig {
-    fn default() -> Self {
+impl DatabaseConfig {
+    fn default_theme() -> String {
+        "default".to_string()
+    }
+    fn default_font_size() -> u32 {
+        14
+    }
+    fn default_font_family() -> String {
+        "\"JetBrains Mono\", Consolas, 'Courier New', monospace".to_string()
+    }
+    fn default_language() -> HashMap<String, AdvLanguageItem> {
         let mut language = HashMap::new();
         language.insert(
             "Cpp".to_string(),
@@ -47,6 +64,17 @@ impl Default for DatabaseConfig {
                 lsp_connect: None,
             },
         );
-        Self { langauge: language }
+        language
+    }
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            theme: Self::default_theme(),
+            language: Self::default_language(),
+            font_family: Self::default_font_family(),
+            font_size: Self::default_font_size(),
+        }
     }
 }

@@ -1,9 +1,9 @@
 import type { HTMLAttributes } from "react"
 import type { Problem } from "@/lib/client"
+import { css } from "@emotion/css"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import { LucideX } from "lucide-react"
-import styles from "./problem-detail.module.css"
 
 dayjs.extend(relativeTime)
 
@@ -17,7 +17,12 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 		<div {...props}>
 			<h3 className="font-semibold">{problem.name}</h3>
 			<p>{problem.description}</p>
-			<table className={styles.detailTable}>
+			<table className={css`
+				& td {
+					padding: calc(var(--spacing) * 1);
+				}
+				`}
+			>
 				<tbody>
 					{problem.url && (
 						<tr>

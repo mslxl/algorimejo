@@ -1,5 +1,5 @@
 import type { PayloadAction } from "@reduxjs/toolkit"
-import type { FC, SVGAttributes } from "react"
+import type { LucideIconName } from "@/components/lucide-icon"
 import { createSlice } from "@reduxjs/toolkit"
 import * as log from "@tauri-apps/plugin-log"
 
@@ -11,7 +11,7 @@ export interface Tab {
 export interface OpenedTab extends Tab {
 	id: string
 	title: string
-	icon?: FC<SVGAttributes<SVGElement>>
+	icon?: LucideIconName
 }
 
 export interface TabState {
@@ -57,7 +57,7 @@ const tabSlice = createSlice({
 			state,
 			action: PayloadAction<{
 				index: number
-				icon: FC<SVGAttributes<SVGElement>>
+				icon: LucideIconName
 			}>,
 		) => {
 			const { index, icon } = action.payload

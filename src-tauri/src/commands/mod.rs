@@ -212,8 +212,11 @@ pub async fn set_workspace_config<R: Runtime>(
     db: State<'_, DatabaseRepo>,
     data: DatabaseConfig,
 ) -> Result<(), String> {
-    let mut guard = db.config.write().map_err(|e| e.to_string())?;
-    *guard = data.clone();
+    {
+        let mut guard = db.config.write().map_err(|e| e.to_string())?;
+        *guard = data.clone();
+    }
+    db.save_config("config.toml").map_err(|e| e.to_string())?;
     let event = WorkspaceConfigUpdateEvent { new: data };
     event.emit(&app).map_err(|e| e.to_string())?;
     Ok(())
