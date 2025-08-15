@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
 use crate::{
-    config::{ProgramConfig, ProgramConfigData},
+    config::{ProgramConfig, ProgramConfigRepo},
     database::{
-        config::{AdvLanguageItem, DatabaseConfig},
+        config::{AdvLanguageItem, WorkspaceConfig},
         CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
         CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
         GetProblemsResult,
     },
     document::DocumentRepo,
-    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase}, runner::get_bundled_checker_names,
+    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
+    runner::get_bundled_checker_names,
 };
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -178,12 +179,12 @@ pub async fn apply_change(
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
 pub struct ProgramConfigUpdateEvent {
-    new: ProgramConfigData,
+    new: ProgramConfig,
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_prog_config(cfg: State<'_, ProgramConfig>) -> Result<ProgramConfigData, String> {
+pub async fn get_prog_config(cfg: State<'_, ProgramConfigRepo>) -> Result<ProgramConfig, String> {
     let guard = cfg.read().map_err(|e| e.to_string())?;
     Ok(guard.clone())
 }
@@ -192,24 +193,27 @@ pub async fn get_prog_config(cfg: State<'_, ProgramConfig>) -> Result<ProgramCon
 #[specta::specta]
 pub async fn set_prog_config<R: Runtime>(
     app: tauri::AppHandle<R>,
-    cfg: State<'_, ProgramConfig>,
-    data: ProgramConfigData,
+    cfg: State<'_, ProgramConfigRepo>,
+    data: ProgramConfig,
 ) -> Result<(), String> {
-    let mut guard = cfg.write().map_err(|e| e.to_string())?;
-    *guard = data.clone();
-    let event = ProgramConfigUpdateEvent { new: data };
-    event.emit(&app).map_err(|e| e.to_string())?;
+    {
+        let mut guard = cfg.write().map_err(|e| e.to_string())?;
+        *guard = data.clone();
+        let event = ProgramConfigUpdateEvent { new: data };
+        event.emit(&app).map_err(|e| e.to_string())?;
+    }
+    cfg.save().map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
 pub struct WorkspaceConfigUpdateEvent {
-    new: DatabaseConfig,
+    new: WorkspaceConfig,
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_workspace_config(db: State<'_, DatabaseRepo>) -> Result<DatabaseConfig, String> {
+pub async fn get_workspace_config(db: State<'_, DatabaseRepo>) -> Result<WorkspaceConfig, String> {
     let guard = db.config.read().map_err(|e| e.to_string())?;
     Ok(guard.clone())
 }
@@ -219,7 +223,7 @@ pub async fn get_workspace_config(db: State<'_, DatabaseRepo>) -> Result<Databas
 pub async fn set_workspace_config<R: Runtime>(
     app: tauri::AppHandle<R>,
     db: State<'_, DatabaseRepo>,
-    data: DatabaseConfig,
+    data: WorkspaceConfig,
 ) -> Result<(), String> {
     {
         let mut guard = db.config.write().map_err(|e| e.to_string())?;
@@ -249,5 +253,8 @@ pub async fn get_languages(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_checkers_name() -> Result<Vec<String>, String> {
-    Ok(get_bundled_checker_names().iter().map(|s| s.to_string()).collect())
+    Ok(get_bundled_checker_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect())
 }

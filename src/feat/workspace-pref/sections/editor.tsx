@@ -1,35 +1,13 @@
 import { PrefsItem, PrefsSection } from "@/components/prefs"
-import { getAvailableThemes } from "@/components/themes/theme"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../prefs-changeset-context"
+import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../workspace-prefs-changeset-context"
 
-export function WorkspaceEditorSection() {
+export function EditorSection() {
 	const changeset = useWorkspacePrefsChangeset()!
 	const updateChangeset = useWorkspacePrefsChangesetSetter()!
 	const applyChangeset = useWorkspacePrefsChangesetApply()!
 	return (
 		<PrefsSection section="Editor">
-			<PrefsItem name="Theme" description="The theme of the editor">
-				<Select
-					value={changeset.theme}
-					onValueChange={value => updateChangeset((draft) => { draft.theme = value })}
-				>
-					<SelectTrigger>
-						<SelectValue placeholder="Select a theme" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="default">Default(Zinc Light)</SelectItem>
-						{getAvailableThemes().map(theme => (
-							<SelectItem key={theme.value} value={theme.value}>
-								{theme.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				<Button onClick={() => applyChangeset()}>Apply</Button>
-			</PrefsItem>
 			<PrefsItem name="Font Size" description="The size of the font in the editor">
 				<Input
 					type="number"

@@ -1,5 +1,5 @@
 import type { Draft } from "immer"
-import type { WorkspaceConfig } from "@/lib/client"
+import type { ProgramConfig } from "@/lib/client"
 import { produce } from "immer"
 import { useCallback, useState } from "react"
 import { toast } from "react-toastify"
@@ -8,26 +8,25 @@ import { ErrorLabel } from "@/components/error-label"
 import { PrefsProvider, PrefsSectionList } from "@/components/prefs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
-import { useWorkspaceConfigMutation } from "@/hooks/use-workspace-config-mutation"
-import { CompilerSection } from "./sections/compiler"
-import { EditorSection } from "./sections/editor"
-import { WorkspacePrefsChangesetApplyContext, WorkspacePrefsChangesetContext, WorkspacePrefsChangesetSetterContext } from "./workspace-prefs-changeset-context"
+import { useProgramConfig } from "@/hooks/use-program-config"
+import { useProgramConfigMutation } from "@/hooks/use-program-config-mutation"
+import { ProgramPrefsChangesetApplyContext, ProgramPrefsChangesetContext, ProgramPrefsChangesetSetterContext } from "./program-prefs-changeset-context"
+import { WindowsSection } from "./sections/windows"
 
-export function WorkspacePref() {
-	const originalConfig = useWorkspaceConfig()
-	const mutation = useWorkspaceConfigMutation()
+export function ProgramPref() {
+	const originalConfig = useProgramConfig()
+	const mutation = useProgramConfigMutation()
 
-	const [changeset, setChangeset] = useState<WorkspaceConfig | null>(null)
+	const [changeset, setChangeset] = useState<ProgramConfig | null>(null)
 
-	const saveChangeset = useCallback(async (changeset: WorkspaceConfig) => {
+	const saveChangeset = useCallback(async (changeset: ProgramConfig) => {
 		await mutation.mutateAsync(changeset, {
 			onError: (error) => {
 				if (error instanceof Error) {
-					toast.error(`Fail to save workspace config: ${error.message}`)
+					toast.error(`Fail to save program config: ${error.message}`)
 				}
 				else {
-					toast.error(`Fail to save workspace config: ${error}`)
+					toast.error(`Fail to save program config: ${error}`)
 				}
 			},
 			onSuccess: () => {
@@ -35,9 +34,11 @@ export function WorkspacePref() {
 			},
 		})
 	}, [mutation])
-	const updateChangeset = useCallback((setter: (changeset: Draft<WorkspaceConfig>) => void, applyInstant?: boolean) => {
+
+	const updateChangeset = useCallback((setter: (changeset: Draft<ProgramConfig>) => void, applyInstant?: boolean) => {
 		if (!originalConfig.data)
 			return
+
 		const newChangeset = match(changeset)
 			.with(null, () => produce(originalConfig.data, setter))
 			.otherwise(() => produce(changeset, setter))
@@ -70,20 +71,19 @@ export function WorkspacePref() {
 	}
 
 	return (
-		<WorkspacePrefsChangesetContext.Provider value={changeset ?? originalConfig.data!}>
-			<WorkspacePrefsChangesetSetterContext.Provider value={updateChangeset}>
-				<WorkspacePrefsChangesetApplyContext.Provider value={applyChangeset}>
+		<ProgramPrefsChangesetContext.Provider value={changeset ?? originalConfig.data!}>
+			<ProgramPrefsChangesetSetterContext.Provider value={updateChangeset}>
+				<ProgramPrefsChangesetApplyContext.Provider value={applyChangeset}>
 					<div className="flex items-stretch">
 						<PrefsProvider>
 							<PrefsSectionList className="min-w-48 border-r px-2" />
 							<ScrollArea className="flex-1">
-								<EditorSection />
-								<CompilerSection />
+								<WindowsSection />
 							</ScrollArea>
 						</PrefsProvider>
 					</div>
-				</WorkspacePrefsChangesetApplyContext.Provider>
-			</WorkspacePrefsChangesetSetterContext.Provider>
-		</WorkspacePrefsChangesetContext.Provider>
+				</ProgramPrefsChangesetApplyContext.Provider>
+			</ProgramPrefsChangesetSetterContext.Provider>
+		</ProgramPrefsChangesetContext.Provider>
 	)
 }

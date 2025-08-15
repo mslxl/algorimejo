@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use crate::database::config::{AdvLanguageItem, DatabaseConfig};
+use crate::database::config::{AdvLanguageItem, WorkspaceConfig};
 use crate::schema::{documents, problems, solutions, test_cases};
 use anyhow::Result;
 use diesel::prelude::*;
@@ -25,7 +25,7 @@ pub mod language;
 
 pub struct DatabaseRepo {
     pool: Pool<ConnectionManager<SqliteConnection>>,
-    pub config: Arc<RwLock<DatabaseConfig>>,
+    pub config: Arc<RwLock<WorkspaceConfig>>,
     base_folder: PathBuf,
     doc_folder: PathBuf,
 }
@@ -114,7 +114,7 @@ impl DatabaseRepo {
     pub fn new(
         pool: Pool<ConnectionManager<SqliteConnection>>,
         base_folder: PathBuf,
-        config: DatabaseConfig,
+        config: WorkspaceConfig,
     ) -> Self {
         let doc_folder = base_folder.join("doc");
         Self {

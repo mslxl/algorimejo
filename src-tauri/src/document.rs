@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex, RwLock},
 };
 
 use anyhow::Result;
 use log::trace;
 use yrs::{
-    updates::{decoder::Decode, encoder::Encode},
+    updates::decoder::Decode,
     *,
 };
 

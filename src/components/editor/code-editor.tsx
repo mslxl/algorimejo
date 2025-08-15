@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { yCollab, YSyncConfig } from "y-codemirror.next"
 import * as Y from "yjs"
+import { useProgramConfig } from "@/hooks/use-program-config"
 import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
 import { commands } from "@/lib/client"
 import { ErrorLabel } from "../error-label"
@@ -62,6 +63,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	}, [ydoc, documentID])
 
 	const workspaceConfig = useWorkspaceConfig()
+	const programConfig = useProgramConfig()
 
 	const workspaceLangCfg = workspaceConfig.data?.language ?? {}
 
@@ -96,7 +98,10 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	else if (workspaceConfig.status === "error") {
 		return <ErrorLabel message={workspaceConfig.error} />
 	}
-	else if (languageExtension.status === "pending" || !isDocumentLoaded || workspaceConfig.status === "pending") {
+	else if (programConfig.status === "error") {
+		return <ErrorLabel message={programConfig.error} />
+	}
+	else if (languageExtension.status === "pending" || !isDocumentLoaded || workspaceConfig.status === "pending" || programConfig.status === "pending") {
 		return (
 			<div className="space-y-1 p-2">
 				<Skeleton className="h-[1em] w-full" />
@@ -118,7 +123,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 			ytext={ytext}
 			externalExtension={[
 				languageExtension.data,
-				configExtension(workspaceConfig.data),
+				configExtension(workspaceConfig.data, programConfig.data),
 				basicSetup({
 					lineNumbers: !textarea,
 					foldGutter: !textarea,

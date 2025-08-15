@@ -11,14 +11,14 @@ use tauri::{Manager, Runtime};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 use crate::{
-    config::ProgramConfig,
-    database::{self, config::DatabaseConfig},
+    config::ProgramConfigRepo,
+    database::{self, config::WorkspaceLocalDeserialized},
     document::DocumentRepo,
 };
 
 pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     trace!("setup database");
-    let config = app.state::<ProgramConfig>();
+    let config = app.state::<ProgramConfigRepo>();
 
     let mut writer = config.write()?;
     let mut is_config_modified = false;
@@ -61,12 +61,12 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
 
     let db_config_path = workspace.join("config.toml");
     let db_config = if !db_config_path.exists() {
-        DatabaseConfig::default()
+        WorkspaceLocalDeserialized::default()
     } else {
-        toml::from_str(&std::fs::read_to_string(db_config_path)?)?
+        toml::from_str::<WorkspaceLocalDeserialized>(&std::fs::read_to_string(db_config_path)?)?
     };
 
-    let repository = database::DatabaseRepo::new(pool, workspace.clone(), db_config);
+    let repository = database::DatabaseRepo::new(pool, workspace.clone(), db_config.into());
 
     app.manage(repository);
 
@@ -77,6 +77,7 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
 
     Ok(())
 }
+
 
 pub fn setup_document_repo<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     trace!("setup document repo");
@@ -94,13 +95,18 @@ pub fn setup_program_config<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
         std::fs::create_dir_all(config_dir)?;
     }
 
-    let cfg = ProgramConfig::load(config_path)?;
+    let cfg = ProgramConfigRepo::load(config_path)?;
     app.manage(cfg);
     Ok(())
 }
 
 
 pub fn setup_decorum(app: &tauri::App) -> Result<()> {
+    let cfg = app.state::<ProgramConfigRepo>();
+    let cfg_guard = cfg.read()?;
+    if cfg_guard.system_titlebar {
+        return Ok(())
+    }
     trace!("setup decorum");
     let main_window = app.get_webview_window("main").unwrap();
     main_window.create_overlay_titlebar().unwrap();

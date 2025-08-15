@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageBaseValues, LanguageServerProtocolConnectionTypeValues } from "@/lib/client/type"
-import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../prefs-changeset-context"
+import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../workspace-prefs-changeset-context"
 
 export function CompilerSection() {
 	const changeset = useWorkspacePrefsChangeset()!
@@ -53,14 +53,14 @@ export function CompilerSection() {
 			const newName = `${name} Copy ${uuid().substring(0, 4)}`
 			draft.language![newName] = cloneDeep(draft.language![name])
 			setSelectedLanguageName(newName)
-		})
+		}, true)
 	}
 	const [newLanguageName, setNewLanguageName] = useState("")
 	function handleRenameLanguage() {
 		setChangeset((draft) => {
 			draft.language![newLanguageName] = draft.language![selectedLanguageName]
 			delete draft.language![selectedLanguageName]
-		})
+		}, true)
 		setSelectedLanguageName(newLanguageName)
 	}
 	if (!changeset.language![selectedLanguageName]) {
@@ -159,7 +159,7 @@ export function CompilerSection() {
 							<div className="space-y-2">
 								<Label htmlFor="language-base" className="text-sm font-medium">Language Syntax Base</Label>
 								<Select
-									value={changeset.language![selectedLanguageName]!.base}
+									value={changeset.language[selectedLanguageName]!.base}
 									onValueChange={(value) => {
 										setChangeset((draft) => {
 											draft.language![selectedLanguageName]!.base = value as LanguageBase
@@ -193,7 +193,7 @@ export function CompilerSection() {
 										<Input
 											id="compile-cmd"
 											placeholder="e.g., gcc -o %output %input"
-											value={changeset.language![selectedLanguageName]!.cmd_compile}
+											value={changeset.language[selectedLanguageName]!.cmd_compile}
 											onInput={e => setChangeset((draft) => {
 												draft.language![selectedLanguageName]!.cmd_compile = e.currentTarget.value
 											})}
@@ -204,7 +204,7 @@ export function CompilerSection() {
 										<Input
 											id="run-cmd"
 											placeholder="e.g., ./%output"
-											value={changeset.language![selectedLanguageName]!.cmd_run ?? ""}
+											value={changeset.language[selectedLanguageName]!.cmd_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												draft.language![selectedLanguageName]!.cmd_run = e.currentTarget.value
 											})}
@@ -227,7 +227,7 @@ export function CompilerSection() {
 										<Input
 											id="before-run"
 											placeholder="Optional command to run before execution"
-											value={changeset.language![selectedLanguageName]!.cmd_before_run ?? ""}
+											value={changeset.language[selectedLanguageName]!.cmd_before_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												const value = e.currentTarget.value
 												if (value.trim().length === 0) {
@@ -247,7 +247,7 @@ export function CompilerSection() {
 										<Input
 											id="after-run"
 											placeholder="Optional command to run after execution"
-											value={changeset.language![selectedLanguageName]!.cmd_after_run ?? ""}
+											value={changeset.language[selectedLanguageName]!.cmd_after_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												const value = e.currentTarget.value
 												if (value.trim().length === 0) {
@@ -276,14 +276,14 @@ export function CompilerSection() {
 										<Input
 											id="lsp-cmd"
 											placeholder="e.g., clangd"
-											value={changeset.language![selectedLanguageName]!.lsp ?? ""}
+											value={changeset.language[selectedLanguageName]!.lsp ?? ""}
 											onInput={e => setChangeset((draft) => {
 												const value = e.currentTarget.value
 												if (value.trim().length === 0) {
-													draft.language![selectedLanguageName]!.lsp = null
+													draft.language[selectedLanguageName]!.lsp = null
 												}
 												else {
-													draft.language![selectedLanguageName]!.lsp = value
+													draft.language[selectedLanguageName]!.lsp = value
 												}
 											})}
 										/>
@@ -291,14 +291,14 @@ export function CompilerSection() {
 									<div className="space-y-3">
 										<Label className="text-sm font-medium">Connection Type</Label>
 										<RadioGroup
-											value={changeset.language![selectedLanguageName]!.lsp_connect ?? "Disabled"}
+											value={changeset.language[selectedLanguageName]!.lsp_connect ?? "Disabled"}
 											onValueChange={(value) => {
 												setChangeset((draft) => {
 													if (value === "Disabled") {
-														draft.language![selectedLanguageName]!.lsp_connect = null
+														draft.language[selectedLanguageName]!.lsp_connect = null
 													}
 													else {
-														draft.language![selectedLanguageName]!.lsp_connect = value as LanguageServerProtocolConnectionType
+														draft.language[selectedLanguageName]!.lsp_connect = value as LanguageServerProtocolConnectionType
 													}
 												})
 											}}

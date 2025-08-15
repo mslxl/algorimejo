@@ -31,23 +31,37 @@ pub struct AdvLanguageItem {
     pub lsp_connect: Option<LanguageServerProtocolConnectionType>,
 }
 
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 
-pub struct DatabaseConfig {
-    //TODO: Move the config item "theme" to program config
-    #[serde(default = "DatabaseConfig::default_theme")]
-    pub theme: String,
-    #[serde(default = "DatabaseConfig::default_font_family")]
+pub struct WorkspaceConfig {
     pub font_family: String,
-    #[serde(default = "DatabaseConfig::default_font_size")]
     pub font_size: u32,
-    #[serde(default = "DatabaseConfig::default_language")]
     pub language: HashMap<String, AdvLanguageItem>,
 }
-impl DatabaseConfig {
-    fn default_theme() -> String {
-        "default".to_string()
+
+impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
+    fn from(value: WorkspaceLocalDeserialized) -> Self {
+        Self {
+            font_family: value.font_family,
+            font_size: value.font_size,
+            language: value.language,
+        }
     }
+}
+
+// This struct is used to deserialize the database config from the local file
+// DO NOT use it to communicate with the tauri page, the type is not right with specta. use WorkspaceConfig instead.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceLocalDeserialized {
+    #[serde(default = "WorkspaceLocalDeserialized::default_font_family")]
+    pub font_family: String,
+    #[serde(default = "WorkspaceLocalDeserialized::default_font_size")]
+    pub font_size: u32,
+    #[serde(default = "WorkspaceLocalDeserialized::default_language")]
+    pub language: HashMap<String, AdvLanguageItem>,
+}
+impl WorkspaceLocalDeserialized {
     fn default_font_size() -> u32 {
         14
     }
@@ -72,10 +86,9 @@ impl DatabaseConfig {
     }
 }
 
-impl Default for DatabaseConfig {
+impl Default for WorkspaceLocalDeserialized {
     fn default() -> Self {
         Self {
-            theme: Self::default_theme(),
             language: Self::default_language(),
             font_family: Self::default_font_family(),
             font_size: Self::default_font_size(),

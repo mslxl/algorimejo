@@ -2,6 +2,7 @@ import type { HTMLAttributes } from "react"
 import type { OpenedTab } from "@/stores/tab-slice"
 import { LucideFileCode2, LucideX } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
+import { Suspense } from "react"
 import { useAppDispatch } from "@/hooks/use-app-dispatch"
 import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { close, select } from "@/stores/tab-slice"
 import { LucideIcon } from "../lucide-icon"
 import { TabbarScrollArea } from "../tabbar-scroll-area"
+import { Skeleton } from "../ui/skeleton"
 import { WelcomePage } from "../welcome-page"
 
 interface TabBarProps extends HTMLAttributes<HTMLDivElement> {}
@@ -92,7 +94,11 @@ interface TabContentProps {
 function TabContent({ tab }: TabContentProps) {
 	const UI = algorimejo.getUI(tab.key)
 	if (UI) {
-		return <UI data={tab.data} key={tab.id} />
+		return (
+			<Suspense fallback={<Skeleton className="size-full p-8" />}>
+				<UI data={tab.data} key={tab.id} />
+			</Suspense>
+		)
 	}
 	return (
 		<div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center select-none">

@@ -6,7 +6,8 @@ import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
 import { Editor, SolutionEditor } from "@/feat/editor/editor"
 import { selectEditorDocumentTabIndex, selectSolutionEditorTabIndex } from "@/feat/editor/utils"
-import { WorkspacePref } from "@/feat/workspace-pref/workspace-pref"
+import { ProgramPreference } from "@/feat/program-pref"
+import { WorkspacePreference } from "@/feat/workspace-pref"
 import { reducer as sidebarReducer } from "@/stores/sidebar-slice"
 import * as tabActions from "@/stores/tab-slice"
 import { reducer as tabReducer } from "@/stores/tab-slice"
@@ -65,7 +66,8 @@ export class Algorimejo {
 		(async () => {
 			this.provideUI("editor", Editor)
 			this.provideUI("solution-editor", SolutionEditor)
-			this.provideUI("workspace-pref", WorkspacePref)
+			this.provideUI("workspace-pref", WorkspacePreference)
+			this.provideUI("program-pref", ProgramPreference)
 			await Promise.all([
 				AlgorimejoApp.create().then((app) => {
 					this._app = app
@@ -174,6 +176,13 @@ export class Algorimejo {
 		this.createTab("workspace-pref", {}, {
 			title: "Workspace Preferences",
 			icon: "LucideColumnsSettings",
+		})
+	}
+
+	createProgramPrefTab() {
+		this.createTab("program-pref", {}, {
+			title: "Program Preferences",
+			icon: "LucideSettings2",
 		})
 	}
 

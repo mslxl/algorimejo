@@ -1,6 +1,6 @@
 import { useLayoutEffect } from "react"
 import { match, P } from "ts-pattern"
-import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
+import { useProgramConfig } from "@/hooks/use-program-config"
 import { getShadcnTheme } from "./theme"
 import zincTheme from "./zinc.css?raw"
 import zincDarkTheme from "./zincDark.css?raw"
@@ -9,7 +9,7 @@ interface ThemeProviderProps {
 	children: React.ReactNode
 }
 export function ThemeProvider({ children }: ThemeProviderProps) {
-	const config = useWorkspaceConfig()
+	const config = useProgramConfig()
 	const themeName = config.data?.theme
 
 	useLayoutEffect(() => {

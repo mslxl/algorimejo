@@ -47,16 +47,16 @@ async deleteTestcase(testcaseId: string) : Promise<null> {
 async getTestcases(problemId: string) : Promise<TestCase[]> {
     return await TAURI_INVOKE("get_testcases", { problemId });
 },
-async getProgConfig() : Promise<ProgramConfigData> {
+async getProgConfig() : Promise<ProgramConfig> {
     return await TAURI_INVOKE("get_prog_config");
 },
-async setProgConfig(data: ProgramConfigData) : Promise<null> {
+async setProgConfig(data: ProgramConfig) : Promise<null> {
     return await TAURI_INVOKE("set_prog_config", { data });
 },
-async getWorkspaceConfig() : Promise<DatabaseConfig> {
+async getWorkspaceConfig() : Promise<WorkspaceConfig> {
     return await TAURI_INVOKE("get_workspace_config");
 },
-async setWorkspaceConfig(data: DatabaseConfig) : Promise<null> {
+async setWorkspaceConfig(data: WorkspaceConfig) : Promise<null> {
     return await TAURI_INVOKE("set_workspace_config", { data });
 },
 async loadDocument(docId: string) : Promise<number[]> {
@@ -95,7 +95,6 @@ export type CreateProblemParams = { name: string; url: string | null; descriptio
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
-export type DatabaseConfig = { theme?: string; font_family?: string; font_size?: number; language?: Partial<{ [key in string]: AdvLanguageItem }> }
 export type Document = { id: string; create_datetime: string; modified_datetime: string; filename: string }
 export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
@@ -104,13 +103,14 @@ export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python"
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
-export type ProgramConfigData = { workspace: string | null }
-export type ProgramConfigUpdateEvent = { new: ProgramConfigData }
+export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean }
+export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
 export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }
 export type SortOrder = "Asc" | "Desc"
 export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
-export type WorkspaceConfigUpdateEvent = { new: DatabaseConfig }
+export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }> }
+export type WorkspaceConfigUpdateEvent = { new: WorkspaceConfig }
 
 /** tauri-specta globals **/
 
