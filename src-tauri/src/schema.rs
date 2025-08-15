@@ -29,6 +29,8 @@ diesel::table! {
         checker -> Nullable<Text>,
         create_datetime -> Timestamp,
         modified_datetime -> Timestamp,
+        time_limit -> Integer,
+        memory_limit -> Integer,
     }
 }
 

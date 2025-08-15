@@ -1,35 +1,45 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "algorimejo",
-  "version": "0.1.0",
-  "identifier": "com.algorimejo.app",
-  "build": {
-    "beforeDevCommand": "just beforeDev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "just beforeBuild",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "Algorimejo",
-        "width": 800,
-        "height": 600
-      }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Algorimejo",
+	"version": "0.1.0",
+	"identifier": "com.mslxl.algorimejo",
+	"build": {
+		"beforeDevCommand": "just beforeDev",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "just beforeBuild",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"withGlobalTauri": true,
+		"windows": [
+			{
+				"label": "main",
+				"title": "Algorimejo",
+				"width": 800,
+				"height": 600
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"category": "DeveloperTool",
+		"longDescription": "A tool for creating and managing problems for competitive programming",
+		"shortDescription": "Algorimejo",
+		"copyright": "GNU General Public License v3.0",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"externalBin": ["sidecar/consolepauser"],
+		"resources": [
+			"testlib/"
+		]
+	}
 }

@@ -1,6 +1,7 @@
 import type { Extension } from "@codemirror/state"
+import { indentWithTab } from "@codemirror/commands"
 import { Compartment, EditorState } from "@codemirror/state"
-import { EditorView } from "@codemirror/view"
+import { EditorView, keymap } from "@codemirror/view"
 import * as log from "@tauri-apps/plugin-log"
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -152,6 +153,7 @@ function CodeEditor({
 				yCollab(ytext, null, {
 					undoManager,
 				}),
+				keymap.of([indentWithTab]),
 				externalExtensionCompartment.of(externalExtension),
 			],
 		})

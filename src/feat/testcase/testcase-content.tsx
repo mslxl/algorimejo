@@ -5,6 +5,7 @@ import {
 	LucideBugPlay,
 	LucidePlay,
 	LucidePlus,
+	LucideSettings,
 	LucideTrash,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -12,20 +13,22 @@ import { toast } from "react-toastify"
 import { match, P } from "ts-pattern"
 import { CodeEditor } from "@/components/editor"
 import { ErrorLabel } from "@/components/error-label"
+import { ProblemSetting } from "@/components/problem-setting"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useProblem } from "@/hooks/use-problem"
 import { useTestcaseCreator } from "@/hooks/use-testcase-creator"
 import { useTestcases } from "@/hooks/use-testcases"
 import { cn } from "@/lib/utils"
-import { editorPageDataSchema } from "../editor/schema"
+import { solutionEditorPageDataSchema } from "../editor/schema"
 
 interface TestcaseContentProps {
 	tab: OpenedTab
 }
 export function TestcaseContent({ tab }: TestcaseContentProps) {
-	const problemTabData = editorPageDataSchema.parse(tab.data)
+	const problemTabData = solutionEditorPageDataSchema.parse(tab.data)
 	const problemQuery = useProblem(problemTabData.problemID)
 	const testcasesQuery = useTestcases(problemTabData.problemID)
 
@@ -96,6 +99,7 @@ interface TestcaseListProps {
 }
 function TestcaseList({ problem, testcases }: TestcaseListProps) {
 	const testcaseCreateMutation = useTestcaseCreator()
+	const [isEditingProblemOptions, setIsEditingProblemOptions] = useState(false)
 
 	const panelRef = useRef<HTMLDivElement>(null)
 	const [colsNum, setColsNum] = useState(1)
@@ -132,16 +136,31 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 
 	return (
 		<div className="flex h-full flex-col p-2 pr-0" ref={panelRef}>
+			<Dialog open={isEditingProblemOptions} onOpenChange={setIsEditingProblemOptions}>
+				<DialogContent>
+					<ProblemSetting
+						problemID={problem.id}
+						onCancel={() => setIsEditingProblemOptions(false)}
+						onSubmitCompleted={() => setIsEditingProblemOptions(false)}
+					/>
+				</DialogContent>
+			</Dialog>
+
 			<ScrollArea className="min-h-0 flex-1">
 				<div className="mr-2 p-2">
-					<div className="sticky top-0 mb-4 flex flex-wrap gap-0.5 rounded-md border bg-background p-2">
-						{testcases.map(testcase => (
-							<span
-								className="size-4 rounded-sm border bg-gray-100 transition-colors"
-								key={testcase.id}
-								title={`Testcase #${testcase.id}`}
-							/>
-						))}
+					<div className="mb-4 flex gap-2">
+						<div className="flex flex-1 flex-wrap gap-0.5 rounded-md border bg-background p-2">
+							{testcases.map(testcase => (
+								<span
+									className="size-4 rounded-sm border bg-gray-100 transition-colors"
+									key={testcase.id}
+									title={`Testcase #${testcase.id}`}
+								/>
+							))}
+						</div>
+						<Button variant="outline" size="icon" onClick={() => setIsEditingProblemOptions(true)}>
+							<LucideSettings />
+						</Button>
 					</div>
 
 					<ul className="space-y-4">

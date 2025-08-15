@@ -1,6 +1,8 @@
 #[cfg(debug_assertions)]
 use specta_typescript::formatter;
 use specta_typescript::Typescript;
+use tauri::Manager;
+use tauri_plugin_decorum::WebviewWindowExt;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 pub mod commands;
@@ -10,6 +12,8 @@ pub mod document;
 pub mod model;
 pub mod schema;
 pub mod setup;
+pub mod runner;
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,6 +45,7 @@ pub fn run() {
             // TODO: cataloging
             commands::load_document,
             commands::apply_change,
+            commands::get_checkers_name,
         ]);
 
     #[cfg(debug_assertions)]
@@ -56,12 +61,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_decorum::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
+            builder.mount_events(app);
             setup::setup_program_config(app)?;
             setup::setup_database(app)?;
             setup::setup_document_repo(app)?;
-            builder.mount_events(app);
+            setup::setup_decorum(app)?;
+
 
             Ok(())
         })

@@ -5,8 +5,10 @@ use diesel::{
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::{info, trace};
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+use tauri_plugin_decorum::WebviewWindowExt; 
 use tauri::{Manager, Runtime};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 use crate::{
     config::ProgramConfig,
@@ -94,5 +96,27 @@ pub fn setup_program_config<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
 
     let cfg = ProgramConfig::load(config_path)?;
     app.manage(cfg);
+    Ok(())
+}
+
+
+pub fn setup_decorum(app: &tauri::App) -> Result<()> {
+    trace!("setup decorum");
+    let main_window = app.get_webview_window("main").unwrap();
+    main_window.create_overlay_titlebar().unwrap();
+
+    // Some macOS-specific helpers
+    #[cfg(target_os = "macos")] {
+        // Set a custom inset to the traffic lights
+        main_window.set_traffic_lights_inset(12.0, 16.0).unwrap();
+
+        // Make window transparent without privateApi
+        main_window.make_transparent().unwrap();
+
+        // Set window level
+        // NSWindowLevel: https://developer.apple.com/documentation/appkit/nswindowlevel
+        main_window.set_window_level(25).unwrap()
+    }
+
     Ok(())
 }

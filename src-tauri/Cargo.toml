@@ -1,11 +1,14 @@
 [package]
 name = "algorimejo"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A tool for creating and managing problems for competitive programming"
+authors = ["mslxl"]
 edition = "2021"
+default-run = "algorimejo"
+license = "GPL-3.0-only"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.bundle]
+identifier = "com.mslxl.algorimejo"
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -38,4 +41,6 @@ log = "0.4.27"
 diesel_migrations = { version = "2.2.0", features = ["sqlite"] }
 yrs = { version = "0.24.0", features = ["sync"] }
 nom = { version = "8.0.0", features = ["alloc"] }
+once_cell = "1.21.3"
+tauri-plugin-decorum = "1.1.1"
 

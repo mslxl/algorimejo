@@ -25,6 +25,8 @@ export function useDefaultProblemCreator() {
 				description: null,
 				statement: null,
 				checker: null,
+				time_limit: 3000,
+				memory_limit: 5 * 1024,
 				initial_solution: {
 					name: "Solution 1",
 					language: "cpp",

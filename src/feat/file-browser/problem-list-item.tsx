@@ -3,6 +3,7 @@ import type { Problem, Solution } from "@/lib/client"
 import * as log from "@tauri-apps/plugin-log"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
+import { SolutionSetting } from "@/components/solution-setting"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,8 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset"
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectEditorDocumentTabIndex } from "../editor/utils"
-import { SolutionSetting } from "./solution-setting"
+import { selectEditorDocumentTabIndex, selectSolutionEditorTabIndex } from "../editor/utils"
 import { TreeStyledLi } from "./tree-styled-item"
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
@@ -87,7 +87,7 @@ export function ProblemListItem({
 			onSuccess: () => {
 				if (solution.document) {
 					const tabIndex = algorimejo.selectStateValue(
-						selectEditorDocumentTabIndex(solution.document.id),
+						selectSolutionEditorTabIndex(solution.id),
 					)
 					if (tabIndex !== -1) {
 						algorimejo.closeTab(tabIndex)

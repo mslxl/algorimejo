@@ -5,7 +5,7 @@ import { toast } from "react-toastify"
 import * as z from "zod"
 import { ErrorLabel } from "@/components/error-label"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,14 +20,14 @@ interface SolutionSettingContentProps extends SolutionSettingProps {
 	onSubmitCompleted?: () => void
 }
 
-const solutionSchema = z.object({
+const solutionSettingFormSchema = z.object({
 	name: z.string(),
 	author: z.string().optional(),
 	language: z.string(),
 })
 function SolutionSettingContent({ solutionData, availableLanguages, solutionID, onSubmitCompleted, onCancel }: SolutionSettingContentProps) {
-	const form = useForm<z.infer<typeof solutionSchema>>({
-		resolver: zodResolver(solutionSchema),
+	const form = useForm<z.infer<typeof solutionSettingFormSchema>>({
+		resolver: zodResolver(solutionSettingFormSchema),
 		defaultValues: {
 			name: solutionData.name,
 			author: solutionData.author,
@@ -37,7 +37,7 @@ function SolutionSettingContent({ solutionData, availableLanguages, solutionID, 
 
 	const changesetMutation = useSolutionChangeset()
 
-	function handleSubmit(data: z.infer<typeof solutionSchema>) {
+	function handleSubmit(data: z.infer<typeof solutionSettingFormSchema>) {
 		changesetMutation.mutate({
 			id: solutionID,
 			problemID: solutionData.problem_id,
@@ -76,6 +76,7 @@ function SolutionSettingContent({ solutionData, availableLanguages, solutionID, 
 								<FormControl>
 									<Input {...field} className="w-full" placeholder="Enter solution name" />
 								</FormControl>
+								<FormMessage />
 							</FormItem>
 						)
 					}}
@@ -91,6 +92,7 @@ function SolutionSettingContent({ solutionData, availableLanguages, solutionID, 
 							<FormControl>
 								<Input {...field} className="w-full" placeholder="Enter author name" />
 							</FormControl>
+							<FormMessage />
 						</FormItem>
 					)}
 				/>
@@ -108,6 +110,7 @@ function SolutionSettingContent({ solutionData, availableLanguages, solutionID, 
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
+										<FormMessage />
 									</FormControl>
 									<SelectContent>
 										{

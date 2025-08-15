@@ -44,6 +44,7 @@ pub enum SortOrder {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct GetProblemsParams {
     pub cursor: Option<String>,
     pub limit: Option<i32>,
@@ -53,6 +54,7 @@ pub struct GetProblemsParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct GetProblemsResult {
     pub problems: Vec<Problem>,
     pub next_cursor: Option<String>,
@@ -60,16 +62,20 @@ pub struct GetProblemsResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateProblemParams {
     pub name: String,
     pub url: Option<String>,
     pub description: Option<String>,
     pub statement: Option<String>,
     pub checker: Option<String>,
+    pub time_limit: i32,
+    pub memory_limit: i32,
     pub initial_solution: Option<CreateSolutionParams>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateSolutionParams {
     pub author: Option<String>,
     pub name: String,
@@ -78,16 +84,19 @@ pub struct CreateSolutionParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateProblemResult {
     pub problem: Problem,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateSolutionResult {
     pub solution: Solution,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateCheckerParams {
     pub name: String,
     pub language: String,
@@ -96,6 +105,7 @@ pub struct CreateCheckerParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+
 pub struct CreateCheckerResult {
     pub checker: Checker,
 }
@@ -179,6 +189,8 @@ impl DatabaseRepo {
                 problems::id.eq(&problem_id),
                 problems::name.eq(&params.name),
                 problems::url.eq(&params.url),
+                problems::time_limit.eq(params.time_limit),
+                problems::memory_limit.eq(params.memory_limit),
                 problems::description.eq(&description),
                 problems::statement.eq(&params.statement),
                 problems::checker.eq(&params.checker),
@@ -207,6 +219,8 @@ impl DatabaseRepo {
                 checker: params.checker,
                 create_datetime: now,
                 modified_datetime: now,
+                time_limit: params.time_limit,
+                memory_limit: params.memory_limit,
                 solutions,
             };
 
@@ -405,6 +419,8 @@ impl DatabaseRepo {
             url: problem_row.url,
             description: problem_row.description,
             statement: problem_row.statement,
+            time_limit: problem_row.time_limit,
+            memory_limit: problem_row.memory_limit,
             checker: problem_row.checker,
             create_datetime: problem_row.create_datetime,
             modified_datetime: problem_row.modified_datetime,
@@ -514,6 +530,8 @@ impl DatabaseRepo {
                 description: row.description.clone(),
                 statement: row.statement.clone(),
                 checker: row.checker.clone(),
+                time_limit: row.time_limit,
+                memory_limit: row.memory_limit,
                 create_datetime: row.create_datetime,
                 modified_datetime: row.modified_datetime,
                 solutions: problem_solutions,

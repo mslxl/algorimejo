@@ -4,9 +4,26 @@ use diesel::Selectable;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+
+//TODO: Implement the statement enum and add it to database
+// #[derive(Debug, Serialize, Deserialize, Type)]
+// #[serde(tag = "type")]
+// pub enum Statement{
+//     Markdown{
+//         markdown: String
+//     },
+//     Text{
+//         txt: String
+//     },
+//     PDF {
+//         path: String
+//     }
+// }
+
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
 #[diesel(table_name = crate::schema::problems)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+
 pub struct Problem {
     pub id: String,
     pub name: String,
@@ -16,6 +33,8 @@ pub struct Problem {
     pub checker: Option<String>,
     pub create_datetime: NaiveDateTime,
     pub modified_datetime: NaiveDateTime,
+    pub time_limit: i32,
+    pub memory_limit: i32,
     pub solutions: Vec<Solution>,
 }
 
@@ -28,12 +47,15 @@ pub struct ProblemChangeset {
     pub description: Option<String>,
     pub statement: Option<String>,
     pub checker: Option<String>,
+    pub time_limit: Option<i32>,
+    pub memory_limit: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
 #[diesel(table_name = crate::schema::solutions)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 #[diesel(belongs_to(Problem))]
+
 pub struct Solution {
     pub id: String,
     pub author: String,
@@ -62,6 +84,8 @@ pub struct ProblemRow {
     pub description: String,
     pub statement: Option<String>,
     pub checker: Option<String>,
+    pub time_limit: i32,
+    pub memory_limit: i32,
     pub create_datetime: NaiveDateTime,
     pub modified_datetime: NaiveDateTime,
 }
@@ -81,6 +105,7 @@ pub struct SolutionRow {
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type)]
 #[diesel(table_name = crate::schema::checker)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+
 pub struct Checker {
     pub id: String,
     pub name: String,
@@ -93,6 +118,7 @@ pub struct Checker {
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Type, Insertable)]
 #[diesel(table_name = crate::schema::documents)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+
 pub struct Document {
     pub id: String,
     pub create_datetime: NaiveDateTime,
@@ -103,6 +129,7 @@ pub struct Document {
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Type, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::test_cases)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+
 pub struct TestCase {
     pub id: String,
     pub problem_id: String,

@@ -20,6 +20,7 @@ pub enum LanguageServerProtocolConnectionType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+
 pub struct AdvLanguageItem {
     pub base: LanguageBase,
     pub cmd_compile: String,
@@ -31,6 +32,7 @@ pub struct AdvLanguageItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+
 pub struct DatabaseConfig {
     //TODO: Move the config item "theme" to program config
     #[serde(default = "DatabaseConfig::default_theme")]

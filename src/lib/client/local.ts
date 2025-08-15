@@ -64,6 +64,9 @@ async loadDocument(docId: string) : Promise<number[]> {
 },
 async applyChange(docId: string, change: number[]) : Promise<null> {
     return await TAURI_INVOKE("apply_change", { docId, change });
+},
+async getCheckersName() : Promise<string[]> {
+    return await TAURI_INVOKE("get_checkers_name");
 }
 }
 
@@ -88,7 +91,7 @@ export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_bef
 export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
 export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
 export type CreateCheckerResult = { checker: Checker }
-export type CreateProblemParams = { name: string; url: string | null; description: string | null; statement: string | null; checker: string | null; initial_solution: CreateSolutionParams | null }
+export type CreateProblemParams = { name: string; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number; memory_limit: number; initial_solution: CreateSolutionParams | null }
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
@@ -99,8 +102,8 @@ export type GetProblemsResult = { problems: Problem[]; next_cursor: string | nul
 export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text"
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
-export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; solutions: Solution[] }
-export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null }
+export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
+export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfigData = { workspace: string | null }
 export type ProgramConfigUpdateEvent = { new: ProgramConfigData }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }

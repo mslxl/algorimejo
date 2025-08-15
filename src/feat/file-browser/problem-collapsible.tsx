@@ -2,6 +2,7 @@ import type { Problem } from "@/lib/client"
 import { LucideFile } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
+import { ProblemSetting } from "@/components/problem-setting"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,6 +26,7 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import {
 	Tooltip,
 	TooltipContent,
@@ -50,6 +52,7 @@ export function ProblemCollapsible({
 	open,
 }: ProblemCollapsibleProps) {
 	const [isRenaming, setIsRenaming] = useState(false)
+	const [isEditingOptions, setIsEditingOptions] = useState(false)
 	const problemDeleteMutation = useProblemDeleter()
 	const problemChangesetMutation = useProblemChangeset()
 	const solutionCreateMutation = useSolutionCreator()
@@ -64,7 +67,7 @@ export function ProblemCollapsible({
 				for (const sol of problem.solutions) {
 					if (sol.document) {
 						const tabIndex = algorimejo.selectStateValue(
-							selectEditorDocumentTabIndex(sol.document.id),
+							selectEditorDocumentTabIndex(sol.id),
 						)
 						if (tabIndex !== -1) {
 							algorimejo.closeTab(tabIndex)
@@ -102,6 +105,8 @@ export function ProblemCollapsible({
 					description: null,
 					statement: null,
 					checker: null,
+					time_limit: null,
+					memory_limit: null,
 				},
 			},
 			{
@@ -130,6 +135,16 @@ export function ProblemCollapsible({
 			onOpenChange={onOpenChange}
 			open={open}
 		>
+			<Dialog open={isEditingOptions} onOpenChange={setIsEditingOptions}>
+				<DialogContent>
+					<ProblemSetting
+						problemID={problem.id}
+						onCancel={() => setIsEditingOptions(false)}
+						onSubmitCompleted={() => setIsEditingOptions(false)}
+					/>
+				</DialogContent>
+			</Dialog>
+
 			<ContextMenu>
 				{isRenaming
 					? (
@@ -177,6 +192,8 @@ export function ProblemCollapsible({
 					<ContextMenuItem onClick={handleCreateSolution}>
 						New Solution
 					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
 					<ContextMenuSeparator />
 					<ContextMenuItem onClick={handleStartRename}>Rename</ContextMenuItem>
 					<AlertDialog>

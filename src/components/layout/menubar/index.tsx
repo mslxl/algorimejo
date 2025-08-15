@@ -3,7 +3,7 @@ import { MenubarFileItem } from "./file-item"
 
 export function AlgorimejoMenubar() {
 	return (
-		<Menubar className="rounded-none">
+		<Menubar className="rounded-none [&>*]:z-1000">
 			<MenubarFileItem />
 		</Menubar>
 	)

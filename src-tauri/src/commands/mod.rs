@@ -9,7 +9,7 @@ use crate::{
         GetProblemsResult,
     },
     document::DocumentRepo,
-    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
+    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase}, runner::get_bundled_checker_names,
 };
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -244,4 +244,10 @@ pub async fn get_languages(
     db: State<'_, DatabaseRepo>,
 ) -> Result<HashMap<String, AdvLanguageItem>, String> {
     db.get_languages().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_checkers_name() -> Result<Vec<String>, String> {
+    Ok(get_bundled_checker_names().iter().map(|s| s.to_string()).collect())
 }

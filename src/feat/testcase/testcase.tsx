@@ -25,7 +25,7 @@ export function Testcase() {
 	function handleOpenFileBrowser() {
 		dispatch(sidebarReducers.select({ key: "file-browser" }))
 	}
-	if (currentTab === null || currentTab.key !== "editor") {
+	if (currentTab === null || (currentTab.key !== "solution-editor" && currentTab.key !== "editor")) {
 		return (
 			<div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center select-none">
 				<h1 className="text-3xl font-bold text-gray-800">No Active Solution</h1>
