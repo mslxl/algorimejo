@@ -21,10 +21,12 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset"
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectMonacoDocumentTabIndex } from "../editor/utils"
+import { selectEditorDocumentTabIndex } from "../editor/utils"
+import { SolutionSetting } from "./solution-setting"
 import { TreeStyledLi } from "./tree-styled-item"
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
@@ -37,6 +39,7 @@ export function ProblemListItem({
 	...props
 }: ProblemListItemProps) {
 	const [isRenaming, setIsRenaming] = useState(false)
+	const [isEditingOptions, setIsEditingOptions] = useState(false)
 	const solutionChangesetMutation = useSolutionChangeset()
 	const solutionDeleterMutation = useSolutionDeleter()
 	const inputRenameRef = useRef<HTMLInputElement>(null)
@@ -52,6 +55,7 @@ export function ProblemListItem({
 		solutionChangesetMutation.mutate(
 			{
 				id: solution.id,
+				problemID: solution.problem_id,
 				changeset: {
 					name: newName,
 					author: null,
@@ -65,7 +69,7 @@ export function ProblemListItem({
 				onSuccess: () => {
 					if (solution.document) {
 						const tabIndex = algorimejo.selectStateValue(
-							selectMonacoDocumentTabIndex(solution.document.id),
+							selectEditorDocumentTabIndex(solution.document.id),
 						)
 						if (tabIndex !== -1) {
 							algorimejo.renameTab(tabIndex, `${newName} - ${problem.name}`)
@@ -83,7 +87,7 @@ export function ProblemListItem({
 			onSuccess: () => {
 				if (solution.document) {
 					const tabIndex = algorimejo.selectStateValue(
-						selectMonacoDocumentTabIndex(solution.document.id),
+						selectEditorDocumentTabIndex(solution.document.id),
 					)
 					if (tabIndex !== -1) {
 						algorimejo.closeTab(tabIndex)
@@ -94,13 +98,11 @@ export function ProblemListItem({
 	}
 	function handleOpenSolution() {
 		if (solution.document) {
-			algorimejo.createEditorTab(
-				solution.document.id,
-				problem.id,
+			algorimejo.createSolutionEditorTab(
 				solution.id,
+				problem.id,
 				{
 					title: `${solution.name} - ${problem.name}`,
-					language: solution.language,
 				},
 			)
 		}
@@ -116,6 +118,28 @@ export function ProblemListItem({
 	}
 	return (
 		<TreeStyledLi {...props}>
+			<Dialog open={isEditingOptions} onOpenChange={setIsEditingOptions}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle className="select-none">
+							Solution Options:
+							{" "}
+							{solution.name}
+							{" "}
+							-
+							{" "}
+							{problem.name}
+						</DialogTitle>
+					</DialogHeader>
+					<SolutionSetting
+						solutionID={solution.id}
+						problemID={problem.id}
+						onCancel={() => setIsEditingOptions(false)}
+						onSubmitCompleted={() => setIsEditingOptions(false)}
+					/>
+				</DialogContent>
+			</Dialog>
+
 			{isRenaming
 				? (
 						<input
@@ -147,6 +171,8 @@ export function ProblemListItem({
 							</ContextMenuTrigger>
 							<ContextMenuContent>
 								<ContextMenuItem>Open</ContextMenuItem>
+								<ContextMenuSeparator />
+								<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
 								<ContextMenuSeparator />
 								<ContextMenuItem onClick={handleStartRename}>
 									Rename

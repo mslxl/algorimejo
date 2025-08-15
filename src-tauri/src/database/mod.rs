@@ -552,6 +552,23 @@ impl DatabaseRepo {
         })
     }
 
+    pub fn get_solution(&self, solution_id: &str) -> Result<Solution> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let solution = solutions::table
+            .filter(solutions::id.eq(solution_id))
+            .select(SolutionRow::as_select())
+            .first::<SolutionRow>(&mut conn)?;
+        let document = self.get_document(&solution.document_id)?;
+        Ok(Solution {
+            id: solution.id,
+            author: solution.author,
+            name: solution.name,
+            language: solution.language,
+            problem_id: solution.problem_id,
+            document: document,
+        })
+    }
+
     pub fn update_problem(&self, problem_id: &str, params: ProblemChangeset) -> Result<()> {
         let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
 

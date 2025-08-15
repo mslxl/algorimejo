@@ -1,5 +1,5 @@
 import { makeStateSelector } from "@/lib/algorimejo/algorimejo"
-import { monacoEditorPageDataSchema } from "./schema"
+import { editorPageDataSchema, solutionEditorPageDataSchema } from "./schema"
 
 /**
  * Select the tab index of the monaco editor tab that contains the given documentID
@@ -12,15 +12,28 @@ import { monacoEditorPageDataSchema } from "./schema"
  * @param documentID
  * @returns -1 if no such tab is found
  */
-export function selectMonacoDocumentTabIndex(documentID: string) {
+export function selectEditorDocumentTabIndex(documentID: string) {
 	return makeStateSelector((state) => {
 		return state.tab.tabs.findIndex((t) => {
 			if (t.key !== "editor")
 				return false
-			const result = monacoEditorPageDataSchema.safeParse(t.data)
+			const result = editorPageDataSchema.safeParse(t.data)
 			if (!result.success)
 				return false
 			return result.data.documentID === documentID
+		})
+	})
+}
+
+export function selectSolutionEditorTabIndex(solutionID: string) {
+	return makeStateSelector((state) => {
+		return state.tab.tabs.findIndex((t) => {
+			if (t.key !== "solution-editor")
+				return false
+			const result = solutionEditorPageDataSchema.safeParse(t.data)
+			if (!result.success)
+				return false
+			return result.data.solutionID === solutionID
 		})
 	})
 }

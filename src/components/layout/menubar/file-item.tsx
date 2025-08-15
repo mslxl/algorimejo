@@ -39,13 +39,11 @@ export function MenubarFileItem() {
 			onSuccess: (data) => {
 				const problem = data.problem
 				if (problem.solutions[0].document) {
-					algorimejo.createEditorTab(
-						problem.solutions[0].document.id,
+					algorimejo.createSolutionEditorTab(
 						problem.id,
 						problem.solutions[0].id,
 						{
 							title: `${problem.name} - ${problem.solutions[0].name}`,
-							language: problem.solutions[0].language,
 						},
 					)
 				}

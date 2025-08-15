@@ -19,13 +19,13 @@ import { useProblem } from "@/hooks/use-problem"
 import { useTestcaseCreator } from "@/hooks/use-testcase-creator"
 import { useTestcases } from "@/hooks/use-testcases"
 import { cn } from "@/lib/utils"
-import { monacoEditorPageDataSchema } from "../editor/schema"
+import { editorPageDataSchema } from "../editor/schema"
 
 interface TestcaseContentProps {
 	tab: OpenedTab
 }
 export function TestcaseContent({ tab }: TestcaseContentProps) {
-	const problemTabData = monacoEditorPageDataSchema.parse(tab.data)
+	const problemTabData = editorPageDataSchema.parse(tab.data)
 	const problemQuery = useProblem(problemTabData.problemID)
 	const testcasesQuery = useTestcases(problemTabData.problemID)
 
@@ -168,7 +168,7 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 											<CodeEditor
 												className="size-full min-h-32"
 												documentID={testcase.input_document_id}
-												language="text"
+												language="Text"
 												textarea
 											/>
 										</div>
@@ -185,7 +185,7 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 											<CodeEditor
 												className="size-full min-h-32"
 												documentID={testcase.answer_document_id}
-												language="text"
+												language="Text"
 												textarea
 											/>
 										</div>

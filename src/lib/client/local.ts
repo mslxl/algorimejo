@@ -23,6 +23,9 @@ async createSolution(problemId: string, params: CreateSolutionParams) : Promise<
 async createChecker(params: CreateCheckerParams) : Promise<CreateCheckerResult> {
     return await TAURI_INVOKE("create_checker", { params });
 },
+async getSolution(solutionId: string) : Promise<Solution> {
+    return await TAURI_INVOKE("get_solution", { solutionId });
+},
 async deleteProblem(problemId: string) : Promise<null> {
     return await TAURI_INVOKE("delete_problem", { problemId });
 },
@@ -94,7 +97,7 @@ export type Document = { id: string; create_datetime: string; modified_datetime:
 export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
 export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
-export type LanguageBase = "Cpp" | "TypeScript" | "Python"
+export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text"
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null }

@@ -26,6 +26,7 @@ pub fn run() {
             commands::create_problem,
             commands::create_solution,
             commands::create_checker,
+            commands::get_solution,
             commands::delete_problem,
             commands::delete_solution,
             commands::update_problem,

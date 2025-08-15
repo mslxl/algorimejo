@@ -1,11 +1,11 @@
 import type { FC } from "react"
-import type { CreateEditorTabOptions, CreateTabOptions } from "./options"
+import type { CreateEditorTabOptions, CreateSolutionEditorTabOptions, CreateTabOptions } from "./options"
 import { configureStore } from "@reduxjs/toolkit"
 import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
-import { Editor } from "@/feat/editor/editor"
-import { selectMonacoDocumentTabIndex } from "@/feat/editor/utils"
+import { Editor, SolutionEditor } from "@/feat/editor/editor"
+import { selectEditorDocumentTabIndex, selectSolutionEditorTabIndex } from "@/feat/editor/utils"
 import { WorkspacePref } from "@/feat/workspace-pref/workspace-pref"
 import { reducer as sidebarReducer } from "@/stores/sidebar-slice"
 import * as tabActions from "@/stores/tab-slice"
@@ -64,6 +64,7 @@ export class Algorimejo {
 	constructor() {
 		(async () => {
 			this.provideUI("editor", Editor)
+			this.provideUI("solution-editor", SolutionEditor)
 			this.provideUI("workspace-pref", WorkspacePref)
 			await Promise.all([
 				AlgorimejoApp.create().then((app) => {
@@ -166,7 +167,6 @@ export class Algorimejo {
 				icon,
 			}),
 		)
-		// TODO: set title and icon from options
 		return id
 	}
 
@@ -184,7 +184,7 @@ export class Algorimejo {
 		{ reuseTab = true, language, ...options }: CreateEditorTabOptions,
 	) {
 		const index = reuseTab
-			? this.selectStateValue(selectMonacoDocumentTabIndex(documentID))
+			? this.selectStateValue(selectEditorDocumentTabIndex(documentID))
 			: -1
 		if (index === -1) {
 			return this.createTab(
@@ -199,7 +199,28 @@ export class Algorimejo {
 			)
 		}
 		this.selectTab(index)
-		// TODO: set title and icon from options
+		return this.selectStateValue(v => v.tab.tabs[index].id)
+	}
+
+	createSolutionEditorTab(
+		solutionID: string,
+		problemID: string,
+		{ reuseTab = true, ...options }: CreateSolutionEditorTabOptions,
+	) {
+		const index = reuseTab
+			? this.selectStateValue(selectSolutionEditorTabIndex(solutionID))
+			: -1
+		if (index === -1) {
+			return this.createTab(
+				"solution-editor",
+				{
+					problemID,
+					solutionID,
+				},
+				options,
+			)
+		}
+		this.selectTab(index)
 		return this.selectStateValue(v => v.tab.tabs[index].id)
 	}
 

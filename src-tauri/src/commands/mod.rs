@@ -9,7 +9,7 @@ use crate::{
         GetProblemsResult,
     },
     document::DocumentRepo,
-    model::{Problem, ProblemChangeset, SolutionChangeset, TestCase},
+    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
 };
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,15 @@ pub async fn create_solution(
 ) -> Result<CreateSolutionResult, String> {
     db.create_solution(&problem_id, params)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_solution(
+    solution_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Solution, String> {
+    db.get_solution(&solution_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

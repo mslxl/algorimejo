@@ -9,3 +9,6 @@ export interface CreateEditorTabOptions extends CreateTabOptions {
 	reuseTab?: boolean
 	language?: string
 }
+export interface CreateSolutionEditorTabOptions extends CreateTabOptions {
+	reuseTab?: boolean
+}

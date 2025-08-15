@@ -10,6 +10,10 @@ function getLanguageSyntaxExtension(lang: Language): Promise<Extension> {
 	return match(lang)
 		.with("Text", () => Promise.resolve([]))
 		.with("Cpp", () => import("@codemirror/lang-cpp").then(mod => mod.cpp()))
+		.with("Python", () => import("@codemirror/lang-python").then(mod => mod.python()))
+		.with("TypeScript", () => import("@codemirror/lang-javascript").then(mod => mod.javascript({ typescript: true })))
+		.with("JavaScript", () => import("@codemirror/lang-javascript").then(mod => mod.javascript({ typescript: false })))
+		.with("Go", () => import("@codemirror/lang-go").then(mod => mod.go()))
 		.otherwise(() => {
 			log.warn(`unknown language: ${lang}`)
 			return Promise.resolve([])

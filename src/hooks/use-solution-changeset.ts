@@ -12,6 +12,7 @@ export function useSolutionChangeset() {
 			changeset,
 		}: {
 			id: string
+			problemID: string
 			changeset: SolutionChangeset
 		}) => {
 			return await commands.updateSolution(id, changeset)
@@ -19,7 +20,7 @@ export function useSolutionChangeset() {
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })
 			queryClient.invalidateQueries({
-				queryKey: problemQueryKeyOf(variables.id),
+				queryKey: problemQueryKeyOf(variables.problemID),
 			})
 		},
 	})

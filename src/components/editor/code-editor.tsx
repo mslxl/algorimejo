@@ -1,10 +1,8 @@
 import type { Extension } from "@codemirror/state"
-import type { Language } from "./language"
 import { Compartment, EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import * as log from "@tauri-apps/plugin-log"
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup"
-import { capitalize } from "lodash/fp"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { yCollab, YSyncConfig } from "y-codemirror.next"
@@ -23,7 +21,7 @@ interface CodeEditorProps {
 	textarea?: boolean
 }
 
-export function CodeEditorSuspend({ className,	documentID,	language = "text",	textarea }: CodeEditorProps) {
+export function CodeEditorSuspend({ className,	documentID,	language = "Text",	textarea }: CodeEditorProps) {
 	const [isDocumentLoaded, setIsDocumentLoaded] = useState(false)
 	const ydoc = useMemo(() => {
 		const doc = new Y.Doc()
@@ -64,7 +62,32 @@ export function CodeEditorSuspend({ className,	documentID,	language = "text",	te
 
 	const workspaceConfig = useWorkspaceConfig()
 
-	const languageExtension = useLanguageExtension(capitalize(language) as Language)
+	const workspaceLangCfg = workspaceConfig.data?.language ?? {}
+
+	// Load language
+	// if user set language to Text, use Text
+	// else use the language base from workspace setting
+	const langBase = language === "Text" ? "Text" : workspaceLangCfg[language]?.base ?? null
+	const languageExtension = useLanguageExtension(langBase ?? "Text")
+	// if the language is not configured in workspace setting, show error toast
+	useEffect(() => {
+		if (workspaceConfig.status !== "success")
+			return
+		if (langBase === null) {
+			const message = `Language "${language}" is not configured in workspace setting, please check it in workspace setting. Fallback to Text.`
+			log.error(message)
+			// Only show toast once when error is first detected
+			const toastKey = `lang-config-error-${language}`
+			if (!toast.isActive(toastKey)) {
+				toast.error(message, {
+					toastId: toastKey,
+				})
+			}
+		}
+		else {
+			log.trace(`load (${language})${langBase} for document ${documentID}`)
+		}
+	}, [workspaceConfig.status, language, langBase, documentID])
 
 	if (languageExtension.status === "error") {
 		return <ErrorLabel message={languageExtension.error} />
@@ -83,11 +106,12 @@ export function CodeEditorSuspend({ className,	documentID,	language = "text",	te
 			</div>
 		)
 	}
+
 	return (
 		<CodeEditor
 			className={className}
 			documentID={documentID}
-			language={language}
+			language={langBase ?? "Text"}
 			textarea={textarea}
 			ydoc={ydoc}
 			ytext={ytext}
@@ -106,7 +130,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "text",	te
 
 function CodeEditor({
 	className,
-	language = "text",
+	language = "Text",
 	documentID,
 	ytext,
 	externalExtension,
@@ -156,7 +180,7 @@ function CodeEditor({
 	return (
 		<div
 			ref={containerRef}
-			data-language={language}
+			data-language-base={language}
 			data-document={documentID}
 			className={className}
 		>

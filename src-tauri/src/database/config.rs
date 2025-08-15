@@ -2,13 +2,15 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use whoami::lang;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum LanguageBase {
     Cpp,
     TypeScript,
+    JavaScript,
+    Go,
     Python,
+    Text,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

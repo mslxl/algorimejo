@@ -34,7 +34,7 @@ import { useProblemChangeset } from "@/hooks/use-problem-changeset"
 import { useProblemDeleter } from "@/hooks/use-problem-deleter"
 import { useSolutionCreator } from "@/hooks/use-solution-creator"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectMonacoDocumentTabIndex } from "../editor/utils"
+import { selectEditorDocumentTabIndex } from "../editor/utils"
 import { ProblemDetail } from "./problem-detail"
 import { ProblemListItem } from "./problem-list-item"
 
@@ -64,7 +64,7 @@ export function ProblemCollapsible({
 				for (const sol of problem.solutions) {
 					if (sol.document) {
 						const tabIndex = algorimejo.selectStateValue(
-							selectMonacoDocumentTabIndex(sol.document.id),
+							selectEditorDocumentTabIndex(sol.document.id),
 						)
 						if (tabIndex !== -1) {
 							algorimejo.closeTab(tabIndex)
@@ -112,7 +112,7 @@ export function ProblemCollapsible({
 					for (const sol of problem.solutions) {
 						if (sol.document) {
 							const tabIndex = algorimejo.selectStateValue(
-								selectMonacoDocumentTabIndex(sol.document.id),
+								selectEditorDocumentTabIndex(sol.document.id),
 							)
 							if (tabIndex !== -1) {
 								algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`)
