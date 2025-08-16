@@ -39,7 +39,8 @@
 		],
 		"externalBin": ["sidecar/consolepauser"],
 		"resources": [
-			"testlib/"
+			"testlib/",
+			"lang-server/"
 		]
 	}
 }

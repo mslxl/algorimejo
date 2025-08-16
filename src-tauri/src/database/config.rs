@@ -1,7 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
+
+use crate::commands::runner::ENV_KEY_BUNDLED_LSP;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum LanguageBase {
@@ -30,7 +32,6 @@ pub struct AdvLanguageItem {
     pub lsp: Option<String>,
     pub lsp_connect: Option<LanguageServerProtocolConnectionType>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 
@@ -71,16 +72,46 @@ impl WorkspaceLocalDeserialized {
     fn default_language() -> HashMap<String, AdvLanguageItem> {
         let mut language = HashMap::new();
         language.insert(
-            "Cpp".to_string(),
+            "cpp 17".to_string(),
             AdvLanguageItem {
                 base: LanguageBase::Cpp,
                 cmd_compile: "g++ -std=c++17 -o $target".to_string(),
                 cmd_before_run: None,
                 cmd_after_run: None,
                 cmd_run: "$target".to_string(),
-                lsp: None,
-                lsp_connect: None,
+                lsp: Some(format!(
+                    "%{}{}clangd{}",
+                    ENV_KEY_BUNDLED_LSP,
+                    path::MAIN_SEPARATOR,
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                )),
+                lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
             },
+        );
+        language.insert(
+            "python 3".to_string(),
+            AdvLanguageItem {
+                base: LanguageBase::Python,
+                cmd_compile: "".to_string(),
+                cmd_before_run: None,
+                cmd_after_run: None,
+                cmd_run: "python $target".to_string(),
+                lsp: Some(format!(
+                    "%{}{}pylyzer{} --server",
+                    ENV_KEY_BUNDLED_LSP,
+                    path::MAIN_SEPARATOR,
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                )),
+                lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
+            }
         );
         language
     }

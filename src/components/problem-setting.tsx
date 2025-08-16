@@ -9,8 +9,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useCheckerNames } from "@/hooks/use-checker-names"
 import { useProblem } from "@/hooks/use-problem"
 import { useProblemChangeset } from "@/hooks/use-problem-changeset"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 const problemSettingFormSchema = z.object({
 	name: z.string(),
@@ -24,9 +26,10 @@ const problemSettingFormSchema = z.object({
 
 interface ProblemSettingContentProps extends ProblemSettingProps {
 	problemData: Problem
+	availableCheckerNames: string[]
 }
 
-export function ProblemSettingContent({ problemID, problemData, onCancel, onSubmitCompleted }: ProblemSettingContentProps) {
+export function ProblemSettingContent({ problemID, problemData, availableCheckerNames, onCancel, onSubmitCompleted }: ProblemSettingContentProps) {
 	const form = useForm<z.infer<typeof problemSettingFormSchema>>({
 		resolver: zodResolver(problemSettingFormSchema),
 		defaultValues: {
@@ -102,7 +105,7 @@ export function ProblemSettingContent({ problemID, problemData, onCancel, onSubm
 								<FormLabel className="font-medium">URL</FormLabel>
 								<FormControl>
 									<div className="flex items-center gap-2">
-										<Input {...field} className="flex-1" placeholder="Enter problem URL" />
+										<Input {...field} autoComplete="off" autoCorrect="off" className="flex-1" placeholder="Enter problem URL" />
 									</div>
 								</FormControl>
 								<FormMessage />
@@ -147,10 +150,22 @@ export function ProblemSettingContent({ problemID, problemData, onCancel, onSubm
 						return (
 							<FormItem>
 								<FormLabel className="font-medium">Checker</FormLabel>
-								<FormControl>
-									<Input {...field} className="w-full" placeholder="Enter problem checker" />
-								</FormControl>
-								<FormMessage />
+								<Select onValueChange={field.onChange} defaultValue={field.value}>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{
+											availableCheckerNames.map(name => (
+												<SelectItem key={name} value={name}>
+													{name}
+												</SelectItem>
+											))
+										}
+									</SelectContent>
+								</Select>
 							</FormItem>
 						)
 					}}
@@ -204,10 +219,14 @@ interface ProblemSettingProps {
 }
 export function ProblemSetting({ problemID, ...props }: ProblemSettingProps) {
 	const problemData = useProblem(problemID)
+	const checkerNames = useCheckerNames()
 	if (problemData.status === "error") {
-		return <ErrorLabel message={problemData.error} />
+		return <ErrorLabel message={problemData.error} location="get problem data" />
 	}
-	else if (problemData.status === "pending") {
+	else if (checkerNames.status === "error") {
+		return <ErrorLabel message={checkerNames.error} location="get available checkers" />
+	}
+	else if (problemData.status === "pending" || checkerNames.status === "pending") {
 		return (
 			<div>
 				<Skeleton className="h-10 w-full" />
@@ -215,5 +234,5 @@ export function ProblemSetting({ problemID, ...props }: ProblemSettingProps) {
 			</div>
 		)
 	}
-	return <ProblemSettingContent problemID={problemID} problemData={problemData.data} {...props} />
+	return <ProblemSettingContent problemID={problemID} problemData={problemData.data} availableCheckerNames={checkerNames.data} {...props} />
 }

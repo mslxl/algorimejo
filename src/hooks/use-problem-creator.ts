@@ -29,7 +29,7 @@ export function useDefaultProblemCreator() {
 				memory_limit: 5 * 1024,
 				initial_solution: {
 					name: "Solution 1",
-					language: "cpp",
+					language: "cpp", // TODO: make default language configurable
 					author: null,
 					content: null,
 				},

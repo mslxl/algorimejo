@@ -11,6 +11,7 @@ import * as Y from "yjs"
 import { useProgramConfig } from "@/hooks/use-program-config"
 import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
 import { commands } from "@/lib/client"
+import { getFileExtensionOfLanguage, textLanguageItem } from "@/lib/client/type"
 import { ErrorLabel } from "../error-label"
 import { Skeleton } from "../ui/skeleton"
 import { configExtension } from "./config-extension"
@@ -65,18 +66,18 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	const workspaceConfig = useWorkspaceConfig()
 	const programConfig = useProgramConfig()
 
-	const workspaceLangCfg = workspaceConfig.data?.language ?? {}
+	const workspaceLangCfg = useMemo(() => workspaceConfig.data?.language ?? {}, [workspaceConfig.data])
+	const languageItem = workspaceLangCfg[language] ?? textLanguageItem
 
 	// Load language
 	// if user set language to Text, use Text
 	// else use the language base from workspace setting
-	const langBase = language === "Text" ? "Text" : workspaceLangCfg[language]?.base ?? null
-	const languageExtension = useLanguageExtension(langBase ?? "Text")
+	const languageExtension = useLanguageExtension(languageItem, `file:///${documentID}.${getFileExtensionOfLanguage(languageItem.base)}`)
 	// if the language is not configured in workspace setting, show error toast
 	useEffect(() => {
 		if (workspaceConfig.status !== "success")
 			return
-		if (langBase === null) {
+		if (workspaceLangCfg[language] === null) {
 			const message = `Language "${language}" is not configured in workspace setting, please check it in workspace setting. Fallback to Text.`
 			log.error(message)
 			// Only show toast once when error is first detected
@@ -88,18 +89,18 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 			}
 		}
 		else {
-			log.trace(`load (${language})${langBase} for document ${documentID}`)
+			log.trace(`load (${language})${workspaceLangCfg[language]?.base} for document ${documentID}`)
 		}
-	}, [workspaceConfig.status, language, langBase, documentID])
+	}, [workspaceConfig.status, language, documentID, workspaceLangCfg])
 
 	if (languageExtension.status === "error") {
-		return <ErrorLabel message={languageExtension.error} />
+		return <ErrorLabel message={languageExtension.error} location="initializing language extension" />
 	}
 	else if (workspaceConfig.status === "error") {
-		return <ErrorLabel message={workspaceConfig.error} />
+		return <ErrorLabel message={workspaceConfig.error} location="loading workspace config" />
 	}
 	else if (programConfig.status === "error") {
-		return <ErrorLabel message={programConfig.error} />
+		return <ErrorLabel message={programConfig.error} location="loading program config" />
 	}
 	else if (languageExtension.status === "pending" || !isDocumentLoaded || workspaceConfig.status === "pending" || programConfig.status === "pending") {
 		return (
@@ -117,7 +118,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 		<CodeEditor
 			className={className}
 			documentID={documentID}
-			language={langBase ?? "Text"}
+			language={languageItem.base}
 			textarea={textarea}
 			ydoc={ydoc}
 			ytext={ytext}

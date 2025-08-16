@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { LanguageBaseValues, LanguageServerProtocolConnectionTypeValues } from "@/lib/client/type"
+import { languageBaseValues, languageServerProtocolConnectionTypeValues } from "@/lib/client/type"
 import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../workspace-prefs-changeset-context"
 
 export function CompilerSection() {
@@ -170,7 +170,7 @@ export function CompilerSection() {
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{LanguageBaseValues.map(value => (
+										{languageBaseValues.map(value => (
 											<SelectItem value={value} key={value}>
 												{value}
 											</SelectItem>
@@ -308,7 +308,7 @@ export function CompilerSection() {
 												<RadioGroupItem value="Disabled" id="lsp-disabled" />
 												<Label htmlFor="lsp-disabled" className="text-sm">Disabled</Label>
 											</div>
-											{LanguageServerProtocolConnectionTypeValues.map(value => (
+											{languageServerProtocolConnectionTypeValues.map(value => (
 												<div className="flex items-center space-x-2" key={value}>
 													<RadioGroupItem value={value} id={value} />
 													<Label htmlFor={value} className="text-sm">{value}</Label>

@@ -10,3 +10,4 @@
 /testlib/*
 !/testlib/.gitkeep
 /sidecar/
+/lang-server/

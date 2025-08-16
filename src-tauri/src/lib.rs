@@ -2,7 +2,6 @@
 use specta_typescript::formatter;
 use specta_typescript::Typescript;
 use tauri::Manager;
-use tauri_plugin_decorum::WebviewWindowExt;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 pub mod commands;
@@ -21,31 +20,35 @@ pub fn run() {
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
         .events(collect_events![
             commands::ProgramConfigUpdateEvent,
-            commands::WorkspaceConfigUpdateEvent,
+            commands::database::WorkspaceConfigUpdateEvent,
+            commands::runner::LanguageServerResponseEvent,
         ])
         .commands(collect_commands![
             commands::exit_app::<tauri::Wry>,
-            commands::get_problems,
-            commands::get_problem,
-            commands::create_problem,
-            commands::create_solution,
-            commands::create_checker,
-            commands::get_solution,
-            commands::delete_problem,
-            commands::delete_solution,
-            commands::update_problem,
-            commands::update_solution,
-            commands::create_testcase,
-            commands::delete_testcase,
-            commands::get_testcases,
             commands::get_prog_config,
             commands::set_prog_config::<tauri::Wry>,
-            commands::get_workspace_config,
-            commands::set_workspace_config::<tauri::Wry>,
+            commands::database::get_problems,
+            commands::database::get_problem,
+            commands::database::create_problem,
+            commands::database::create_solution,
+            commands::database::create_checker,
+            commands::database::get_solution,
+            commands::database::delete_problem,
+            commands::database::delete_solution,
+            commands::database::update_problem,
+            commands::database::update_solution,
+            commands::database::create_testcase,
+            commands::database::delete_testcase,
+            commands::database::get_testcases,
+            commands::database::get_workspace_config,
+            commands::database::set_workspace_config::<tauri::Wry>,
             // TODO: cataloging
-            commands::load_document,
-            commands::apply_change,
-            commands::get_checkers_name,
+            commands::database::load_document,
+            commands::database::apply_change,
+            commands::runner::get_checkers_name,
+            commands::runner::launch_language_server,
+            commands::runner::kill_language_server,
+            commands::runner::send_message_to_language_server,
         ]);
 
     #[cfg(debug_assertions)]
@@ -69,6 +72,8 @@ pub fn run() {
             setup::setup_database(app)?;
             setup::setup_document_repo(app)?;
             setup::setup_decorum(app)?;
+            
+            app.manage(commands::runner::LangServerState::default());
 
 
             Ok(())

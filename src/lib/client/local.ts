@@ -8,6 +8,12 @@ export const commands = {
 async exitApp() : Promise<null> {
     return await TAURI_INVOKE("exit_app");
 },
+async getProgConfig() : Promise<ProgramConfig> {
+    return await TAURI_INVOKE("get_prog_config");
+},
+async setProgConfig(data: ProgramConfig) : Promise<null> {
+    return await TAURI_INVOKE("set_prog_config", { data });
+},
 async getProblems(params: GetProblemsParams) : Promise<GetProblemsResult> {
     return await TAURI_INVOKE("get_problems", { params });
 },
@@ -47,12 +53,6 @@ async deleteTestcase(testcaseId: string) : Promise<null> {
 async getTestcases(problemId: string) : Promise<TestCase[]> {
     return await TAURI_INVOKE("get_testcases", { problemId });
 },
-async getProgConfig() : Promise<ProgramConfig> {
-    return await TAURI_INVOKE("get_prog_config");
-},
-async setProgConfig(data: ProgramConfig) : Promise<null> {
-    return await TAURI_INVOKE("set_prog_config", { data });
-},
 async getWorkspaceConfig() : Promise<WorkspaceConfig> {
     return await TAURI_INVOKE("get_workspace_config");
 },
@@ -67,6 +67,15 @@ async applyChange(docId: string, change: number[]) : Promise<null> {
 },
 async getCheckersName() : Promise<string[]> {
     return await TAURI_INVOKE("get_checkers_name");
+},
+async launchLanguageServer(commands: string, ioMethod: IOMethod) : Promise<string> {
+    return await TAURI_INVOKE("launch_language_server", { commands, ioMethod });
+},
+async killLanguageServer(pid: string) : Promise<null> {
+    return await TAURI_INVOKE("kill_language_server", { pid });
+},
+async sendMessageToLanguageServer(pid: string, message: string) : Promise<null> {
+    return await TAURI_INVOKE("send_message_to_language_server", { pid, message });
 }
 }
 
@@ -74,9 +83,11 @@ async getCheckersName() : Promise<string[]> {
 
 
 export const events = __makeEvents__<{
+languageServerResponseEvent: LanguageServerResponseEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 }>({
+languageServerResponseEvent: "language-server-response-event",
 programConfigUpdateEvent: "program-config-update-event",
 workspaceConfigUpdateEvent: "workspace-config-update-event"
 })
@@ -99,8 +110,17 @@ export type Document = { id: string; create_datetime: string; modified_datetime:
 export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
 export type GetProblemsSortBy = "Name" | "CreateDatetime" | "ModifiedDatetime"
+/**
+ * Supported I/O methods for language server communication
+ */
+export type IOMethod = 
+/**
+ * Use standard input/output for communication
+ */
+"StdIO"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text"
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
+export type LanguageServerResponseEvent = { pid: string; message: string }
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean }

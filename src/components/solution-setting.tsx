@@ -110,7 +110,6 @@ function SolutionSettingContent({ solutionData, availableLanguages, solutionID, 
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
-										<FormMessage />
 									</FormControl>
 									<SelectContent>
 										{
