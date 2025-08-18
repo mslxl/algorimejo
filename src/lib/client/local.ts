@@ -83,11 +83,11 @@ async sendMessageToLanguageServer(pid: string, message: string) : Promise<null> 
 
 
 export const events = __makeEvents__<{
-languageServerResponseEvent: LanguageServerResponseEvent,
+languageServerEvent: LanguageServerEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 }>({
-languageServerResponseEvent: "language-server-response-event",
+languageServerEvent: "language-server-event",
 programConfigUpdateEvent: "program-config-update-event",
 workspaceConfigUpdateEvent: "workspace-config-update-event"
 })
@@ -119,8 +119,9 @@ export type IOMethod =
  */
 "StdIO"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text"
+export type LanguageServerEvent = { pid: string; response: LanguageServerResponse }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
-export type LanguageServerResponseEvent = { pid: string; message: string }
+export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean }

@@ -21,7 +21,7 @@ pub fn run() {
         .events(collect_events![
             commands::ProgramConfigUpdateEvent,
             commands::database::WorkspaceConfigUpdateEvent,
-            commands::runner::LanguageServerResponseEvent,
+            commands::runner::LanguageServerEvent,
         ])
         .commands(collect_commands![
             commands::exit_app::<tauri::Wry>,

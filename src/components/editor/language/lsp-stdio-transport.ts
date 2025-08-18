@@ -5,8 +5,10 @@ import { Transport } from "@open-rpc/client-js/build/transports/Transport.js"
 import { commands, events } from "@/lib/client"
 
 export class LanguageServerStdIOTransport extends Transport {
+	private closed: boolean
 	private constructor(private readonly pid: string) {
 		super()
+		this.closed = true
 	}
 
 	static async launch(lspLaunchCommand: string): Promise<LanguageServerStdIOTransport> {
@@ -15,9 +17,13 @@ export class LanguageServerStdIOTransport extends Transport {
 	}
 
 	async connect(): Promise<any> {
-		events.languageServerResponseEvent.listen((event) => {
-			if (event.payload.pid === this.pid) {
-				this.transportRequestManager.resolveResponse(event.payload.message)
+		this.closed = false
+		events.languageServerEvent.listen((event) => {
+			if (event.payload.pid === this.pid && event.payload.response.type === "Message") {
+				this.transportRequestManager.resolveResponse(event.payload.response.msg)
+			}
+			else if (event.payload.pid === this.pid && event.payload.response.type === "Closed") {
+				this.closed = true
 			}
 		})
 	}
@@ -27,6 +33,9 @@ export class LanguageServerStdIOTransport extends Transport {
 	}
 
 	async sendData(data: JSONRPCRequestData, timeout: number | null = 5000): Promise<any> {
+		if (this.closed) {
+			throw new JSONRPCError("Language server closed", ERR_UNKNOWN, null)
+		}
 		let prom = this.transportRequestManager.addRequest(data, timeout)
 		const notifications = getNotifications(data)
 		try {

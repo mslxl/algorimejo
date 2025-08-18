@@ -37,10 +37,23 @@ pub struct LangServerState {
 }
 
 #[derive(Serialize, Deserialize, Type, Event, Clone, Debug)]
-pub struct LanguageServerResponseEvent {
+pub struct LanguageServerEvent {
   pid: ChildPID,
-  message: String
+  response: LanguageServerResponse
 }
+
+#[derive(Serialize, Deserialize, Type, Clone, Debug)]
+#[serde(tag="type")]
+pub enum LanguageServerResponse{
+  Closed{
+    exit_code: i32
+  },
+  Message{
+    msg: String
+  }
+}
+
+
 
 #[tauri::command]
 #[specta::specta]
@@ -60,15 +73,31 @@ pub async fn launch_language_server(app: tauri::AppHandle, state: tauri::State<'
   }
   
   tokio::spawn(async move {
-    let reader = reader;
+    let pid = pid.to_string();
     let handle = app;
+    let state = handle.state::<LangServerState>();
+    let reader = reader;
     while let Ok(message) = reader.receive_message().await {
-      log::trace!("lsp <- {}: {:?}", &pid, &message);
-      let response_body = LanguageServerResponseEvent { pid: pid.to_string(), message };
+      log::trace!("lsp <- {}: {}", &pid, &message);
+      let response_body = LanguageServerEvent { 
+        pid: pid.to_string(), 
+        response: LanguageServerResponse::Message{msg: message}
+      };
       response_body.emit(&handle).unwrap();
     }
     if !reader.is_alive().await{
       log::trace!("language server {} is dead", &pid);
+      let response_body = LanguageServerEvent { 
+        pid: pid.to_string(), 
+        response: LanguageServerResponse::Closed{exit_code: reader.exit_code().await.unwrap_or(0)}
+      };
+      response_body.emit(&handle).unwrap();
+
+      log::trace!("recycling language server {} handler", &pid);
+      let mut process_state = state.processes.write().await;
+      process_state.remove(&pid);
+      let mut writer_state = state.writers.write().await;
+      writer_state.remove(&pid);
     }
   });
 
@@ -78,12 +107,10 @@ pub async fn launch_language_server(app: tauri::AppHandle, state: tauri::State<'
 #[tauri::command]
 #[specta::specta]
 pub async fn kill_language_server(state: tauri::State<'_, LangServerState>, pid: ChildPID) -> Result<(), String> {
-  let mut process_state = state.processes.write().await;
-  let process = process_state.remove(&pid).ok_or("Process not found")?;
-  let mut writer_state = state.writers.write().await;
-  let _ = writer_state.remove(&pid);
-
   log::trace!("killing language server: {}", &pid);
+  let process_state = state.processes.write().await;
+  let process = process_state.get(&pid).ok_or("Process not found")?;
+
   process.kill().await.map_err(|e| e.to_string())?;
   Ok(())
 }
@@ -91,9 +118,9 @@ pub async fn kill_language_server(state: tauri::State<'_, LangServerState>, pid:
 #[tauri::command]
 #[specta::specta]
 pub async fn send_message_to_language_server(state: tauri::State<'_, LangServerState>, pid: ChildPID, message: String) -> Result<(), String> {
+  log::trace!("lsp -> {}: {}", &pid, &message);
   let writer_state = state.writers.write().await;
   let writer = writer_state.get(&pid).ok_or("Writer not found")?;
-  log::trace!("lsp -> {}: {:?}", &pid, &message);
   writer.send_message(&message).await.map_err(|e| e.to_string())?;
   Ok(())
 }

@@ -170,6 +170,11 @@ impl LangServerProcess {
         proc.try_wait().unwrap_or(None).is_none()
     }
     
+    pub async fn exit_code(&self) -> Option<i32> {
+        let mut proc = self.proc.lock().await;
+        proc.try_wait().unwrap_or(None).map(|status| status.code().unwrap_or(0))
+    }
+    
     pub async fn pid(&self) -> Option<u32> {
         let proc = self.proc.lock().await;
         proc.id()
@@ -213,6 +218,10 @@ impl LangServerWriter {
     pub async fn is_alive(&self) -> bool {
         let mut proc = self.proc.lock().await;
         proc.try_wait().unwrap_or(None).is_none()
+    }
+    pub async fn exit_code(&self) -> Option<i32> {
+        let mut proc = self.proc.lock().await;
+        proc.try_wait().unwrap_or(None).map(|status| status.code().unwrap_or(0))
     }
     pub async fn pid(&self) -> Option<u32> {
         let proc = self.proc.lock().await;
@@ -271,6 +280,10 @@ impl LangServerReader {
     pub async fn is_alive(&self) -> bool {
         let mut proc = self.proc.lock().await;
         proc.try_wait().unwrap_or(None).is_none()
+    }
+    pub async fn exit_code(&self) -> Option<i32> {
+        let mut proc = self.proc.lock().await;
+        proc.try_wait().unwrap_or(None).map(|status| status.code().unwrap_or(0))
     }
     pub async fn pid(&self) -> Option<u32> {
         let proc = self.proc.lock().await;
