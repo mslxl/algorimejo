@@ -75,10 +75,18 @@ impl WorkspaceLocalDeserialized {
             "cpp 17".to_string(),
             AdvLanguageItem {
                 base: LanguageBase::Cpp,
-                cmd_compile: "g++ -std=c++17 -o $target".to_string(),
+                cmd_compile: "g++ -std=c++17 -o main".to_string(),
                 cmd_before_run: None,
                 cmd_after_run: None,
-                cmd_run: "$target".to_string(),
+                cmd_run: format!(
+                    "%CWD{}main{}",
+                    path::MAIN_SEPARATOR,
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                ),
                 lsp: Some(format!(
                     "%{}{}clangd{}",
                     ENV_KEY_BUNDLED_LSP,
@@ -111,7 +119,7 @@ impl WorkspaceLocalDeserialized {
                     }
                 )),
                 lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
-            }
+            },
         );
         language
     }

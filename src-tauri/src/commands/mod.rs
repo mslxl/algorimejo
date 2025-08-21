@@ -1,13 +1,11 @@
-
 use crate::config::{ProgramConfig, ProgramConfigRepo};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{Runtime, State};
 use tauri_specta::Event;
 
-pub mod runner;
 pub mod database;
-
+pub mod runner;
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
 pub struct ProgramConfigUpdateEvent {
@@ -44,4 +42,3 @@ pub async fn exit_app<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String
     app.exit(0);
     Ok(())
 }
-

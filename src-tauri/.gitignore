@@ -11,3 +11,4 @@
 !/testlib/.gitkeep
 /sidecar/
 /lang-server/
+/lang/

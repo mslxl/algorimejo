@@ -193,6 +193,8 @@ export function CompilerSection() {
 										<Input
 											id="compile-cmd"
 											placeholder="e.g., gcc -o %output %input"
+											autoComplete="off"
+											autoCorrect="off"
 											value={changeset.language[selectedLanguageName]!.cmd_compile}
 											onInput={e => setChangeset((draft) => {
 												draft.language![selectedLanguageName]!.cmd_compile = e.currentTarget.value
@@ -203,6 +205,8 @@ export function CompilerSection() {
 										<Label htmlFor="run-cmd" className="text-sm font-medium">Run Command</Label>
 										<Input
 											id="run-cmd"
+											autoComplete="off"
+											autoCorrect="off"
 											placeholder="e.g., ./%output"
 											value={changeset.language[selectedLanguageName]!.cmd_run ?? ""}
 											onInput={e => setChangeset((draft) => {
@@ -227,6 +231,8 @@ export function CompilerSection() {
 										<Input
 											id="before-run"
 											placeholder="Optional command to run before execution"
+											autoComplete="off"
+											autoCorrect="off"
 											value={changeset.language[selectedLanguageName]!.cmd_before_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												const value = e.currentTarget.value
@@ -247,6 +253,8 @@ export function CompilerSection() {
 										<Input
 											id="after-run"
 											placeholder="Optional command to run after execution"
+											autoComplete="off"
+											autoCorrect="off"
 											value={changeset.language[selectedLanguageName]!.cmd_after_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												const value = e.currentTarget.value
@@ -274,6 +282,8 @@ export function CompilerSection() {
 											<LanguageServerTooltip />
 										</Label>
 										<Input
+											autoComplete="off"
+											autoCorrect="off"
 											id="lsp-cmd"
 											placeholder="e.g., clangd"
 											value={changeset.language[selectedLanguageName]!.lsp ?? ""}

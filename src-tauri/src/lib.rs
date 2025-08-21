@@ -1,6 +1,6 @@
-#[cfg(debug_assertions)]
-use specta_typescript::formatter;
 use specta_typescript::Typescript;
+#[cfg(debug_assertions)]
+use specta_typescript::{formatter, BigIntExportBehavior};
 use tauri::Manager;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
@@ -9,10 +9,9 @@ pub mod config;
 pub mod database;
 pub mod document;
 pub mod model;
+pub mod runner;
 pub mod schema;
 pub mod setup;
-pub mod runner;
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +21,7 @@ pub fn run() {
             commands::ProgramConfigUpdateEvent,
             commands::database::WorkspaceConfigUpdateEvent,
             commands::runner::LanguageServerEvent,
+            commands::runner::ProgramOutputEvent,
         ])
         .commands(collect_commands![
             commands::exit_app::<tauri::Wry>,
@@ -42,21 +42,29 @@ pub fn run() {
             commands::database::get_testcases,
             commands::database::get_workspace_config,
             commands::database::set_workspace_config::<tauri::Wry>,
+            commands::database::get_string_of_doc,
             // TODO: cataloging
             commands::database::load_document,
             commands::database::apply_change,
+            commands::database::resolve_checker,
             commands::runner::get_checkers_name,
             commands::runner::launch_language_server,
             commands::runner::kill_language_server,
             commands::runner::send_message_to_language_server,
+            commands::runner::execute_program_callback,
+            commands::runner::write_file_to_task_tag,
+            commands::runner::execute_program
         ]);
 
     #[cfg(debug_assertions)]
     builder
         .export(
             Typescript::default()
-                // .bigint(BigIntExportBehavior::BigInt)
-                .formatter(formatter::biome),
+                // https://github.com/specta-rs/tauri-specta/issues/179
+                // Sadly, we have to use number instead of string, because using string need lot work
+                // we need number to provide temporary solution for the issue
+                .bigint(BigIntExportBehavior::Number)
+                .formatter(formatter::eslint),
             "../src/lib/client/local.ts",
         )
         .expect("failed to export typescript bindings");
@@ -72,9 +80,8 @@ pub fn run() {
             setup::setup_database(app)?;
             setup::setup_document_repo(app)?;
             setup::setup_decorum(app)?;
-            
-            app.manage(commands::runner::LangServerState::default());
 
+            app.manage(commands::runner::LangServerState::default());
 
             Ok(())
         })

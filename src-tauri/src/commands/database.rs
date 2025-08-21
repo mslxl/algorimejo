@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     database::{
@@ -9,11 +9,12 @@ use crate::{
     },
     document::DocumentRepo,
     model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
+    runner::BUNDLED_CHECKER_NAME,
 };
 use log::trace;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::{Runtime, State};
+use tauri::{path::BaseDirectory, Manager, Runtime, State};
 use tauri_specta::Event;
 
 #[tauri::command]
@@ -166,6 +167,25 @@ pub async fn load_document(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn get_string_of_doc(
+    doc_id: String,
+    name: String,
+    db: State<'_, DatabaseRepo>,
+    repo: State<'_, DocumentRepo>,
+) -> Result<String, String> {
+    if !repo.has(&doc_id) {
+        trace!("document {} not found, loading it from database...", doc_id);
+        load_document(db, repo.clone(), doc_id.clone()).await?;
+    }
+    let s = repo
+        .get_string_of_doc(&doc_id, &name)
+        .map_err(|e| e.to_string())?;
+    trace!("get string of doc {}[{}]: {}", doc_id, name, s.len());
+    Ok(s)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn apply_change(
     doc_id: String,
     change: Vec<u8>,
@@ -210,4 +230,31 @@ pub async fn get_languages(
     db: State<'_, DatabaseRepo>,
 ) -> Result<HashMap<String, AdvLanguageItem>, String> {
     db.get_languages().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_checker(app: tauri::AppHandle, name: String) -> Result<PathBuf, String> {
+    if BUNDLED_CHECKER_NAME.contains(&name.as_str()) {
+        let path = app
+            .path()
+            .resolve(
+                format!(
+                    "testlib/{}{}",
+                    &name,
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                ),
+                BaseDirectory::Resource,
+            )
+            .map_err(|e| format!("Failed to resolve checker {}, this may caused by incomplete resource, please check testlib folder or try to reinstall the app: {}", name, e.to_string()))?;
+        trace!("resolved checker {} to {:?}", &name, &path);
+        Ok(path)
+    } else {
+        //TODO: custom checker with testlib
+        unimplemented!()
+    }
 }

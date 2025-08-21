@@ -59,11 +59,17 @@ async getWorkspaceConfig() : Promise<WorkspaceConfig> {
 async setWorkspaceConfig(data: WorkspaceConfig) : Promise<null> {
     return await TAURI_INVOKE("set_workspace_config", { data });
 },
+async getStringOfDoc(docId: string, name: string) : Promise<string> {
+    return await TAURI_INVOKE("get_string_of_doc", { docId, name });
+},
 async loadDocument(docId: string) : Promise<number[]> {
     return await TAURI_INVOKE("load_document", { docId });
 },
 async applyChange(docId: string, change: number[]) : Promise<null> {
     return await TAURI_INVOKE("apply_change", { docId, change });
+},
+async resolveChecker(name: string) : Promise<string> {
+    return await TAURI_INVOKE("resolve_checker", { name });
 },
 async getCheckersName() : Promise<string[]> {
     return await TAURI_INVOKE("get_checkers_name");
@@ -76,6 +82,15 @@ async killLanguageServer(pid: string) : Promise<null> {
 },
 async sendMessageToLanguageServer(pid: string, message: string) : Promise<null> {
     return await TAURI_INVOKE("send_message_to_language_server", { pid, message });
+},
+async executeProgramCallback(taskTag: string, commands: string, env: Partial<{ [key in string]: string }>, inputFilename: string, timeoutMillis: number) : Promise<ProgramOutput> {
+    return await TAURI_INVOKE("execute_program_callback", { taskTag, commands, env, inputFilename, timeoutMillis });
+},
+async writeFileToTaskTag(taskTag: string, filename: string, content: string) : Promise<string> {
+    return await TAURI_INVOKE("write_file_to_task_tag", { taskTag, filename, content });
+},
+async executeProgram(taskTag: string, commands: string, env: Partial<{ [key in string]: string }>, timeoutMillis: number) : Promise<ProgramSimpleOutput> {
+    return await TAURI_INVOKE("execute_program", { taskTag, commands, env, timeoutMillis });
 }
 }
 
@@ -85,10 +100,12 @@ async sendMessageToLanguageServer(pid: string, message: string) : Promise<null> 
 export const events = __makeEvents__<{
 languageServerEvent: LanguageServerEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
+programOutputEvent: ProgramOutputEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 }>({
 languageServerEvent: "language-server-event",
 programConfigUpdateEvent: "program-config-update-event",
+programOutputEvent: "program-output-event",
 workspaceConfigUpdateEvent: "workspace-config-update-event"
 })
 
@@ -126,6 +143,10 @@ export type Problem = { id: string; name: string; url: string | null; descriptio
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
+export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
+export type ProgramOutputEvent = { task_tag: string; source: ProgramOutputSource; line: string }
+export type ProgramOutputSource = "Stdout" | "Stderr"
+export type ProgramSimpleOutput = { exit_code: number; stdout: string; stderr: string; is_timeout: boolean }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
 export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }
 export type SortOrder = "Asc" | "Desc"

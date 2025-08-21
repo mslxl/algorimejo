@@ -58,7 +58,6 @@ impl Default for ProgramConfigLocalDeserialized {
     }
 }
 
-
 #[derive(Debug)]
 pub struct ProgramConfigRepo {
     path: PathBuf,
@@ -75,7 +74,9 @@ impl ProgramConfigRepo {
     }
     pub fn reload(&mut self) -> Result<()> {
         if self.path.exists() {
-            let data = toml::from_str::<ProgramConfigLocalDeserialized>(&std::fs::read_to_string(&self.path)?)?;
+            let data = toml::from_str::<ProgramConfigLocalDeserialized>(&std::fs::read_to_string(
+                &self.path,
+            )?)?;
             let mut guard = self.data.write().unwrap();
             *guard = data.into();
         }

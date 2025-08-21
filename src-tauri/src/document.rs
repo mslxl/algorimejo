@@ -6,10 +6,7 @@ use std::{
 
 use anyhow::Result;
 use log::trace;
-use yrs::{
-    updates::decoder::Decode,
-    *,
-};
+use yrs::{updates::decoder::Decode, *};
 
 pub struct DocumentHolder {
     doc: Doc,
@@ -31,7 +28,7 @@ impl DocumentHolder {
         let doc = Doc::new();
 
         {
-            let mut txn = doc.try_transact_mut()?;
+            let mut txn = Transact::transact_mut(&doc);
             if filepath.exists() {
                 let data = std::fs::read(&filepath)?;
                 txn.apply_update(Update::decode_v1(&data)?)?;
@@ -63,17 +60,23 @@ impl DocumentHolder {
     }
 
     fn apply_change(&self, change: Update) -> Result<()> {
-        let mut txn = self.doc.try_transact_mut()?;
+        let mut txn = Transact::transact_mut(&self.doc);
         *self.is_modified.lock().unwrap() = true;
         txn.apply_update(change)?;
         Ok(())
     }
 
     fn get_data(&self) -> Result<Vec<u8>> {
-        let txn = self.doc.try_transact()?;
+        let txn = Transact::transact(&self.doc);
         let empty_state_vector = StateVector::default();
         let data = txn.encode_state_as_update_v1(&empty_state_vector);
         Ok(data)
+    }
+    fn get_string(&self, name: &str) -> Result<String> {
+        let text_ref = self.doc.get_or_insert_text(name);
+        let txn = Transact::transact(&self.doc);
+        let s = text_ref.get_string(&txn);
+        Ok(s)
     }
 }
 
@@ -95,6 +98,10 @@ impl DocumentRepo {
         Ok(snapshot)
     }
 
+    pub fn has(&self, doc_id: &str) -> bool {
+        self.docs.read().unwrap().contains_key(doc_id)
+    }
+
     pub fn save_all(&self) -> Result<()> {
         for doc in self.docs.read().unwrap().values() {
             doc.save_document()?;
@@ -105,10 +112,25 @@ impl DocumentRepo {
     pub fn apply_change(&self, doc_id: &str, change: Vec<u8>) -> Result<()> {
         let change = Update::decode_v1(&change)?;
         let mut docs = self.docs.write().unwrap();
-        let doc = docs.get_mut(doc_id).unwrap();
+        let doc = docs
+            .get_mut(doc_id)
+            .ok_or(anyhow::anyhow!("Document {} not loadded", doc_id))?;
         doc.apply_change(change)?;
         doc.save_document()?;
         Ok(())
+    }
+
+    pub fn get_doc_data(&self, doc_id: &str) -> Result<Vec<u8>> {
+        let guard = self.docs.read().unwrap();
+        let doc = guard.get(doc_id).unwrap();
+        doc.get_data()
+    }
+    pub fn get_string_of_doc(&self, doc_id: &str, name: &str) -> Result<String> {
+        let guard = self.docs.read().unwrap();
+        let doc = guard
+            .get(doc_id)
+            .ok_or(anyhow::anyhow!("Document {} not loaded", doc_id))?;
+        doc.get_string(name)
     }
 }
 

@@ -5,8 +5,8 @@ use diesel::{
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::{info, trace};
-use tauri_plugin_decorum::WebviewWindowExt; 
 use tauri::{Manager, Runtime};
+use tauri_plugin_decorum::WebviewWindowExt;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
@@ -78,7 +78,6 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     Ok(())
 }
 
-
 pub fn setup_document_repo<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     trace!("setup document repo");
     let repo = DocumentRepo::new();
@@ -100,19 +99,19 @@ pub fn setup_program_config<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     Ok(())
 }
 
-
 pub fn setup_decorum(app: &tauri::App) -> Result<()> {
     let cfg = app.state::<ProgramConfigRepo>();
     let cfg_guard = cfg.read()?;
     if cfg_guard.system_titlebar {
-        return Ok(())
+        return Ok(());
     }
     trace!("setup decorum");
     let main_window = app.get_webview_window("main").unwrap();
     main_window.create_overlay_titlebar().unwrap();
 
     // Some macOS-specific helpers
-    #[cfg(target_os = "macos")] {
+    #[cfg(target_os = "macos")]
+    {
         // Set a custom inset to the traffic lights
         main_window.set_traffic_lights_inset(12.0, 16.0).unwrap();
 

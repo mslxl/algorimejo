@@ -1,5 +1,8 @@
+import type { TestcaseItemRef } from "./testcase-item"
 import type { Problem, TestCase } from "@/lib/client"
+import type { RunTestResultStatus } from "@/lib/runner"
 import type { OpenedTab } from "@/stores/tab-slice"
+import * as log from "@tauri-apps/plugin-log"
 import { debounce } from "lodash/fp"
 import {
 	LucideBugPlay,
@@ -8,7 +11,7 @@ import {
 	LucideSettings,
 	LucideTrash,
 } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { match, P } from "ts-pattern"
 import { CodeEditor } from "@/components/editor"
@@ -18,11 +21,15 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useLanguage } from "@/hooks/use-language"
 import { useProblem } from "@/hooks/use-problem"
+import { useSolution } from "@/hooks/use-solution"
 import { useTestcaseCreator } from "@/hooks/use-testcase-creator"
 import { useTestcases } from "@/hooks/use-testcases"
+import { runTestcase, runTestStatusToColor } from "@/lib/runner"
 import { cn } from "@/lib/utils"
 import { solutionEditorPageDataSchema } from "../editor/schema"
+import { TestcaseItem } from "./testcase-item"
 
 interface TestcaseContentProps {
 	tab: OpenedTab
@@ -97,9 +104,28 @@ interface TestcaseListProps {
 	testcases: TestCase[]
 	solutionID: string
 }
-function TestcaseList({ problem, testcases }: TestcaseListProps) {
+function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 	const testcaseCreateMutation = useTestcaseCreator()
 	const [isEditingProblemOptions, setIsEditingProblemOptions] = useState(false)
+
+	const [itemsStatus, dispatchItemsStatus] = useReducer((state: RunTestResultStatus[], action: { type: "set", index: number, status: RunTestResultStatus } | { type: "reset", length: number }) => {
+		return match(action)
+			.with({ type: "set" }, (action) => {
+				const newState = [...state]
+				newState[action.index] = action.status
+				return newState
+			})
+			.with({ type: "reset" }, (action) => {
+				return Array.from({ length: action.length }, () => "UNRUN" as RunTestResultStatus)
+			})
+			.exhaustive()
+	}, testcases.map(() => "UNRUN" as RunTestResultStatus))
+	const itemsRef = useRef<TestcaseItemRef[]>([])
+
+	useEffect(() => {
+		itemsRef.current = itemsRef.current.slice(0, testcases.length)
+		dispatchItemsStatus({ type: "reset", length: testcases.length })
+	}, [testcases])
 
 	const panelRef = useRef<HTMLDivElement>(null)
 	const [colsNum, setColsNum] = useState(1)
@@ -133,6 +159,42 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 			})
 		}, [testcaseCreateMutation, problem.id]),
 	)
+	const solution = useSolution(solutionID, problem.id)
+	const languageItem = useLanguage({
+		enabled: !!solution.data,
+		language: solution.data?.language,
+	})
+
+	const handleRunTestcase = useCallback(async (testcase: TestCase, index: number) => {
+		if (!solution.data) {
+			toast.error("Solution is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+			return
+		}
+		if (!languageItem.data) {
+			toast.error("Language is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+			return
+		}
+		const tag = `tt-${testcase.id}`
+		dispatchItemsStatus({ type: "set", index, status: "PD" })
+		itemsRef.current[index]?.clearOutput()
+		const info = await runTestcase({
+			tag,
+			testcaseInputDocID: testcase.input_document_id,
+			testcaseOutputDocID: testcase.answer_document_id,
+			solutionDocID: solution.data.document!.id,
+			checkerName: problem.checker ?? "ncmp",
+			language: languageItem.data,
+			compileTimeout: problem.time_limit,
+			runTimeout: problem.time_limit,
+			programOutputListener: (line, ty) => {
+				if (ty === "stdout") {
+					itemsRef.current[index]?.appendOutput(line)
+				}
+			},
+		})
+		dispatchItemsStatus({ type: "set", index, status: info.result })
+		log.trace(`testcase ${tag} result: ${JSON.stringify(info)}`)
+	}, [languageItem.data, problem.checker, problem.time_limit, solution.data])
 
 	return (
 		<div className="flex h-full flex-col p-2 pr-0" ref={panelRef}>
@@ -150,11 +212,12 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 				<div className="mr-2 p-2">
 					<div className="mb-4 flex gap-2">
 						<div className="flex flex-1 flex-wrap gap-0.5 rounded-md border bg-background p-2">
-							{testcases.map(testcase => (
+							{testcases.map((testcase, index) => (
 								<span
-									className="size-4 rounded-sm border bg-gray-100 transition-colors"
+									className="size-4 cursor-pointer rounded-sm border transition-colors"
+									style={{ backgroundColor: runTestStatusToColor[itemsStatus[index]] }}
 									key={testcase.id}
-									title={`Testcase #${testcase.id}`}
+									title={`Testcase #${index + 1}: ${itemsStatus[index]}`}
 								/>
 							))}
 						</div>
@@ -165,77 +228,14 @@ function TestcaseList({ problem, testcases }: TestcaseListProps) {
 
 					<ul className="space-y-4">
 						{testcases.map((testcase, index) => (
-							<li
+							<TestcaseItem
+								testcase={testcase}
+								colsNum={colsNum}
+								index={index}
 								key={testcase.id}
-								className="rounded-lg border p-4 shadow-sm transition-shadow hover:shadow"
-							>
-								<div
-									className={cn("grid gap-4", {
-										"grid-cols-1": colsNum === 1,
-										"grid-cols-2": colsNum === 2,
-										"grid-cols-3": colsNum === 3,
-									})}
-								>
-									<div className="flex flex-col space-y-2">
-										<div className="flex items-center gap-2">
-											<span className="text-sm font-medium">
-												Input #
-												{index}
-											</span>
-										</div>
-										<div className="flex-1 overflow-hidden rounded-md border">
-											<CodeEditor
-												className="size-full min-h-32"
-												documentID={testcase.input_document_id}
-												language="Text"
-												textarea
-											/>
-										</div>
-									</div>
-
-									<div className="flex flex-col space-y-2">
-										<div className="flex items-center gap-2">
-											<span className="text-sm font-medium">
-												Answer #
-												{index}
-											</span>
-										</div>
-										<div className="flex-1 overflow-hidden rounded-md border">
-											<CodeEditor
-												className="size-full min-h-32"
-												documentID={testcase.answer_document_id}
-												language="Text"
-												textarea
-											/>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<div className="flex items-center gap-2">
-											<span className="text-sm font-medium">
-												Output #
-												{index}
-											</span>
-										</div>
-										<textarea
-											className="min-h-32 w-full resize-y rounded-md border p-2"
-											disabled
-											placeholder="Output will appear here..."
-										/>
-									</div>
-									<div className="flex items-center gap-2">
-										<Button variant="destructive" size="icon">
-											<LucideTrash />
-										</Button>
-										<Button variant="outline" size="icon">
-											<LucidePlay />
-										</Button>
-										<Button variant="outline" size="icon">
-											<LucideBugPlay />
-										</Button>
-									</div>
-								</div>
-							</li>
+								status={itemsStatus[index]}
+								onRunTestcase={testcase => handleRunTestcase(testcase, index)}
+							/>
 						))}
 					</ul>
 				</div>

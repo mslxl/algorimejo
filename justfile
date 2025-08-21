@@ -33,12 +33,16 @@ clean:
 beforeDev: migrations build-deps
     pnpm dev
     
-beforeBuild: migrations lint build-deps
+beforeBuild: migrations lint build-deps build-release-deps
     pnpm build
 
 [windows]
 install: build
     $(find ./src-tauri/target/release/bundle/nsis/*.exe | head) /S /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+    
+build-release-deps:
+    if [[ -d "./src-tauri/lang" ]]; then rm -rf ./src-tauri/lang; fi
+    cp -r lang ./src-tauri/lang
 
 build-deps:
     just build-consolepauser

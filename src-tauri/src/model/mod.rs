@@ -4,7 +4,6 @@ use diesel::Selectable;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-
 //TODO: Implement the statement enum and add it to database
 // #[derive(Debug, Serialize, Deserialize, Type)]
 // #[serde(tag = "type")]
