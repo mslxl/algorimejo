@@ -164,7 +164,7 @@ export function ProblemListItem({
 								<button
 									type="button"
 									onClick={handleOpenSolution}
-									className="size-full text-left"
+									className="size-full truncate py-0.5 text-left"
 								>
 									{solution.name}
 								</button>
