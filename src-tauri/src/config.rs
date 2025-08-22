@@ -12,6 +12,8 @@ pub struct ProgramConfig {
     pub workspace: Option<PathBuf>,
     pub theme: String,
     pub system_titlebar: bool,
+    pub competitive_companion_addr: String,
+    pub competitive_companion_enabled: bool,
 }
 
 impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
@@ -20,6 +22,8 @@ impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
             workspace: value.workspace,
             theme: value.theme,
             system_titlebar: value.system_titlebar,
+            competitive_companion_addr: value.competitive_companion_addr,
+            competitive_companion_enabled: value.competitive_companion_enabled,
         }
     }
 }
@@ -34,6 +38,11 @@ pub struct ProgramConfigLocalDeserialized {
     pub theme: String,
     #[serde(default = "ProgramConfigLocalDeserialized::default_system_titlebar")]
     pub system_titlebar: bool,
+
+    #[serde(default = "ProgramConfigLocalDeserialized::default_competitive_companion_addr")]
+    pub competitive_companion_addr: String,
+    #[serde(default = "ProgramConfigLocalDeserialized::default_competitive_companion_enabled")]
+    pub competitive_companion_enabled: bool,
 }
 
 impl ProgramConfigLocalDeserialized {
@@ -46,6 +55,12 @@ impl ProgramConfigLocalDeserialized {
     fn default_system_titlebar() -> bool {
         false
     }
+    fn default_competitive_companion_addr() -> String {
+        "127.0.0.1:10043".to_string()
+    }
+    fn default_competitive_companion_enabled() -> bool {
+        true
+    }
 }
 
 impl Default for ProgramConfigLocalDeserialized {
@@ -54,6 +69,8 @@ impl Default for ProgramConfigLocalDeserialized {
             workspace: Self::default_workspace(),
             theme: Self::default_theme(),
             system_titlebar: Self::default_system_titlebar(),
+            competitive_companion_addr: Self::default_competitive_companion_addr(),
+            competitive_companion_enabled: Self::default_competitive_companion_enabled(),
         }
     }
 }

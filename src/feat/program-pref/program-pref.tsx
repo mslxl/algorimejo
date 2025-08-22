@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useProgramConfig } from "@/hooks/use-program-config"
 import { useProgramConfigMutation } from "@/hooks/use-program-config-mutation"
 import { ProgramPrefsChangesetApplyContext, ProgramPrefsChangesetContext, ProgramPrefsChangesetSetterContext } from "./program-prefs-changeset-context"
+import { ToolsSection } from "./sections/tools"
 import { WindowsSection } from "./sections/windows"
 
 export function ProgramPref() {
@@ -79,6 +80,7 @@ export function ProgramPref() {
 							<PrefsSectionList className="min-w-48 border-r px-2" />
 							<ScrollArea className="flex-1">
 								<WindowsSection />
+								<ToolsSection />
 							</ScrollArea>
 						</PrefsProvider>
 					</div>

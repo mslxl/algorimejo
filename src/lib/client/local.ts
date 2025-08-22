@@ -62,6 +62,12 @@ async setWorkspaceConfig(data: WorkspaceConfig) : Promise<null> {
 async getStringOfDoc(docId: string, name: string) : Promise<string> {
     return await TAURI_INVOKE("get_string_of_doc", { docId, name });
 },
+async launchCompetitiveCompanionListener(addr: string) : Promise<null> {
+    return await TAURI_INVOKE("launch_competitive_companion_listener", { addr });
+},
+async shutdownCompetitiveCompanionListener() : Promise<null> {
+    return await TAURI_INVOKE("shutdown_competitive_companion_listener");
+},
 async loadDocument(docId: string) : Promise<number[]> {
     return await TAURI_INVOKE("load_document", { docId });
 },
@@ -101,11 +107,15 @@ export const events = __makeEvents__<{
 languageServerEvent: LanguageServerEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
 programOutputEvent: ProgramOutputEvent,
+queryClientInvalidateEvent: QueryClientInvalidateEvent,
+toastEvent: ToastEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 }>({
 languageServerEvent: "language-server-event",
 programConfigUpdateEvent: "program-config-update-event",
 programOutputEvent: "program-output-event",
+queryClientInvalidateEvent: "query-client-invalidate-event",
+toastEvent: "toast-event",
 workspaceConfigUpdateEvent: "workspace-config-update-event"
 })
 
@@ -141,16 +151,19 @@ export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
-export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean }
+export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
 export type ProgramOutputEvent = { task_tag: string; source: ProgramOutputSource; line: string }
 export type ProgramOutputSource = "Stdout" | "Stderr"
 export type ProgramSimpleOutput = { exit_code: number; stdout: string; stderr: string; is_timeout: boolean }
+export type QueryClientInvalidateEvent = { query_key: string[] | null }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
 export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }
 export type SortOrder = "Asc" | "Desc"
 export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
+export type ToastEvent = { kind: ToastKind; message: string }
+export type ToastKind = "Info" | "Error" | "Warning" | "Success"
 export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }> }
 export type WorkspaceConfigUpdateEvent = { new: WorkspaceConfig }
 

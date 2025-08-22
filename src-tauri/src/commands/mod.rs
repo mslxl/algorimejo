@@ -42,3 +42,22 @@ pub async fn exit_app<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String
     app.exit(0);
     Ok(())
 }
+
+#[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
+pub struct QueryClientInvalidateEvent {
+    pub query_key: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub enum ToastKind {
+    Info,
+    Error,
+    Warning,
+    Success,
+}
+
+#[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
+pub struct ToastEvent {
+    kind: ToastKind,
+    message: String,
+}

@@ -1,7 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
+    commands::{QueryClientInvalidateEvent, ToastEvent, ToastKind},
     database::{
+        competitive_companion::handle_competitive_companion_message,
         config::{AdvLanguageItem, WorkspaceConfig},
         CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
         CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
@@ -11,11 +13,16 @@ use crate::{
     model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
     runner::BUNDLED_CHECKER_NAME,
 };
-use log::trace;
+use log::{error, trace};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{path::BaseDirectory, Manager, Runtime, State};
 use tauri_specta::Event;
+use tokio::{
+    io::{AsyncReadExt, BufReader},
+    net::TcpListener,
+    sync::Mutex,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -257,4 +264,86 @@ pub async fn resolve_checker(app: tauri::AppHandle, name: String) -> Result<Path
         //TODO: custom checker with testlib
         unimplemented!()
     }
+}
+
+#[derive(Default)]
+pub struct CompetitiveCompanionListenerState {
+    shutdown_tx: Mutex<Option<tokio::sync::mpsc::UnboundedSender<()>>>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn launch_competitive_companion_listener(
+    app: tauri::AppHandle,
+    addr: String,
+) -> Result<(), String> {
+    let app_handle = app.clone();
+    let state = app.state::<CompetitiveCompanionListenerState>();
+    let mut guard = state.shutdown_tx.lock().await;
+    if guard.is_some() {
+        return Err("Competitive companion listener already running".to_string());
+    }
+    trace!("launching competitive companion listener on {}", addr);
+    let listener = TcpListener::bind(addr).await.map_err(|e| e.to_string())?;
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+    *guard = Some(tx);
+
+    tokio::spawn(async move {
+        let mut shutdown_channel = rx;
+        let listener = listener;
+        loop {
+            tokio::select! {
+                _ = shutdown_channel.recv() => {
+                    break;
+                }
+                Ok((mut stream, addr)) = listener.accept() => {
+                    //TODO: handle errors
+                    let mut reader = BufReader::new(&mut stream);
+                    let mut content = String::new();
+                    if let Err(err) = reader.read_to_string(&mut content).await {
+                        error!("failed to read competitive companion message from {}: {}", addr, err);
+                        ToastEvent{
+                            kind: ToastKind::Error,
+                            message: format!("failed to read competitive companion message from {}: {}", addr, err)
+                        }.emit(&app_handle).unwrap();
+                        continue;
+                    }
+                    // Skip http header
+                    let content = content.lines()
+                        .skip_while(|line| !line.is_empty())
+                        .skip(1)
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    trace!("competitive companion {} -> {}", addr, content);
+                    let db = app_handle.state::<DatabaseRepo>();
+                    let doc_repo = app_handle.state::<DocumentRepo>();
+                    if let Err(err) = handle_competitive_companion_message(&content, &db, &doc_repo).await {
+                        error!("failed to handle competitive companion message from {}: {:?}", addr, err);
+                        ToastEvent{
+                            kind: ToastKind::Error,
+                            message: format!("failed to handle competitive companion message from {}: {}", addr, err)
+                        }.emit(&app_handle).unwrap();
+                    }
+                    // invalidate query is here: src\hooks\use-problems-list.ts
+                    let event = QueryClientInvalidateEvent { query_key: Some(vec!["problems".to_string()]) };
+                    event.emit(&app_handle).unwrap();
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn shutdown_competitive_companion_listener(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<CompetitiveCompanionListenerState>();
+    let mut guard = state.shutdown_tx.lock().await;
+    if guard.is_none() {
+        return Err("Competitive companion listener not running".to_string());
+    }
+    trace!("shutting down competitive companion listener");
+    guard.take().unwrap().send(()).unwrap();
+    Ok(())
 }

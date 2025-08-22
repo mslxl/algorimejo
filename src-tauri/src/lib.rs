@@ -18,6 +18,8 @@ pub fn run() {
     let builder = Builder::<tauri::Wry>::new()
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
         .events(collect_events![
+            commands::QueryClientInvalidateEvent,
+            commands::ToastEvent,
             commands::ProgramConfigUpdateEvent,
             commands::database::WorkspaceConfigUpdateEvent,
             commands::runner::LanguageServerEvent,
@@ -43,6 +45,8 @@ pub fn run() {
             commands::database::get_workspace_config,
             commands::database::set_workspace_config::<tauri::Wry>,
             commands::database::get_string_of_doc,
+            commands::database::launch_competitive_companion_listener,
+            commands::database::shutdown_competitive_companion_listener,
             // TODO: cataloging
             commands::database::load_document,
             commands::database::apply_change,
@@ -80,6 +84,7 @@ pub fn run() {
             setup::setup_database(app)?;
             setup::setup_document_repo(app)?;
             setup::setup_decorum(app)?;
+            setup::setup_competitive_companion_listener(app)?;
 
             app.manage(commands::runner::LangServerState::default());
 
