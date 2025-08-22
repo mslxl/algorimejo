@@ -176,10 +176,12 @@ export function ProblemCollapsible({
 										className="flex w-full items-center gap-1 text-sm hover:bg-secondary"
 										asChild
 									>
-										<TooltipTrigger>
+										<TooltipTrigger className="flex items-center justify-start py-0.5">
 											<LucideFile className="size-4" />
 											{/* <LucideFileCheck/> */}
-											{problem.name}
+											<span className="flex-1 truncate text-left">
+												{problem.name}
+											</span>
 										</TooltipTrigger>
 									</CollapsibleTrigger>
 								</ContextMenuTrigger>
