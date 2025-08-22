@@ -39,35 +39,53 @@ export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
 		}))
 
 		return (
-			<li
-				className="rounded-lg border p-4 shadow-sm transition-shadow hover:shadow"
-			>
-				<div className="mb-4 flex items-center justify-between">
-					<h3 className="text-lg font-semibold">
-						Testcase #
-						{index + 1}
-					</h3>
-					<div
-						className="rounded-full px-3 py-1 text-sm font-medium text-white"
-						style={{ backgroundColor: runTestStatusToColor[status] }}
-					>
-						{status}
+			<li className="rounded-lg border p-3 shadow-sm transition-shadow hover:shadow">
+				<div className="mb-3 flex flex-col gap-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<h3 className="text-base font-semibold">
+							Testcase #
+							{index + 1}
+						</h3>
+						<div
+							className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
+							style={{ backgroundColor: runTestStatusToColor[status] }}
+						>
+							{status}
+						</div>
+					</div>
+
+					<div className="flex items-center gap-1">
+						<Button variant="destructive" size="sm" className="h-7 w-7 p-0">
+							<LucideTrash className="h-3 w-3" />
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-7 w-7 p-0"
+							onClick={() => onRunTestcase?.(testcase)}
+						>
+							<LucidePlay className="h-3 w-3" />
+						</Button>
+						<Button variant="outline" size="sm" className="h-7 w-7 p-0">
+							<LucideBugPlay className="h-3 w-3" />
+						</Button>
 					</div>
 				</div>
+
 				<div
-					className={cn("grid gap-4", {
+					className={cn("grid gap-3", {
 						"grid-cols-1": colsNum === 1,
 						"grid-cols-2": colsNum === 2,
 						"grid-cols-3": colsNum === 3,
 					})}
 				>
-					<div className="flex flex-col space-y-2">
+					<div className="flex flex-col space-y-1.5">
 						<div className="flex items-center gap-2">
-							<span className="text-sm font-medium">Input</span>
+							<span className="text-xs font-medium text-muted-foreground">Input</span>
 						</div>
 						<div className="flex-1 overflow-hidden rounded-md border">
 							<CodeEditor
-								className="size-full min-h-32"
+								className="size-full min-h-24"
 								documentID={testcase.input_document_id}
 								language="Text"
 								textarea
@@ -75,13 +93,13 @@ export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
 						</div>
 					</div>
 
-					<div className="flex flex-col space-y-2">
+					<div className="flex flex-col space-y-1.5">
 						<div className="flex items-center gap-2">
-							<span className="text-sm font-medium">Answer</span>
+							<span className="text-xs font-medium text-muted-foreground">Answer</span>
 						</div>
 						<div className="flex-1 overflow-hidden rounded-md border">
 							<CodeEditor
-								className="size-full min-h-32"
+								className="size-full min-h-24"
 								documentID={testcase.answer_document_id}
 								language="Text"
 								textarea
@@ -89,29 +107,18 @@ export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
 						</div>
 					</div>
 
-					<div className="space-y-2">
+					<div className="flex flex-col space-y-1.5">
 						<div className="flex items-center gap-2">
-							<span className="text-sm font-medium">Output</span>
+							<span className="text-xs font-medium text-muted-foreground">Output</span>
 						</div>
 						<div className="flex-1 overflow-hidden rounded-md border">
 							<CodeMirrorTextarea
-								className="size-full min-h-32"
+								className="size-full min-h-24"
 								ref={outputRef}
 								editable={false}
 								defaultValue=""
 							/>
 						</div>
-					</div>
-					<div className="flex items-center gap-2">
-						<Button variant="destructive" size="icon">
-							<LucideTrash />
-						</Button>
-						<Button variant="outline" size="icon" onClick={() => onRunTestcase?.(testcase)}>
-							<LucidePlay />
-						</Button>
-						<Button variant="outline" size="icon">
-							<LucideBugPlay />
-						</Button>
 					</div>
 				</div>
 			</li>

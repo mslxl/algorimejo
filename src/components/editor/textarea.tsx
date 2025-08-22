@@ -38,33 +38,41 @@ const CodeMirrorTextareaContent = forwardRef<CodeMirrorTextareaRef, CodeMirrorTe
 			state: stateRef.current,
 			container: containerRef.current,
 			clear: () => {
-				if (stateRef.current) {
-					stateRef.current.update({
-						changes: { from: 0, to: stateRef.current.doc.length, insert: "" },
+				if (viewRef.current) {
+					viewRef.current.dispatch({
+						changes: {
+							from: 0,
+							to: viewRef.current.state.doc.toString().length,
+							insert: "",
+						},
 					})
 				}
 			},
 			append: (text: string) => {
-				if (stateRef.current) {
-					stateRef.current.update({
-						changes: { from: stateRef.current.doc.length, to: stateRef.current.doc.length, insert: text },
+				if (viewRef.current) {
+					viewRef.current.dispatch({
+						changes: {
+							from: viewRef.current.state.doc.toString().length,
+							to: viewRef.current.state.doc.toString().length,
+							insert: text,
+						},
 					})
 				}
 			},
 			getValue: () => {
-				if (stateRef.current) {
-					return stateRef.current.doc.toString()
+				if (viewRef.current) {
+					return viewRef.current.state.doc.toString()
 				}
 				return ""
 			},
 			setValue: (value: string) => {
-				if (stateRef.current) {
-					stateRef.current.update({
-						changes: { from: 0, to: stateRef.current.doc.length, insert: value },
+				if (viewRef.current) {
+					viewRef.current.dispatch({
+						changes: { from: 0, to: viewRef.current.state.doc.toString().length, insert: value },
 					})
 				}
 			},
-		}))
+		}), [])
 
 		useEffect(() => {
 			const state = EditorState.create({
@@ -91,7 +99,7 @@ const CodeMirrorTextareaContent = forwardRef<CodeMirrorTextareaRef, CodeMirrorTe
 				viewRef.current = null
 				stateRef.current = null
 			}
-		})
+		}, [defaultValue, editable, programConfig, workspaceConfig])
 		return <div ref={containerRef} {...props} />
 	},
 )

@@ -5,16 +5,12 @@ import type { OpenedTab } from "@/stores/tab-slice"
 import * as log from "@tauri-apps/plugin-log"
 import { debounce } from "lodash/fp"
 import {
-	LucideBugPlay,
-	LucidePlay,
 	LucidePlus,
 	LucideSettings,
-	LucideTrash,
 } from "lucide-react"
 import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { match, P } from "ts-pattern"
-import { CodeEditor } from "@/components/editor"
 import { ErrorLabel } from "@/components/error-label"
 import { ProblemSetting } from "@/components/problem-setting"
 import { Button } from "@/components/ui/button"
@@ -27,7 +23,6 @@ import { useSolution } from "@/hooks/use-solution"
 import { useTestcaseCreator } from "@/hooks/use-testcase-creator"
 import { useTestcases } from "@/hooks/use-testcases"
 import { runTestcase, runTestStatusToColor } from "@/lib/runner"
-import { cn } from "@/lib/utils"
 import { solutionEditorPageDataSchema } from "../editor/schema"
 import { TestcaseItem } from "./testcase-item"
 
@@ -196,6 +191,12 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 		log.trace(`testcase ${tag} result: ${JSON.stringify(info)}`)
 	}, [languageItem.data, problem.checker, problem.time_limit, solution.data])
 
+	const handleRunAllTestcases = useCallback(() => {
+		for (let i = 0; i < testcases.length; i++) {
+			handleRunTestcase(testcases[i], i)
+		}
+	}, [handleRunTestcase, testcases])
+
 	return (
 		<div className="flex h-full flex-col p-2 pr-0" ref={panelRef}>
 			<Dialog open={isEditingProblemOptions} onOpenChange={setIsEditingProblemOptions}>
@@ -210,25 +211,11 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 
 			<ScrollArea className="min-h-0 flex-1">
 				<div className="mr-2 p-2">
-					<div className="mb-4 flex gap-2">
-						<div className="flex flex-1 flex-wrap gap-0.5 rounded-md border bg-background p-2">
-							{testcases.map((testcase, index) => (
-								<span
-									className="size-4 cursor-pointer rounded-sm border transition-colors"
-									style={{ backgroundColor: runTestStatusToColor[itemsStatus[index]] }}
-									key={testcase.id}
-									title={`Testcase #${index + 1}: ${itemsStatus[index]}`}
-								/>
-							))}
-						</div>
-						<Button variant="outline" size="icon" onClick={() => setIsEditingProblemOptions(true)}>
-							<LucideSettings />
-						</Button>
-					</div>
 
 					<ul className="space-y-4">
 						{testcases.map((testcase, index) => (
 							<TestcaseItem
+								ref={el => itemsRef.current[index] = el!}
 								testcase={testcase}
 								colsNum={colsNum}
 								index={index}
@@ -241,10 +228,26 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 				</div>
 			</ScrollArea>
 			<div className="flex shrink-0 justify-end gap-2 border-t bg-background p-4">
+				<div className="mb-4 flex gap-2">
+					<div className="flex flex-1 flex-wrap gap-0.5 rounded-md border bg-background p-2">
+						{testcases.map((testcase, index) => (
+							<span
+								className="size-4 cursor-pointer rounded-sm border transition-colors"
+								style={{ backgroundColor: runTestStatusToColor[itemsStatus[index]] }}
+								key={testcase.id}
+								title={`Testcase #${index + 1}: ${itemsStatus[index]}`}
+							/>
+						))}
+					</div>
+				</div>
+				<span className="flex-1" />
+				<Button variant="outline" size="icon" onClick={() => setIsEditingProblemOptions(true)}>
+					<LucideSettings />
+				</Button>
 				<Button variant="outline" onClick={handleCreateTestcase}>
 					<LucidePlus />
 				</Button>
-				<Button>Run All</Button>
+				<Button onClick={handleRunAllTestcases}>Run All</Button>
 			</div>
 		</div>
 	)
