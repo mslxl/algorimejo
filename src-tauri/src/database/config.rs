@@ -100,27 +100,6 @@ impl WorkspaceLocalDeserialized {
                 lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
             },
         );
-        language.insert(
-            "python 3".to_string(),
-            AdvLanguageItem {
-                base: LanguageBase::Python,
-                cmd_compile: "".to_string(),
-                cmd_before_run: None,
-                cmd_after_run: None,
-                cmd_run: "python $target".to_string(),
-                lsp: Some(format!(
-                    "%{}{}pylyzer{} --server",
-                    ENV_KEY_BUNDLED_LSP,
-                    path::MAIN_SEPARATOR,
-                    if cfg!(target_os = "windows") {
-                        ".exe"
-                    } else {
-                        ""
-                    }
-                )),
-                lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
-            },
-        );
         language
     }
 }
