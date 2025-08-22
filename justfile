@@ -48,7 +48,6 @@ build-deps:
     just build-consolepauser
     just build-testlib
     just download-clangd
-    just download-pylyzer
 
 [windows]
 build-testlib:
@@ -76,10 +75,3 @@ download-clangd:
     if [[ ! -f $TMP/clangd.zip ]]; then curl -L {{ CLANGD_WINDOWS_URL }} -o $TMP/clangd.zip; fi
     unzip -o $TMP/clangd.zip -d $TMP/clangd
     find $TMP/clangd -type d -name "bin" -exec cp -f {}/clangd.exe ./src-tauri/lang-server/clangd.exe \;
-    
-[windows]
-download-pylyzer:
-    mkdir -p ./src-tauri/lang-server
-    if [[ ! -f $TMP/pylyzer.zip ]]; then curl -L {{ PYLYZER_WINDOWS_URL }} -o $TMP/pylyzer.zip; fi
-    unzip -o $TMP/pylyzer.zip -d $TMP/pylyzer
-    find $TMP/pylyzer -type f -name "pylyzer.exe" -exec cp -f {} ./src-tauri/lang-server/pylyzer.exe \;
