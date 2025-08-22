@@ -78,6 +78,14 @@ impl DocumentHolder {
         let s = text_ref.get_string(&txn);
         Ok(s)
     }
+    fn set_string(&self, name: &str, value: &str) -> Result<()> {
+        let text_ref = self.doc.get_or_insert_text(name);
+        let mut txn = Transact::transact_mut(&self.doc);
+        let len = text_ref.len(&mut txn);
+        text_ref.remove_range(&mut txn, 0, len);
+        text_ref.insert(&mut txn, 0, value);
+        Ok(())
+    }
 }
 
 pub struct DocumentRepo {
@@ -131,6 +139,15 @@ impl DocumentRepo {
             .get(doc_id)
             .ok_or(anyhow::anyhow!("Document {} not loaded", doc_id))?;
         doc.get_string(name)
+    }
+    pub fn set_string_of_doc(&self, doc_id: &str, name: &str, value: &str) -> Result<()> {
+        let guard = self.docs.read().unwrap();
+        let doc = guard
+            .get(doc_id)
+            .ok_or(anyhow::anyhow!("Document {} not loaded", doc_id))?;
+        doc.set_string(name, value)?;
+        doc.save_document()?;
+        Ok(())
     }
 }
 

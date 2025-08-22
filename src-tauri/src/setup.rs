@@ -1,16 +1,19 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use diesel::{
     r2d2::{ConnectionManager, Pool},
     SqliteConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::{info, trace};
-use tauri::{Manager, Runtime};
+use tauri::{async_runtime::block_on, Manager, Runtime};
 use tauri_plugin_decorum::WebviewWindowExt;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 use crate::{
+    commands::database::{
+        launch_competitive_companion_listener, CompetitiveCompanionListenerState,
+    },
     config::ProgramConfigRepo,
     database::{self, config::WorkspaceLocalDeserialized},
     document::DocumentRepo,
@@ -85,7 +88,7 @@ pub fn setup_document_repo<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     Ok(())
 }
 
-pub fn setup_program_config<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
+pub fn setup_program_config(app: &mut tauri::App) -> Result<()> {
     trace!("setup program config");
     let config_path = app.path().app_data_dir()?.join("config.toml");
     let config_dir = config_path.parent().unwrap();
@@ -95,7 +98,22 @@ pub fn setup_program_config<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     }
 
     let cfg = ProgramConfigRepo::load(config_path)?;
+
     app.manage(cfg);
+    Ok(())
+}
+
+pub fn setup_competitive_companion_listener(app: &mut tauri::App) -> Result<()> {
+    app.manage(CompetitiveCompanionListenerState::default());
+    let cfg = app.state::<ProgramConfigRepo>();
+    let cfg_guard = cfg.read()?;
+    if cfg_guard.competitive_companion_enabled {
+        block_on(launch_competitive_companion_listener(
+            app.handle().clone(),
+            cfg_guard.competitive_companion_addr.clone(),
+        ))
+        .map_err(|e| anyhow!(e))?;
+    }
     Ok(())
 }
 

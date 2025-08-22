@@ -20,6 +20,7 @@ use crate::model::{
     SolutionRow, TestCase,
 };
 
+pub mod competitive_companion;
 pub mod config;
 pub mod language;
 
