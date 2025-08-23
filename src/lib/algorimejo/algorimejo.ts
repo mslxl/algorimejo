@@ -1,11 +1,11 @@
 import type { FC } from "react"
-import type { CreateEditorTabOptions, CreateSolutionEditorTabOptions, CreateTabOptions } from "./options"
+import type { CreateSolutionEditorTabOptions, CreateTabOptions } from "./options"
 import { configureStore } from "@reduxjs/toolkit"
 import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
-import { Editor, SolutionEditor } from "@/feat/editor/editor"
-import { selectEditorDocumentTabIndex, selectSolutionEditorTabIndex } from "@/feat/editor/utils"
+import { SolutionEditor } from "@/feat/editor/editor"
+import { selectSolutionEditorTabIndex } from "@/feat/editor/utils"
 import { ProgramPreference } from "@/feat/program-pref"
 import { WorkspacePreference } from "@/feat/workspace-pref"
 import { reducer as sidebarReducer } from "@/stores/sidebar-slice"
@@ -64,7 +64,6 @@ export class Algorimejo {
 	private readyListener = new Set<() => void>()
 	constructor() {
 		(async () => {
-			this.provideUI("editor", Editor)
 			this.provideUI("solution-editor", SolutionEditor)
 			this.provideUI("workspace-pref", WorkspacePreference)
 			this.provideUI("program-pref", ProgramPreference)
@@ -184,31 +183,6 @@ export class Algorimejo {
 			title: "Program Preferences",
 			icon: "LucideSettings2",
 		})
-	}
-
-	createEditorTab(
-		documentID: string,
-		problemID: string,
-		solutionID: string,
-		{ reuseTab = true, language, ...options }: CreateEditorTabOptions,
-	) {
-		const index = reuseTab
-			? this.selectStateValue(selectEditorDocumentTabIndex(documentID))
-			: -1
-		if (index === -1) {
-			return this.createTab(
-				"editor",
-				{
-					documentID,
-					language,
-					problemID,
-					solutionID,
-				},
-				options,
-			)
-		}
-		this.selectTab(index)
-		return this.selectStateValue(v => v.tab.tabs[index].id)
 	}
 
 	createSolutionEditorTab(

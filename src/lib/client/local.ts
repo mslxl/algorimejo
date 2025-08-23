@@ -14,6 +14,12 @@ async getProgConfig() : Promise<ProgramConfig> {
 async setProgConfig(data: ProgramConfig) : Promise<null> {
     return await TAURI_INVOKE("set_prog_config", { data });
 },
+async getDefaultCreateProblemParams(name: string, description: string | null, url: string | null, statement: string | null) : Promise<CreateProblemParams> {
+    return await TAURI_INVOKE("get_default_create_problem_params", { name, description, url, statement });
+},
+async getDefaultCreateSolutionParams(name: string) : Promise<CreateSolutionParams> {
+    return await TAURI_INVOKE("get_default_create_solution_params", { name });
+},
 async getProblems(params: GetProblemsParams) : Promise<GetProblemsResult> {
     return await TAURI_INVOKE("get_problems", { params });
 },
@@ -125,7 +131,7 @@ workspaceConfigUpdateEvent: "workspace-config-update-event"
 
 /** user-defined types **/
 
-export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string | null; cmd_after_run: string | null; cmd_run: string; lsp: string | null; lsp_connect: LanguageServerProtocolConnectionType | null }
+export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string | null; cmd_after_run: string | null; cmd_run: string; lsp: string | null; lsp_connect: LanguageServerProtocolConnectionType | null; initial_solution_content: string | null }
 export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
 export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
 export type CreateCheckerResult = { checker: Checker }
@@ -164,7 +170,7 @@ export type SortOrder = "Asc" | "Desc"
 export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
 export type ToastEvent = { kind: ToastKind; message: string }
 export type ToastKind = "Info" | "Error" | "Warning" | "Success"
-export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }> }
+export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }>; default_language: string | null }
 export type WorkspaceConfigUpdateEvent = { new: WorkspaceConfig }
 
 /** tauri-specta globals **/

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use tauri::Manager;
 
 use crate::{
-    database::{CreateProblemParams, CreateSolutionParams, DatabaseRepo},
-    document::DocumentRepo,
+    commands::get_default_create_problem_params, database::DatabaseRepo, document::DocumentRepo,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Type)]
@@ -89,27 +89,23 @@ pub struct CompetitiveCompanionMessage {
 
 type ProblemID = String;
 pub async fn handle_competitive_companion_message(
+    app: tauri::AppHandle,
     message: &str,
-    db: &DatabaseRepo,
-    doc_repo: &DocumentRepo,
 ) -> Result<ProblemID> {
+    let db = app.state::<DatabaseRepo>();
+    let doc_repo = app.state::<DocumentRepo>();
     let message: CompetitiveCompanionMessage = serde_json::from_str(message)?;
-    // TODO: add a config item and use it here
-    let result = db.create_problem(CreateProblemParams {
-        name: message.name.clone(),
-        url: Some(message.url.clone()),
-        description: Some(message.group),
-        statement: None,
-        checker: Some("ncmp".to_string()),
-        time_limit: message.time_limit as i32,
-        memory_limit: (message.memory_limit as i32) * 1024,
-        initial_solution: Some(CreateSolutionParams {
-            author: None,
-            name: message.name.clone(),
-            language: "cpp 17".to_string(),
-            content: None,
-        }),
-    })?;
+    let result = db.create_problem(
+        get_default_create_problem_params(
+            app.clone(),
+            message.name.clone(),
+            Some(message.group.clone()),
+            Some(message.url.clone()),
+            None,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?,
+    )?;
 
     let id = result.problem.id;
     for test in message.tests {

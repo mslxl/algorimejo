@@ -31,6 +31,7 @@ pub struct AdvLanguageItem {
     pub cmd_run: String,
     pub lsp: Option<String>,
     pub lsp_connect: Option<LanguageServerProtocolConnectionType>,
+    pub initial_solution_content: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -39,6 +40,7 @@ pub struct WorkspaceConfig {
     pub font_family: String,
     pub font_size: u32,
     pub language: HashMap<String, AdvLanguageItem>,
+    pub default_language: Option<String>,
 }
 
 impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
@@ -47,6 +49,7 @@ impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
             font_family: value.font_family,
             font_size: value.font_size,
             language: value.language,
+            default_language: value.default_language,
         }
     }
 }
@@ -61,6 +64,7 @@ pub struct WorkspaceLocalDeserialized {
     pub font_size: u32,
     #[serde(default = "WorkspaceLocalDeserialized::default_language")]
     pub language: HashMap<String, AdvLanguageItem>,
+    pub default_language: Option<String>,
 }
 impl WorkspaceLocalDeserialized {
     fn default_font_size() -> u32 {
@@ -98,6 +102,9 @@ impl WorkspaceLocalDeserialized {
                     }
                 )),
                 lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
+                initial_solution_content: Some(
+                    "#include<iostream>\nint main(){\n\treturn 0;\n}".to_string(),
+                ),
             },
         );
         language
@@ -110,6 +117,7 @@ impl Default for WorkspaceLocalDeserialized {
             language: Self::default_language(),
             font_family: Self::default_font_family(),
             font_size: Self::default_font_size(),
+            default_language: None,
         }
     }
 }
