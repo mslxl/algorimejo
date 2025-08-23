@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useEffect } from "react"
+import { toast } from "react-toastify"
 import { useAvailableLanguage } from "./use-available-language"
 import { WORKSPACE_CONFIG_QUERY_KEY } from "./use-workspace-config"
 
@@ -14,7 +15,10 @@ export function useLanguage(options: UseLanguageOptions) {
 		if (options.enabled && !options.language) {
 			throw new Error("language is required when enabled is true")
 		}
-	}, [options.language, options.enabled])
+		else if (options.enabled && options.language && availableLanguage.data) {
+			toast.error(`language ${options.language} is not available`)
+		}
+	}, [options.language, options.enabled, availableLanguage.data])
 
 	return useQuery({
 		queryKey: WORKSPACE_CONFIG_QUERY_KEY.concat("languages", options.language ?? "none"),

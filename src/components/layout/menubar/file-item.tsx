@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router"
 import { toast } from "react-toastify"
 import {
 	AlertDialog,
@@ -26,6 +27,7 @@ import { commands } from "@/lib/client"
 
 export function MenubarFileItem() {
 	const problemCreateMutation = useDefaultProblemCreator()
+	const navigate = useNavigate()
 	function handleCreateProblem() {
 		problemCreateMutation.mutate(undefined, {
 			onError: (error) => {
@@ -70,7 +72,7 @@ export function MenubarFileItem() {
 			<MenubarContent>
 				<MenubarItem onClick={handleCreateProblem}>New Problem</MenubarItem>
 				<MenubarSeparator />
-				<MenubarItem>Open Workspace...</MenubarItem>
+				<MenubarItem onClick={() => navigate({ to: "/workspace-selector" })}>Open Workspace...</MenubarItem>
 				<MenubarSeparator />
 				{/* TODO */}
 				{/* <MenubarItem>Open Recent</MenubarItem>
