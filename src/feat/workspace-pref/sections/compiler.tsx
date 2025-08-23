@@ -1,6 +1,6 @@
 import type { LanguageBase, LanguageServerProtocolConnectionType } from "@/lib/client"
 import { cloneDeep } from "lodash/fp"
-import { LucideCircleQuestionMark, LucideCopy, LucidePlusSquare, LucideSave, LucideSettings, LucideTextCursorInput, LucideTrash } from "lucide-react"
+import { LucideCircleQuestionMark, LucideCopy, LucidePenBox, LucidePlusSquare, LucideSave, LucideSettings, LucideTextCursorInput, LucideTrash } from "lucide-react"
 import { useState } from "react"
 import { v4 as uuid } from "uuid"
 import { PrefsItem, PrefsSection } from "@/components/prefs"
@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { languageBaseValues, languageServerProtocolConnectionTypeValues } from "@/lib/client/type"
 import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../workspace-prefs-changeset-context"
@@ -35,6 +36,7 @@ export function CompilerSection() {
 				cmd_before_run: null,
 				lsp: null,
 				lsp_connect: null,
+				initial_solution_content: null,
 			}
 		})
 	}
@@ -75,6 +77,29 @@ export function CompilerSection() {
 	}
 	return (
 		<PrefsSection section="Language">
+			<PrefsItem name="Default Language" description="The language that will be used by default when creating a new solution">
+				<Select
+					value={changeset.default_language ?? "text"}
+					onValueChange={(value) => {
+						setChangeset((draft) => {
+							draft.default_language = value
+						}, true)
+					}}
+				>
+					<SelectTrigger>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="Text">Text</SelectItem>
+						{languageNames.map(item => (
+							<SelectItem value={item} key={item}>
+								{item}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</PrefsItem>
+
 			<PrefsItem name="Language Configuration" description="Configure compiler settings for different programming languages" className="flex gap-6" hoverHighlight={false}>
 				<div className="flex size-full gap-6">
 					{/* Language List Panel */}
@@ -158,25 +183,72 @@ export function CompilerSection() {
 							{/* Language Syntax Base */}
 							<div className="space-y-2">
 								<Label htmlFor="language-base" className="text-sm font-medium">Language Syntax Base</Label>
-								<Select
-									value={changeset.language[selectedLanguageName]!.base}
-									onValueChange={(value) => {
-										setChangeset((draft) => {
-											draft.language![selectedLanguageName]!.base = value as LanguageBase
-										})
-									}}
-								>
-									<SelectTrigger id="language-base">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{languageBaseValues.map(value => (
-											<SelectItem value={value} key={value}>
-												{value}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+								<div className="flex gap-2">
+									<Select
+										value={changeset.language[selectedLanguageName]!.base}
+										onValueChange={(value) => {
+											setChangeset((draft) => {
+												draft.language![selectedLanguageName]!.base = value as LanguageBase
+											})
+										}}
+									>
+										<SelectTrigger id="language-base">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{languageBaseValues.map(value => (
+												<SelectItem value={value} key={value}>
+													{value}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<Dialog>
+										<DialogTrigger asChild>
+											<Button>
+												<LucidePenBox />
+												Set Initial Code
+											</Button>
+										</DialogTrigger>
+										<DialogContent>
+											<DialogHeader>
+												<DialogTitle>Set Initial Code</DialogTitle>
+												<DialogDescription>
+													Enter the initial code for
+													{" "}
+													[
+													{selectedLanguageName}
+													]
+													.
+												</DialogDescription>
+											</DialogHeader>
+											<Textarea
+												value={changeset.language[selectedLanguageName]!.initial_solution_content ?? ""}
+												onInput={e => setChangeset((draft) => {
+													draft.language![selectedLanguageName]!.initial_solution_content = e.currentTarget.value
+												})}
+												className="border p-2"
+												rows={5}
+												onBlur={applyChangeset}
+												onKeyDown={(e) => {
+													if (e.key === "Tab") {
+														e.preventDefault()
+														const target = e.currentTarget
+														const s = target.selectionStart
+														target.value = `${target.value.substring(0, target.selectionStart)}\t${target.value.substring(target.selectionEnd)}`
+														target.selectionEnd = s + 1
+													}
+												}}
+											>
+											</Textarea>
+											<DialogFooter>
+												<DialogClose asChild>
+													<Button>Done</Button>
+												</DialogClose>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+								</div>
 							</div>
 
 							<Separator />
@@ -207,7 +279,7 @@ export function CompilerSection() {
 											id="run-cmd"
 											autoComplete="off"
 											autoCorrect="off"
-											placeholder="e.g., ./%output"
+											placeholder="e.g., ./main.exe"
 											value={changeset.language[selectedLanguageName]!.cmd_run ?? ""}
 											onInput={e => setChangeset((draft) => {
 												draft.language![selectedLanguageName]!.cmd_run = e.currentTarget.value
@@ -354,11 +426,8 @@ export function CommandInputTooltip() {
 			<TooltipContent>
 				<p>You can use the following placeholders in your command:</p>
 				<ul>
-					<li>%src: The source file</li>
-					<li>%target: The target file</li>
-					<li>%args: The arguments passed to the command</li>
-					<li>%dir: Working directory</li>
-					<li>%uuid: A random UUID</li>
+					<li>%SRC: The source file</li>
+					<li>%CWD: Working directory</li>
 				</ul>
 			</TooltipContent>
 		</Tooltip>
@@ -372,9 +441,7 @@ export function LanguageServerTooltip() {
 			<TooltipContent>
 				<p>You can use the following placeholders in your command:</p>
 				<ul>
-					<li>%src: The source file</li>
-					<li>%dir: Working directory</li>
-					<li>%port: Websocket port(if enabled)</li>
+					<li>%PORT: Websocket port(if enabled)</li>
 				</ul>
 			</TooltipContent>
 		</Tooltip>

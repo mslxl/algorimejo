@@ -39,9 +39,32 @@ pub async fn get_problems(
 pub async fn create_problem(
     params: CreateProblemParams,
     db: State<'_, DatabaseRepo>,
+    doc_repo: State<'_, DocumentRepo>,
 ) -> Result<CreateProblemResult, String> {
     trace!("create_problem: {:?}", params);
-    db.create_problem(params).map_err(|e| e.to_string())
+    let initial_code = params
+        .initial_solution
+        .as_ref()
+        .map(|x| x.content.clone())
+        .flatten();
+    let res = db.create_problem(params).map_err(|e| e.to_string())?;
+
+    if let Some(solution) = res.problem.solutions.first() {
+        if let Some(initial_code) = initial_code {
+            let doc = solution.document.as_ref().unwrap();
+            let filepath = db
+                .get_document_filepath(&doc.id)
+                .map_err(|e| e.to_string())?;
+            doc_repo
+                .manage(doc.id.clone(), filepath)
+                .map_err(|e| e.to_string())?;
+            doc_repo
+                .set_string_of_doc(&doc.id, "content", &initial_code)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(res)
 }
 
 #[tauri::command]
@@ -315,9 +338,7 @@ pub async fn launch_competitive_companion_listener(
                         .collect::<Vec<_>>()
                         .join("\n");
                     trace!("competitive companion {} -> {}", addr, content);
-                    let db = app_handle.state::<DatabaseRepo>();
-                    let doc_repo = app_handle.state::<DocumentRepo>();
-                    if let Err(err) = handle_competitive_companion_message(&content, &db, &doc_repo).await {
+                    if let Err(err) = handle_competitive_companion_message(app_handle.clone(), &content).await {
                         error!("failed to handle competitive companion message from {}: {:?}", addr, err);
                         ToastEvent{
                             kind: ToastKind::Error,

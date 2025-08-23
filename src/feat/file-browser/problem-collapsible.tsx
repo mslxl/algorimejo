@@ -36,7 +36,7 @@ import { useProblemChangeset } from "@/hooks/use-problem-changeset"
 import { useProblemDeleter } from "@/hooks/use-problem-deleter"
 import { useSolutionCreator } from "@/hooks/use-solution-creator"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectEditorDocumentTabIndex } from "../editor/utils"
+import { selectSolutionEditorTabIndex } from "../editor/utils"
 import { ProblemDetail } from "./problem-detail"
 import { ProblemListItem } from "./problem-list-item"
 
@@ -65,13 +65,11 @@ export function ProblemCollapsible({
 			},
 			onSuccess: () => {
 				for (const sol of problem.solutions) {
-					if (sol.document) {
-						const tabIndex = algorimejo.selectStateValue(
-							selectEditorDocumentTabIndex(sol.id),
-						)
-						if (tabIndex !== -1) {
-							algorimejo.closeTab(tabIndex)
-						}
+					const tabIndex = algorimejo.selectStateValue(
+						selectSolutionEditorTabIndex(sol.id),
+					)
+					if (tabIndex !== -1) {
+						algorimejo.closeTab(tabIndex)
 					}
 				}
 			},
@@ -92,7 +90,7 @@ export function ProblemCollapsible({
 		setIsRenaming(true)
 		setTimeout(() => {
 			inputRenameRef.current?.focus()
-		}, 100)
+		}, 400)
 	}
 	function handleProblemRename(newName: string) {
 		setIsRenaming(false)
@@ -115,13 +113,11 @@ export function ProblemCollapsible({
 				},
 				onSuccess: async () => {
 					for (const sol of problem.solutions) {
-						if (sol.document) {
-							const tabIndex = algorimejo.selectStateValue(
-								selectEditorDocumentTabIndex(sol.document.id),
-							)
-							if (tabIndex !== -1) {
-								algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`)
-							}
+						const tabIndex = algorimejo.selectStateValue(
+							selectSolutionEditorTabIndex(sol.id),
+						)
+						if (tabIndex !== -1) {
+							algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`)
 						}
 					}
 				},

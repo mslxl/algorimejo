@@ -13,7 +13,7 @@ use specta::Type;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     process::Child,
-    sync::{Mutex, RwLock},
+    sync::Mutex,
 };
 
 use crate::runner::command_flag_hide_new_console;

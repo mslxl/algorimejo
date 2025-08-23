@@ -13,6 +13,7 @@ export const textLanguageItem: AdvLanguageItem = {
 	cmd_run: "",
 	lsp: null,
 	lsp_connect: null,
+	initial_solution_content: null,
 }
 
 export function getLanguageID(language: LanguageBase) {

@@ -40,8 +40,8 @@ export function MenubarFileItem() {
 				const problem = data.problem
 				if (problem.solutions[0].document) {
 					algorimejo.createSolutionEditorTab(
-						problem.id,
 						problem.solutions[0].id,
+						problem.id,
 						{
 							title: `${problem.name} - ${problem.solutions[0].name}`,
 						},

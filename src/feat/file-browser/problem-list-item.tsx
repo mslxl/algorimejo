@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset"
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectEditorDocumentTabIndex, selectSolutionEditorTabIndex } from "../editor/utils"
+import { selectSolutionEditorTabIndex } from "../editor/utils"
 import { TreeStyledLi } from "./tree-styled-item"
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
@@ -48,7 +48,7 @@ export function ProblemListItem({
 		setIsRenaming(true)
 		setTimeout(() => {
 			inputRenameRef.current?.focus()
-		}, 100)
+		}, 400)
 	}
 	function handleProblemRename(newName: string) {
 		setIsRenaming(false)
@@ -67,13 +67,11 @@ export function ProblemListItem({
 					toast.error(`Fail to rename: ${error}`)
 				},
 				onSuccess: () => {
-					if (solution.document) {
-						const tabIndex = algorimejo.selectStateValue(
-							selectEditorDocumentTabIndex(solution.document.id),
-						)
-						if (tabIndex !== -1) {
-							algorimejo.renameTab(tabIndex, `${newName} - ${problem.name}`)
-						}
+					const tabIndex = algorimejo.selectStateValue(
+						selectSolutionEditorTabIndex(solution.id),
+					)
+					if (tabIndex !== -1) {
+						algorimejo.renameTab(tabIndex, `${newName} - ${problem.name}`)
 					}
 				},
 			},

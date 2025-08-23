@@ -19,21 +19,8 @@ export function useDefaultProblemCreator() {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: async () => {
-			return await commands.createProblem({
-				name: "Unamed Problem",
-				url: null,
-				description: null,
-				statement: null,
-				checker: null,
-				time_limit: 3000,
-				memory_limit: 5 * 1024,
-				initial_solution: {
-					name: "Solution 1",
-					language: "cpp", // TODO: make default language configurable
-					author: null,
-					content: null,
-				},
-			})
+			const params = await commands.getDefaultCreateProblemParams("Unamed Problem", null, null, null)
+			return await commands.createProblem(params)
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })

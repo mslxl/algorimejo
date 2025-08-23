@@ -1,4 +1,3 @@
-use specta_typescript::Typescript;
 #[cfg(debug_assertions)]
 use specta_typescript::{formatter, BigIntExportBehavior};
 use tauri::Manager;
@@ -29,6 +28,8 @@ pub fn run() {
             commands::exit_app::<tauri::Wry>,
             commands::get_prog_config,
             commands::set_prog_config::<tauri::Wry>,
+            commands::get_default_create_problem_params,
+            commands::get_default_create_solution_params,
             commands::database::get_problems,
             commands::database::get_problem,
             commands::database::create_problem,
@@ -61,17 +62,20 @@ pub fn run() {
         ]);
 
     #[cfg(debug_assertions)]
-    builder
-        .export(
-            Typescript::default()
-                // https://github.com/specta-rs/tauri-specta/issues/179
-                // Sadly, we have to use number instead of string, because using string need lot work
-                // we need number to provide temporary solution for the issue
-                .bigint(BigIntExportBehavior::Number)
-                .formatter(formatter::eslint),
-            "../src/lib/client/local.ts",
-        )
-        .expect("failed to export typescript bindings");
+    {
+        use specta_typescript::Typescript;
+        builder
+            .export(
+                Typescript::default()
+                    // https://github.com/specta-rs/tauri-specta/issues/179
+                    // Sadly, we have to use number instead of string, because using string need lot work
+                    // we need number to provide temporary solution for the issue
+                    .bigint(BigIntExportBehavior::Number)
+                    .formatter(formatter::eslint),
+                "../src/lib/client/local.ts",
+            )
+            .expect("failed to export typescript bindings");
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
