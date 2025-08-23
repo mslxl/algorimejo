@@ -1,7 +1,10 @@
 #[cfg(debug_assertions)]
 use specta_typescript::{formatter, BigIntExportBehavior};
-use tauri::Manager;
+use tauri::{async_runtime::block_on, Manager, RunEvent};
 use tauri_specta::{collect_commands, collect_events, Builder};
+use tokio::task::block_in_place;
+
+use crate::commands::database::shutdown_competitive_companion_listener;
 
 pub mod commands;
 pub mod config;
@@ -78,11 +81,13 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_decorum::init())
         .invoke_handler(builder.invoke_handler())
-        .setup(move |app| {
+        .setup(move |mut app| {
             builder.mount_events(app);
             setup::setup_program_config(app)?;
             setup::setup_database(app)?;
@@ -94,6 +99,19 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|handle, event| match event {
+            RunEvent::Exit => {
+                let state = handle.state::<commands::runner::LangServerState>();
+                log::trace!("Recycling external resources");
+                block_in_place(|| {
+                    block_on(async {
+                        state.kill_all().await;
+                        shutdown_competitive_companion_listener(handle.clone()).await.unwrap();
+                    });
+                });
+            }
+            _ => {}
+        });
 }

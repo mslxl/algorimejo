@@ -52,6 +52,21 @@ pub struct LangServerState {
     pub processes: RwLock<HashMap<ChildPID, LangServerProcess>>,
 }
 
+impl LangServerState {
+    pub async fn kill_all(&self) {
+        let mut processes = self.processes.write().await;
+        for (pid, process) in processes.iter() {
+            process.kill().await.unwrap();
+        }
+        processes.clear();
+        let mut writers = self.writers.write().await;
+        for (pid, writer) in writers.iter() {
+            writer.kill().await.unwrap();
+        }
+        writers.clear();
+    }
+}
+
 #[derive(Serialize, Deserialize, Type, Event, Clone, Debug)]
 pub struct LanguageServerEvent {
     pid: ChildPID,

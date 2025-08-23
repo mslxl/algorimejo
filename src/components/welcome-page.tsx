@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router"
 import * as log from "@tauri-apps/plugin-log"
 import {
 	BookOpenIcon,
@@ -5,7 +6,6 @@ import {
 	LightbulbIcon,
 	PlusIcon,
 	SparklesIcon,
-	UsersIcon,
 } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { ScrollArea } from "./ui/scroll-area"
 
 export function WelcomePage() {
 	const dispatch = useAppDispatch()
+	const navigate = useNavigate()
 	const startItems = [
 		{
 			icon: PlusIcon,
@@ -34,20 +35,22 @@ export function WelcomePage() {
 			icon: FolderIcon,
 			title: "Open Folder...",
 			description: "Open a workspace folder",
-			action: () => log.trace("Open Folder"),
+			action: () => navigate({ to: "/workspace-selector" }),
 		},
-		{
-			icon: UsersIcon,
-			title: "Connect to your friends...",
-			description: "Connect to your friends",
-			action: () => log.trace("Connect to your friends"),
-		},
-		{
-			icon: SparklesIcon,
-			title: "Algorimejo Website",
-			description: "Visit the Algorimejo website",
-			action: () => log.trace("Visit the Algorimejo website"),
-		},
+		// TODO:
+		// {
+		// 	icon: UsersIcon,
+		// 	title: "Connect to your friends...",
+		// 	description: "Connect to your friends",
+		// 	action: () => log.trace("Connect to your friends"),
+		// },
+		// TODO:
+		// {
+		// 	icon: SparklesIcon,
+		// 	title: "Algorimejo Website",
+		// 	description: "Visit the Algorimejo website",
+		// 	action: () => log.trace("Visit the Algorimejo website"),
+		// },
 	]
 	const workthroughsItems = [
 		{
@@ -56,12 +59,13 @@ export function WelcomePage() {
 			updated: false,
 			action: () => log.trace("Learn the Fundamentals"),
 		},
-		{
-			icon: BookOpenIcon,
-			title: "Get Started with Connection",
-			updated: true,
-			action: () => log.trace("Get Started with Connection"),
-		},
+		// TODO
+		// {
+		// 	icon: BookOpenIcon,
+		// 	title: "Get Started with Connection",
+		// 	updated: true,
+		// 	action: () => log.trace("Get Started with Connection"),
+		// },
 	]
 	return (
 		<ScrollArea className="select-none">

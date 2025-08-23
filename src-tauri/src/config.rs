@@ -14,6 +14,7 @@ pub struct ProgramConfig {
     pub system_titlebar: bool,
     pub competitive_companion_addr: String,
     pub competitive_companion_enabled: bool,
+    pub workspace_history: Vec<PathBuf>,
 }
 
 impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
@@ -24,6 +25,7 @@ impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
             system_titlebar: value.system_titlebar,
             competitive_companion_addr: value.competitive_companion_addr,
             competitive_companion_enabled: value.competitive_companion_enabled,
+            workspace_history: value.workspace_history,
         }
     }
 }
@@ -43,6 +45,9 @@ pub struct ProgramConfigLocalDeserialized {
     pub competitive_companion_addr: String,
     #[serde(default = "ProgramConfigLocalDeserialized::default_competitive_companion_enabled")]
     pub competitive_companion_enabled: bool,
+
+    #[serde(default = "ProgramConfigLocalDeserialized::default_workspace_history")]
+    pub workspace_history: Vec<PathBuf>,
 }
 
 impl ProgramConfigLocalDeserialized {
@@ -61,6 +66,9 @@ impl ProgramConfigLocalDeserialized {
     fn default_competitive_companion_enabled() -> bool {
         true
     }
+    fn default_workspace_history() -> Vec<PathBuf> {
+        vec![]
+    }
 }
 
 impl Default for ProgramConfigLocalDeserialized {
@@ -71,6 +79,7 @@ impl Default for ProgramConfigLocalDeserialized {
             system_titlebar: Self::default_system_titlebar(),
             competitive_companion_addr: Self::default_competitive_companion_addr(),
             competitive_companion_enabled: Self::default_competitive_companion_enabled(),
+            workspace_history: Self::default_workspace_history(),
         }
     }
 }
