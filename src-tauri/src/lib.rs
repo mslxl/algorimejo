@@ -87,7 +87,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_decorum::init())
         .invoke_handler(builder.invoke_handler())
-        .setup(move |mut app| {
+        .setup(move |app| {
             builder.mount_events(app);
             setup::setup_program_config(app)?;
             setup::setup_database(app)?;
@@ -107,8 +107,12 @@ pub fn run() {
                 log::trace!("Recycling external resources");
                 block_in_place(|| {
                     block_on(async {
-                        state.kill_all().await;
-                        shutdown_competitive_companion_listener(handle.clone()).await.unwrap();
+                        // ignore the result
+                        // the program nearly exit, so we don't need to deal for the result
+                        let _ = tokio::join!(
+                            state.kill_all(),
+                            shutdown_competitive_companion_listener(handle.clone())
+                        );
                     });
                 });
             }

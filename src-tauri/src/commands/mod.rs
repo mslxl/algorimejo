@@ -99,13 +99,13 @@ pub async fn get_default_create_solution_params(
 pub async fn get_default_create_problem_params(
     app: tauri::AppHandle,
     name: String,
-    description: Option<String>,
+    group: Option<String>,
     url: Option<String>,
     statement: Option<String>,
 ) -> Result<CreateProblemParams, String> {
     let params = CreateProblemParams {
         name: name.clone(),
-        description,
+        group,
         url,
         statement,
         checker: Some("ncmp".to_string()),

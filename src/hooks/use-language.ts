@@ -15,7 +15,7 @@ export function useLanguage(options: UseLanguageOptions) {
 		if (options.enabled && !options.language) {
 			throw new Error("language is required when enabled is true")
 		}
-		else if (options.enabled && options.language && availableLanguage.data) {
+		else if (options.enabled && options.language && availableLanguage.data && !availableLanguage.data.has(options.language)) {
 			toast.error(`language ${options.language} is not available`)
 		}
 	}, [options.language, options.enabled, availableLanguage.data])

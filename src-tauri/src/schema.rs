@@ -24,7 +24,7 @@ diesel::table! {
         id -> Text,
         name -> Text,
         url -> Nullable<Text>,
-        description -> Text,
+        group -> Text,
         statement -> Nullable<Text>,
         checker -> Nullable<Text>,
         create_datetime -> Timestamp,
