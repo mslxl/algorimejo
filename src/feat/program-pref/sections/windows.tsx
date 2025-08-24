@@ -1,8 +1,10 @@
+import type { Keymap } from "@/lib/client/local"
 import { PrefsItem, PrefsSection } from "@/components/prefs"
 import { getAvailableThemes } from "@/components/themes/theme"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { keymapValues } from "@/lib/client/type"
 import { useProgramPrefsChangeset, useProgramPrefsChangesetApply, useProgramPrefsChangesetSetter } from "../program-prefs-changeset-context"
 
 export function WindowsSection() {
@@ -40,6 +42,20 @@ export function WindowsSection() {
 					}}
 				/>
 				<p className="text-sm text-muted-foreground italic">* Effect after restart</p>
+			</PrefsItem>
+
+			<PrefsItem name="Keymap" description="The keymap in the editor">
+				<Select
+					value={changeset.keymap}
+					onValueChange={value => updateChangeset((draft) => { draft.keymap = value as Keymap }, true)}
+				>
+					<SelectTrigger>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{keymapValues.map(keymap => <SelectItem key={keymap} value={keymap}>{keymap}</SelectItem>)}
+					</SelectContent>
+				</Select>
 			</PrefsItem>
 		</PrefsSection>
 	)
