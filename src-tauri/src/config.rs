@@ -7,7 +7,14 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub enum Keymap {
+    Default,
+    Vim,
+    Emacs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProgramConfig {
     pub workspace: Option<PathBuf>,
     pub theme: String,
@@ -15,6 +22,7 @@ pub struct ProgramConfig {
     pub competitive_companion_addr: String,
     pub competitive_companion_enabled: bool,
     pub workspace_history: Vec<PathBuf>,
+    pub keymap: Keymap,
 }
 
 impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
@@ -26,6 +34,7 @@ impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
             competitive_companion_addr: value.competitive_companion_addr,
             competitive_companion_enabled: value.competitive_companion_enabled,
             workspace_history: value.workspace_history,
+            keymap: value.keymap,
         }
     }
 }
@@ -48,6 +57,9 @@ pub struct ProgramConfigLocalDeserialized {
 
     #[serde(default = "ProgramConfigLocalDeserialized::default_workspace_history")]
     pub workspace_history: Vec<PathBuf>,
+
+    #[serde(default = "ProgramConfigLocalDeserialized::default_keymap")]
+    pub keymap: Keymap,
 }
 
 impl ProgramConfigLocalDeserialized {
@@ -69,6 +81,9 @@ impl ProgramConfigLocalDeserialized {
     fn default_workspace_history() -> Vec<PathBuf> {
         vec![]
     }
+    fn default_keymap() -> Keymap {
+        Keymap::Default
+    }
 }
 
 impl Default for ProgramConfigLocalDeserialized {
@@ -80,6 +95,7 @@ impl Default for ProgramConfigLocalDeserialized {
             competitive_companion_addr: Self::default_competitive_companion_addr(),
             competitive_companion_enabled: Self::default_competitive_companion_enabled(),
             workspace_history: Self::default_workspace_history(),
+            keymap: Self::default_keymap(),
         }
     }
 }
@@ -93,7 +109,9 @@ impl ProgramConfigRepo {
     pub fn load(path: PathBuf) -> Result<Self> {
         let mut instance = Self {
             path,
-            data: RwLock::new(ProgramConfig::default()),
+            data: RwLock::new(ProgramConfig::from(
+                ProgramConfigLocalDeserialized::default(),
+            )),
         };
         instance.reload()?;
         Ok(instance)

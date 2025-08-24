@@ -1,8 +1,16 @@
 import type { ProgramConfig, WorkspaceConfig } from "@/lib/client"
 import { EditorView } from "@codemirror/view"
+import { emacs } from "@replit/codemirror-emacs"
+import { vim } from "@replit/codemirror-vim"
+import { match } from "ts-pattern"
 import { getCodemirrorThemeExtension } from "../themes/theme"
 
 export function configExtension(wsCfg: WorkspaceConfig, progCfg: ProgramConfig) {
+	const keymap = match(progCfg.keymap)
+		.with("Default", () => [])
+		.with("Vim", () => vim())
+		.with("Emacs", () => emacs())
+		.exhaustive()
 	return [
 		EditorView.theme({
 			"&": {
@@ -18,5 +26,6 @@ export function configExtension(wsCfg: WorkspaceConfig, progCfg: ProgramConfig) 
 			},
 		}),
 		getCodemirrorThemeExtension(progCfg.theme),
+		keymap,
 	]
 }
