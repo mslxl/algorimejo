@@ -67,7 +67,7 @@ pub struct GetProblemsResult {
 pub struct CreateProblemParams {
     pub name: String,
     pub url: Option<String>,
-    pub description: Option<String>,
+    pub group: Option<String>,
     pub statement: Option<String>,
     pub checker: Option<String>,
     pub time_limit: i32,
@@ -183,7 +183,7 @@ impl DatabaseRepo {
             // Use local time to match SQLite's CURRENT_TIMESTAMP behavior
             let now = chrono::Local::now().naive_local();
             let problem_id = Uuid::new_v4().to_string();
-            let description = params.description.unwrap_or_default();
+            let group = params.group.unwrap_or_default();
 
             // Create the problem
             let new_problem = (
@@ -192,7 +192,7 @@ impl DatabaseRepo {
                 problems::url.eq(&params.url),
                 problems::time_limit.eq(params.time_limit),
                 problems::memory_limit.eq(params.memory_limit),
-                problems::description.eq(&description),
+                problems::group.eq(&group),
                 problems::statement.eq(&params.statement),
                 problems::checker.eq(&params.checker),
                 problems::create_datetime.eq(now),
@@ -215,7 +215,7 @@ impl DatabaseRepo {
                 id: problem_id,
                 name: params.name,
                 url: params.url,
-                description: description,
+                group: group,
                 statement: params.statement,
                 checker: params.checker,
                 create_datetime: now,
@@ -418,7 +418,7 @@ impl DatabaseRepo {
             id: problem_row.id,
             name: problem_row.name,
             url: problem_row.url,
-            description: problem_row.description,
+            group: problem_row.group,
             statement: problem_row.statement,
             time_limit: problem_row.time_limit,
             memory_limit: problem_row.memory_limit,
@@ -449,7 +449,7 @@ impl DatabaseRepo {
                 problems::name
                     .like(search_pattern.clone())
                     .or(problems::url.like(search_pattern.clone()))
-                    .or(problems::description.like(search_pattern)),
+                    .or(problems::group.like(search_pattern)),
             );
         }
 
@@ -528,7 +528,7 @@ impl DatabaseRepo {
                 id: row.id.clone(),
                 name: row.name.clone(),
                 url: row.url.clone(),
-                description: row.description.clone(),
+                group: row.group.clone(),
                 statement: row.statement.clone(),
                 checker: row.checker.clone(),
                 time_limit: row.time_limit,

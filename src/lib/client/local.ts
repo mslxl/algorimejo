@@ -14,8 +14,8 @@ async getProgConfig() : Promise<ProgramConfig> {
 async setProgConfig(data: ProgramConfig) : Promise<null> {
     return await TAURI_INVOKE("set_prog_config", { data });
 },
-async getDefaultCreateProblemParams(name: string, description: string | null, url: string | null, statement: string | null) : Promise<CreateProblemParams> {
-    return await TAURI_INVOKE("get_default_create_problem_params", { name, description, url, statement });
+async getDefaultCreateProblemParams(name: string, group: string | null, url: string | null, statement: string | null) : Promise<CreateProblemParams> {
+    return await TAURI_INVOKE("get_default_create_problem_params", { name, group, url, statement });
 },
 async getDefaultCreateSolutionParams(name: string) : Promise<CreateSolutionParams> {
     return await TAURI_INVOKE("get_default_create_solution_params", { name });
@@ -135,7 +135,7 @@ export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_bef
 export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
 export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
 export type CreateCheckerResult = { checker: Checker }
-export type CreateProblemParams = { name: string; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number; memory_limit: number; initial_solution: CreateSolutionParams | null }
+export type CreateProblemParams = { name: string; url: string | null; group: string | null; statement: string | null; checker: string | null; time_limit: number; memory_limit: number; initial_solution: CreateSolutionParams | null }
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
@@ -155,8 +155,8 @@ export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python"
 export type LanguageServerEvent = { pid: string; response: LanguageServerResponse }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
-export type Problem = { id: string; name: string; url: string | null; description: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
-export type ProblemChangeset = { name: string | null; url: string | null; description: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
+export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
+export type ProblemChangeset = { name: string | null; url: string | null; group: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[] }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }

@@ -55,12 +55,12 @@ pub struct LangServerState {
 impl LangServerState {
     pub async fn kill_all(&self) {
         let mut processes = self.processes.write().await;
-        for (pid, process) in processes.iter() {
+        for (_, process) in processes.iter() {
             process.kill().await.unwrap();
         }
         processes.clear();
         let mut writers = self.writers.write().await;
-        for (pid, writer) in writers.iter() {
+        for (_, writer) in writers.iter() {
             writer.kill().await.unwrap();
         }
         writers.clear();

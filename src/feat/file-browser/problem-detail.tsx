@@ -16,7 +16,6 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 	return (
 		<div {...props}>
 			<h3 className="font-semibold">{problem.name}</h3>
-			<p>{problem.description}</p>
 			<table className={css`
 				& td {
 					padding: calc(var(--spacing) * 1);
@@ -24,6 +23,10 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 				`}
 			>
 				<tbody>
+					<tr>
+						<td>Group</td>
+						<td>{problem.group}</td>
+					</tr>
 					{problem.url && (
 						<tr>
 							<td>URL</td>

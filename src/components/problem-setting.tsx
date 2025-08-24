@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 const problemSettingFormSchema = z.object({
 	name: z.string(),
 	url: z.url().optional(),
-	description: z.string(),
+	group: z.string(),
 	statement: z.string().optional(),
 	checker: z.string(),
 	time_limit: z.number(),
@@ -35,7 +35,7 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 		defaultValues: {
 			name: problemData.name,
 			url: problemData.url ?? undefined,
-			description: problemData.description,
+			group: problemData.group,
 			statement: problemData.statement ?? undefined,
 			checker: problemData.checker ?? undefined,
 			time_limit: problemData.time_limit,
@@ -58,7 +58,7 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 			changeset: {
 				name: data.name,
 				url: convertNullIfEmpty(data.url),
-				description: data.description,
+				group: data.group,
 				statement: convertNullIfEmpty(data.statement),
 				checker: data.checker,
 				time_limit: data.time_limit,
@@ -115,13 +115,13 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 				/>
 				<FormField
 					control={form.control}
-					name="description"
+					name="group"
 					render={({ field }) => {
 						return (
 							<FormItem>
-								<FormLabel className="font-medium">Description</FormLabel>
+								<FormLabel className="font-medium">Group</FormLabel>
 								<FormControl>
-									<Textarea {...field} className="w-full" placeholder="Enter problem description" />
+									<Textarea {...field} className="w-full" placeholder="Enter problem group" />
 								</FormControl>
 								<FormMessage />
 							</FormItem>

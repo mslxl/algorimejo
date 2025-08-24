@@ -100,7 +100,7 @@ export function ProblemCollapsible({
 				changeset: {
 					name: newName,
 					url: null,
-					description: null,
+					group: null,
 					statement: null,
 					checker: null,
 					time_limit: null,
