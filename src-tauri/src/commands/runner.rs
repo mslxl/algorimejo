@@ -1,19 +1,18 @@
 use std::{
-    collections::HashMap,
-    hash::{DefaultHasher, Hash, Hasher},
-    path::PathBuf,
+    collections::HashMap, hash::{DefaultHasher, Hash, Hasher}, path::PathBuf
 };
 
 use log::trace;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{path::BaseDirectory, Manager};
+use tauri_plugin_shell::ShellExt;
 use tauri_specta::Event;
 use tokio::sync::RwLock;
 
 use crate::runner::{
     cmd::parse_command_with_env,
-    get_bundled_checker_names,
+    command_flag_create_new_console, get_bundled_checker_names,
     lang_server::{IOMethod, LangServerProcess, LangServerWriter},
     run::{launch_program, launch_program_without_input, ProgramOutput, ProgramSimpleOutput},
     temp_dir,
@@ -286,4 +285,49 @@ pub async fn execute_program(
         .map_err(|e| e.to_string())?;
 
     Ok(output)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn execute_program_detached(
+    app: tauri::AppHandle,
+    task_tag: String,
+    command: String,
+    env: HashMap<String, String>,
+) -> Result<(), String> {
+
+    // Get the default environment
+    let def_env = get_default_env(&app).map_err(|e| e.to_string())?;
+    // Parse command with the default environment
+    let mut env: HashMap<String, String> = env.into_iter().chain(def_env.into_iter()).collect();
+    let temp_dir = temp_dir(&task_tag);
+    env.insert("CWD".to_string(), temp_dir.display().to_string());
+
+    let origin_cmd = parse_command_with_env(&command, &env)?;
+    let cmd: std::process::Command = app
+        .shell()
+        .sidecar("consolepauser")
+        .or_else(|e| Err(format!("console pauser not found in installation: {e}")))?
+        .into();
+
+    // DO NOT USE UNC PATH
+    // consolepauser can not work noramlly with UNC path, which is so strange but keep it in mind
+    let mut cmd = std::process::Command::new(dunce::canonicalize(cmd.get_program()).unwrap());
+    cmd.current_dir(&temp_dir)
+        .arg("1")
+        // .arg(PathBuf::from(origin_cmd.get_program()).file_name().unwrap())
+        .arg(origin_cmd.get_program())
+        .args(origin_cmd.get_args());
+
+
+
+    // TODO: not work on LINUX, need futhuer investgivate
+    command_flag_create_new_console(&mut cmd);
+    cmd.current_dir(&temp_dir);
+
+    trace!("launch program detached cmd: {:?}", &cmd);
+    cmd.spawn().map_err(|e| e.to_string())?;
+    // trace!("output: {:?}", cmd.output());
+
+    Ok(())
 }

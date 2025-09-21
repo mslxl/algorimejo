@@ -4,6 +4,7 @@ import { commands, events } from "./client"
 import { getFileExtensionOfLanguage } from "./client/type"
 import { LRUCache } from "./lru-cache"
 
+const MAX_COMPILE_TIMEOUT = 12000
 const cache = new LRUCache<string, ProgramSimpleOutput>(512)
 
 export async function compileCode(tag: string, codeDocID: string, language: AdvLanguageItem, timeout: number = 3000) {
@@ -82,7 +83,6 @@ interface RunTestcaseParams {
 	solutionDocID: string
 	checkerName: string
 	language: AdvLanguageItem
-	compileTimeout: number
 	runTimeout: number
 	programOutputListener?: (line: string, type: "stdout" | "stderr") => void
 }
@@ -151,12 +151,11 @@ export async function runTestcase({
 	solutionDocID,
 	checkerName,
 	language,
-	compileTimeout,
 	runTimeout,
 	programOutputListener,
 }: RunTestcaseParams): Promise<RunTestResult> {
 	try {
-		const compileInfo = await compileCode(tag, solutionDocID, language, compileTimeout)
+		const compileInfo = await compileCode(tag, solutionDocID, language, MAX_COMPILE_TIMEOUT)
 		if (compileInfo.is_timeout) {
 			return {
 				result: "CETLE",
@@ -197,7 +196,7 @@ export async function runTestcase({
 				checkerMsg: checkInfo.stderr,
 			}
 		}
-		else if (checkInfo.exit_code === 1) {
+		else if (checkInfo.exit_code === 1 || checkInfo.exit_code === 3) {
 			return {
 				result: "WA",
 				stdout: runInfo.content,
@@ -253,6 +252,33 @@ export async function runTestcase({
 			result: "UKE",
 			error: e instanceof Error ? e.message : (e as string),
 		}
+	}
+}
+
+interface RunProgramDetachedOptions {
+	tag: string
+	solutionDocID: string
+	language: AdvLanguageItem
+}
+
+export async function runProgramDetached({ tag, solutionDocID, language }: RunProgramDetachedOptions) {
+	const compileInfo = await compileCode(tag, solutionDocID, language, MAX_COMPILE_TIMEOUT)
+	if (compileInfo.is_timeout) {
+		return {
+			result: "CETLE",
+		}
+	}
+	else if (compileInfo.exit_code !== 0) {
+		return {
+			result: "CE",
+			compilerOutput: compileInfo.stdout,
+			compilerErrorOutput: compileInfo.stderr,
+			compilerExitCode: compileInfo.exit_code,
+		}
+	}
+	await commands.executeProgramDetached(tag, language.cmd_run, {})
+	return {
+		result: "AC",
 	}
 }
 

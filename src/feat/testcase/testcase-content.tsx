@@ -5,6 +5,7 @@ import type { OpenedTab } from "@/stores/tab-slice"
 import * as log from "@tauri-apps/plugin-log"
 import { debounce } from "lodash/fp"
 import {
+	LucideMoreVertical,
 	LucidePlus,
 	LucideSettings,
 } from "lucide-react"
@@ -15,6 +16,7 @@ import { ErrorLabel } from "@/components/error-label"
 import { ProblemSetting } from "@/components/problem-setting"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLanguage } from "@/hooks/use-language"
@@ -22,7 +24,7 @@ import { useProblem } from "@/hooks/use-problem"
 import { useSolution } from "@/hooks/use-solution"
 import { useTestcaseCreator } from "@/hooks/use-testcase-creator"
 import { useTestcases } from "@/hooks/use-testcases"
-import { runTestcase, runTestStatusToColor } from "@/lib/runner"
+import { runProgramDetached, runTestcase, runTestStatusToColor } from "@/lib/runner"
 import { solutionEditorPageDataSchema } from "../editor/schema"
 import { TestcaseItem } from "./testcase-item"
 
@@ -177,13 +179,12 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 			testcaseInputDocID: testcase.input_document_id,
 			testcaseOutputDocID: testcase.answer_document_id,
 			solutionDocID: solution.data.document!.id,
-			checkerName: problem.checker ?? "ncmp",
+			checkerName: problem.checker ?? "wcmp",
 			language: languageItem.data,
-			compileTimeout: problem.time_limit,
 			runTimeout: problem.time_limit,
 			programOutputListener: (line, ty) => {
 				if (ty === "stdout") {
-					itemsRef.current[index]?.appendOutput(line)
+					itemsRef.current[index]?.appendOutput(`${line}\n`)
 				}
 			},
 		})
@@ -197,6 +198,23 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 		}
 	}, [handleRunTestcase, testcases])
 
+	const handleRunTestcaseDetached = useCallback(async () => {
+		if (!solution.data) {
+			toast.error("Solution is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+			return
+		}
+		if (!languageItem.data) {
+			toast.error("Language is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+			return
+		}
+		const tag = `sol-${solution.data.id}`
+		const info = await runProgramDetached({
+			tag,
+			solutionDocID: solution.data.document!.id,
+			language: languageItem.data,
+		})
+		log.trace(`run (detached) ${tag} result: ${JSON.stringify(info)}`)
+	}, [solution, languageItem])
 	return (
 		<div className="flex h-full flex-col p-2 pr-0" ref={panelRef}>
 			<Dialog open={isEditingProblemOptions} onOpenChange={setIsEditingProblemOptions}>
@@ -247,7 +265,19 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 				<Button variant="outline" onClick={handleCreateTestcase}>
 					<LucidePlus />
 				</Button>
-				<Button onClick={handleRunAllTestcases}>Run All</Button>
+				<span className="flex">
+					<Button onClick={handleRunAllTestcases} className="rounded-r-none">Run All</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger className="inline-flex h-9 w-auto shrink-0 items-center justify-center rounded-md rounded-l-none bg-primary px-1 py-2 text-sm font-medium whitespace-nowrap text-primary-foreground shadow-xs transition-all outline-none hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+							<LucideMoreVertical />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={handleRunTestcaseDetached}>
+								Run Detached
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</span>
 			</div>
 		</div>
 	)

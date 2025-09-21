@@ -103,6 +103,9 @@ async writeFileToTaskTag(taskTag: string, filename: string, content: string) : P
 },
 async executeProgram(taskTag: string, commands: string, env: Partial<{ [key in string]: string }>, timeoutMillis: number) : Promise<ProgramSimpleOutput> {
     return await TAURI_INVOKE("execute_program", { taskTag, commands, env, timeoutMillis });
+},
+async executeProgramDetached(taskTag: string, command: string, env: Partial<{ [key in string]: string }>) : Promise<null> {
+    return await TAURI_INVOKE("execute_program_detached", { taskTag, command, env });
 }
 }
 

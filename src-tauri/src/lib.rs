@@ -61,7 +61,8 @@ pub fn run() {
             commands::runner::send_message_to_language_server,
             commands::runner::execute_program_callback,
             commands::runner::write_file_to_task_tag,
-            commands::runner::execute_program
+            commands::runner::execute_program,
+            commands::runner::execute_program_detached
         ]);
 
     #[cfg(debug_assertions)]
@@ -81,6 +82,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_log::Builder::new().build())
