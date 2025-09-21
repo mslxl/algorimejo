@@ -108,7 +108,7 @@ pub async fn get_default_create_problem_params(
         group,
         url,
         statement,
-        checker: Some("ncmp".to_string()),
+        checker: Some("wcmp".to_string()),
         time_limit: 3000,
         memory_limit: 1024,
         initial_solution: Some(get_default_create_solution_params(app, name.clone()).await?),

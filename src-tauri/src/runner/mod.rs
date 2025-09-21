@@ -43,9 +43,11 @@ pub fn command_flag_create_new_console(command: &mut Command) {
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(CREATE_NEW_CONSOLE);
+        trace!("add flag {}", CREATE_NEW_CONSOLE);
     }
 }
 
 pub fn temp_dir(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("algorime-{}", name))
+    PathBuf::from(r"C:\Users\lnslf\Desktop\Temp").join(format!("algorime-{}", name))
+    // std::env::temp_dir().join(format!("algorime-{}", name))
 }

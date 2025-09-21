@@ -20,6 +20,7 @@
     "core:window:allow-toggle-maximize",
     "decorum:allow-show-snap-overlay",
     "process:default",
-    "dialog:default"
+    "dialog:default",
+    "shell:default"
   ]
 }
