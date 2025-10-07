@@ -62,12 +62,36 @@ build-testlib:
     done
     rm ./src-tauri/testlib/*.pdb
     cp ./3rd_party/testlib/include/testlib.h ./src-tauri/testlib/include/testlib.h -f
+
+[unix]
+build-testlib:
+    mkdir -p ./src-tauri/testlib
+    mkdir -p ./src-tauri/testlib/include
+    find ./src-tauri/testlib -type f ! -name '.gitkeep' -delete
+    if [[ -f ./src-tauri/src/runner/bundle-chk.txt ]]; then rm ./src-tauri/src/runner/bundle-chk.txt; fi
+    for file in ./3rd_party/testlib/src/*.cpp; do \
+        basename=$(basename "$file" .cpp); \
+        c++ -I./3rd_party/testlib/include -o "./src-tauri/testlib/${basename}" "$file"; \
+        echo "${basename}" >> ./src-tauri/src/runner/bundle-chk.txt; \
+    done
+    cp ./3rd_party/testlib/include/testlib.h ./src-tauri/testlib/include/testlib.h -f
     
 [windows]
 build-consolepauser:
     zig c++ -o $TMP/consolepauser.exe ./3rd_party/consolepauser/consolepauser.windows.cpp
     mkdir -p ./src-tauri/sidecar
     mv $TMP/consolepauser.exe ./src-tauri/sidecar/consolepauser-{{ target_triple }}.exe -f
+
+[unix]
+build-consolepauser:
+    c++ -o /tmp/consolepauser ./3rd_party/consolepauser/consolepauser.unix.cpp
+    mkdir -p ./src-tauri/sidecar
+    mv /tmp/consolepauser ./src-tauri/sidecar/consolepauser-{{ target_triple }} -f
+
+[unix]
+download-clangd:
+    mkdir -p ./src-tauri/lang-server
+    # do nothing
     
 [windows]
 download-clangd:
