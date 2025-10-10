@@ -49,12 +49,17 @@
       ]))
       ++ (lib.optional pkgs.stdenv.isDarwin (with pkgs;[
         libiconv
-        apple-sdk
-        apple-sdk
-      ])); 
-    in rec {
+        # apple-sdk
+      ]));
+
+      mkShellNoCC = pkgs.mkShellNoCC.override {
+        stdenv = pkgs.stdenvNoCC.override {
+          extraBuildInputs = [];
+        };
+      };
+    in  {
       # Used by `nix develop`
-      devShell = pkgs.mkShell {
+      devShell = mkShellNoCC {
         inherit buildInputs;
 
         # Specify the rust-src path (many editors rely on this)
