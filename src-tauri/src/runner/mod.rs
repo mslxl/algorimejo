@@ -48,6 +48,5 @@ pub fn command_flag_create_new_console(command: &mut Command) {
 }
 
 pub fn temp_dir(name: &str) -> PathBuf {
-    PathBuf::from(r"C:\Users\lnslf\Desktop\Temp").join(format!("algorime-{}", name))
-    // std::env::temp_dir().join(format!("algorime-{}", name))
+    std::env::temp_dir().join(format!("algorime-{}", name))
 }

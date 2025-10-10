@@ -79,7 +79,7 @@ impl WorkspaceLocalDeserialized {
             "cpp 17".to_string(),
             AdvLanguageItem {
                 base: LanguageBase::Cpp,
-                cmd_compile: "g++ -std=c++17 -o main".to_string(),
+                cmd_compile: "g++ -std=c++17 -o main %SRC".to_string(),
                 cmd_before_run: None,
                 cmd_after_run: None,
                 cmd_run: format!(
