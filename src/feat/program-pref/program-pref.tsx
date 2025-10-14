@@ -1,7 +1,8 @@
 import type { Draft } from "immer"
+import type { PrefItem } from "@/components/prefs/context"
 import type { ProgramConfig } from "@/lib/client"
 import { produce } from "immer"
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { match } from "ts-pattern"
 import { ErrorLabel } from "@/components/error-label"
@@ -19,6 +20,7 @@ export function ProgramPref() {
 	const mutation = useProgramConfigMutation()
 
 	const [changeset, setChangeset] = useState<ProgramConfig | null>(null)
+	const containerRef = useRef<HTMLDivElement | null>(null)
 
 	const saveChangeset = useCallback(async (changeset: ProgramConfig) => {
 		await mutation.mutateAsync(changeset, {
@@ -71,13 +73,24 @@ export function ProgramPref() {
 		return <ErrorLabel message={originalConfig.error} />
 	}
 
+	function handleFocusSection(prefItem: PrefItem) {
+		const offsetY = prefItem.component.offsetTop
+		const scrollArea = containerRef.current?.querySelector("[data-radix-scroll-area-viewport]")
+		if (scrollArea) {
+			scrollArea.scrollTo({ top: offsetY - 20, behavior: "smooth" })
+		}
+	}
+
 	return (
 		<ProgramPrefsChangesetContext.Provider value={changeset ?? originalConfig.data!}>
 			<ProgramPrefsChangesetSetterContext.Provider value={updateChangeset}>
 				<ProgramPrefsChangesetApplyContext.Provider value={applyChangeset}>
-					<div className="flex items-stretch">
+					<div className="flex items-stretch" ref={containerRef}>
 						<PrefsProvider>
-							<PrefsSectionList className="min-w-48 border-r px-2" />
+							<PrefsSectionList
+								className="min-w-48 border-r px-2"
+								onItemClick={handleFocusSection}
+							/>
 							<ScrollArea className="flex-1">
 								<WindowsSection />
 								<ToolsSection />

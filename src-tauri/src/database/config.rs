@@ -91,16 +91,18 @@ impl WorkspaceLocalDeserialized {
                         ""
                     }
                 ),
-                lsp: Some(format!(
-                    "%{}{}clangd{}",
-                    ENV_KEY_BUNDLED_LSP,
-                    path::MAIN_SEPARATOR,
-                    if cfg!(target_os = "windows") {
-                        ".exe"
-                    } else {
-                        ""
-                    }
-                )),
+                lsp: Some(
+                    format!(
+                        "%{}{}clangd{}",
+                        ENV_KEY_BUNDLED_LSP,
+                        path::MAIN_SEPARATOR,
+                        if cfg!(target_os = "windows") {
+                            ".exe"
+                        } else {
+                            ""
+                        }
+                    )
+                ),
                 lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
                 initial_solution_content: Some(
                     "#include<iostream>\nint main(){\n\treturn 0;\n}".to_string(),
