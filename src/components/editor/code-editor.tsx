@@ -4,12 +4,14 @@ import { Compartment, EditorState } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import * as log from "@tauri-apps/plugin-log"
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { debounce } from "lodash/fp"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { yCollab, YSyncConfig } from "y-codemirror.next"
 import * as Y from "yjs"
 import { useProgramConfig } from "@/hooks/use-program-config"
 import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
+import { algorimejo } from "@/lib/algorimejo"
 import { commands } from "@/lib/client"
 import { getFileExtensionOfLanguage, textLanguageItem } from "@/lib/client/type"
 import { ErrorLabel } from "../error-label"
@@ -49,19 +51,27 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 
 	const ytext = useMemo(() => ydoc.getText("content"), [ydoc])
 
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const emitDocumentChangeEventDebounced = useCallback(debounce(500, () => {
+		algorimejo.events.emit("documentChangedDebounced", { documentID, ytext })
+	}), [ydoc, documentID])
+
 	useEffect(() => {
 		const cb = (update: Uint8Array, origin: any, _doc: Y.Doc, _transaction: Y.Transaction) => {
 			if (origin instanceof YSyncConfig) {
 				commands.applyChange(documentID, Array.from(update)).catch((e) => {
 					toast.error(`failed to apply change with local error message: ${e}`)
 				})
+
+				algorimejo.events.emit("documentChanged", { documentID, ytext })
+				emitDocumentChangeEventDebounced()
 			}
 		}
 		ydoc.on("update", cb)
 		return () => {
 			ydoc.off("update", cb)
 		}
-	}, [ydoc, documentID])
+	}, [ydoc, documentID, emitDocumentChangeEventDebounced, ytext])
 
 	const workspaceConfig = useWorkspaceConfig()
 	const programConfig = useProgramConfig()

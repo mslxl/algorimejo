@@ -9,12 +9,10 @@ import {
 } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { useAppDispatch } from "@/hooks/use-app-dispatch"
-import * as sidebarReducers from "@/stores/sidebar-slice"
+import { algorimejo } from "@/lib/algorimejo"
 import { ScrollArea } from "./ui/scroll-area"
 
 export function WelcomePage() {
-	const dispatch = useAppDispatch()
 	const navigate = useNavigate()
 	const startItems = [
 		{
@@ -22,7 +20,7 @@ export function WelcomePage() {
 			title: "New Problem...",
 			description: "Create a new coding problem",
 			action: () => {
-				dispatch(sidebarReducers.select({ key: "file-browser" }))
+				algorimejo.dock.select(null, "file-browser")
 				toast.info(
 					"Open the file browser on the left to start your coding journey!",
 					{

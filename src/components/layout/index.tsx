@@ -8,11 +8,9 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { useAppDispatch } from "@/hooks/use-app-dispatch"
-import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
+import { useObservable } from "@/lib/observable"
 import { cn } from "@/lib/utils"
-import { select, unselect } from "@/stores/sidebar-slice"
 import { AlgorimejoMenubar } from "./menubar"
 import { SidebarButtonDefault } from "./sidebar-button-default"
 import { TabContainer } from "./tab-container"
@@ -34,35 +32,35 @@ const sidebarPanelClassname = css`
 `
 
 export function Algorimejo({ className, ...props }: AlgorimejoProps) {
-	const sidebar = useAppSelector(state => state.sidebar)
-	const dispatch = useAppDispatch()
+	const leftDockKeys = useObservable(algorimejo.dock.left)
+	const rightDockKeys = useObservable(algorimejo.dock.right)
 
-	const openLeft = sidebar.leftSelected !== null
-	const openRight = sidebar.rightSelected !== null
-	const openBottom = sidebar.bottomSelected !== null
+	const bottomSelectedID = useObservable(algorimejo.dock.bottomSelected)
+	const leftSelectedID = useObservable(algorimejo.dock.leftSelected)
+	const rightSelectedID = useObservable(algorimejo.dock.rightSelected)
+
+	const isBottomOpen = bottomSelectedID !== null
+	const isLeftOpen = leftSelectedID !== null
+	const isRightOpen = rightSelectedID !== null
 
 	const [openLeftSize, setOpenLeftSize] = useState(25)
 	const [openRightSize, setOpenRightSize] = useState(25)
 	const [openBottomSize, setOpenBottomSize] = useState(25)
 
+	// keys: All dock id need to be rendered
+	// position: one of `left`, `right` or `bottom`
+	// currentSelectedID: the selected dock id in the position
+	// selectFn: The select function in the position, it should accepted `null` that means unselect
 	const renderSidebarButton = useCallback(
-		(keys: string[], position: PanelPosition) => {
+		(keys: string[], position: PanelPosition, currentSelectedID: string | null, selectFn: (id: string | null) => void) => {
 			const handleToggle = (key: string) => {
-				if (sidebar[`${position}Selected`] === key) {
+				if (currentSelectedID === key) {
 					log.trace(`unselect panel ${key}`)
-					dispatch(
-						unselect({
-							position,
-						}),
-					)
+					selectFn(null)
 				}
 				else {
 					log.trace(`select panel ${key}`)
-					dispatch(
-						select({
-							key,
-						}),
-					)
+					selectFn(key)
 				}
 			}
 
@@ -74,27 +72,26 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 					<Btn
 						key={key}
 						position={position}
-						isSelected={key === sidebar[`${position}Selected`]}
+						isSelected={key === currentSelectedID}
 						onClick={() => handleToggle(key)}
 					/>
 				)
 			})
 		},
-		[sidebar, dispatch],
+		[],
 	)
 
 	const renderSidebarPanel = useCallback(
-		(position: PanelPosition) => {
-			const selection = sidebar[`${position}Selected`]
-			if (!selection) {
+		(position: PanelPosition, currentSelectedID: string | null) => {
+			if (!currentSelectedID) {
 				return
 			}
 
-			const attrs = algorimejo.getPanel(selection)
+			const attrs = algorimejo.getPanel(currentSelectedID)
 			const Panel = attrs.fc
-			return <Panel key={selection} position={position} />
+			return <Panel key={currentSelectedID} position={position} />
 		},
-		[sidebar],
+		[],
 	)
 
 	return (
@@ -107,10 +104,10 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 						sidebarButtonClassname,
 					)}
 				>
-					{renderSidebarButton(sidebar.left, "left")}
+					{renderSidebarButton(leftDockKeys, "left", leftSelectedID, id => algorimejo.dock.select("left", id))}
 				</div>
 				<ResizablePanelGroup className="flex-1" direction="horizontal">
-					{!openLeft
+					{!isLeftOpen
 						? null
 						: (
 								<>
@@ -121,7 +118,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 										defaultSize={openLeftSize}
 										className={sidebarPanelClassname}
 									>
-										{renderSidebarPanel("left")}
+										{renderSidebarPanel("left", leftSelectedID)}
 									</ResizablePanel>
 									<ResizableHandle />
 								</>
@@ -132,7 +129,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 							<ResizablePanel id="tab-container-panel" order={1}>
 								<TabContainer className="size-full" />
 							</ResizablePanel>
-							{!openBottom
+							{!isBottomOpen
 								? null
 								: (
 										<>
@@ -144,13 +141,13 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 												onResize={setOpenBottomSize}
 												className={sidebarPanelClassname}
 											>
-												{renderSidebarPanel("bottom")}
+												{renderSidebarPanel("bottom", bottomSelectedID)}
 											</ResizablePanel>
 										</>
 									)}
 						</ResizablePanelGroup>
 					</ResizablePanel>
-					{!openRight
+					{!isRightOpen
 						? null
 						: (
 								<>
@@ -162,13 +159,13 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 										defaultSize={openRightSize}
 										className={sidebarPanelClassname}
 									>
-										{renderSidebarPanel("right")}
+										{renderSidebarPanel("right", rightSelectedID)}
 									</ResizablePanel>
 								</>
 							)}
 				</ResizablePanelGroup>
 				<div className={cn("border-l w-8", sidebarButtonClassname)}>
-					{renderSidebarButton(sidebar.right, "right")}
+					{renderSidebarButton(rightDockKeys, "right", rightSelectedID, id => algorimejo.dock.select("right", id))}
 				</div>
 			</div>
 			<div className="h-5 border-t"></div>

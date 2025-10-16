@@ -83,6 +83,9 @@ async applyChange(docId: string, change: number[]) : Promise<null> {
 async resolveChecker(name: string) : Promise<string> {
     return await TAURI_INVOKE("resolve_checker", { name });
 },
+async saveDuplicatedFile(problem: Problem, solution: Solution) : Promise<null> {
+    return await TAURI_INVOKE("save_duplicated_file", { problem, solution });
+},
 async getCheckersName() : Promise<string[]> {
     return await TAURI_INVOKE("get_checkers_name");
 },
@@ -155,7 +158,7 @@ export type IOMethod =
  */
 "StdIO"
 export type Keymap = "Default" | "Vim" | "Emacs"
-export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text"
+export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text" | "Unknown"
 export type LanguageServerEvent = { pid: string; response: LanguageServerResponse }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
@@ -174,7 +177,7 @@ export type SortOrder = "Asc" | "Desc"
 export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
 export type ToastEvent = { kind: ToastKind; message: string }
 export type ToastKind = "Info" | "Error" | "Warning" | "Success"
-export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }>; default_language: string | null }
+export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }>; default_language: string | null; duplicate_save: boolean; duplicate_save_location: string | null }
 export type WorkspaceConfigUpdateEvent = { new: WorkspaceConfig }
 
 /** tauri-specta globals **/

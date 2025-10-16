@@ -36,7 +36,6 @@ import { useProblemChangeset } from "@/hooks/use-problem-changeset"
 import { useProblemDeleter } from "@/hooks/use-problem-deleter"
 import { useSolutionCreator } from "@/hooks/use-solution-creator"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectSolutionEditorTabIndex } from "../editor/utils"
 import { ProblemDetail } from "./problem-detail"
 import { ProblemListItem } from "./problem-list-item"
 
@@ -65,11 +64,9 @@ export function ProblemCollapsible({
 			},
 			onSuccess: () => {
 				for (const sol of problem.solutions) {
-					const tabIndex = algorimejo.selectStateValue(
-						selectSolutionEditorTabIndex(sol.id),
-					)
-					if (tabIndex !== -1) {
-						algorimejo.closeTab(tabIndex)
+					const tabID = algorimejo.findSolutionTabID(sol.id)
+					if (tabID) {
+						algorimejo.tab.removeTabByID(tabID)
 					}
 				}
 			},
@@ -113,11 +110,12 @@ export function ProblemCollapsible({
 				},
 				onSuccess: async () => {
 					for (const sol of problem.solutions) {
-						const tabIndex = algorimejo.selectStateValue(
-							selectSolutionEditorTabIndex(sol.id),
-						)
-						if (tabIndex !== -1) {
-							algorimejo.renameTab(tabIndex, `${sol.name} - ${newName}`)
+						const tabID = algorimejo.findSolutionTabID(sol.id)
+						if (tabID) {
+							algorimejo.tab.renameTab(
+								tabID,
+								`${sol.name} - ${newName}`,
+							)
 						}
 					}
 				},

@@ -1,7 +1,7 @@
 import type { TestcaseItemRef } from "./testcase-item"
+import type { TabInstance } from "@/lib/algorimejo/tab-manager"
 import type { Problem, TestCase } from "@/lib/client"
 import type { RunTestResultStatus } from "@/lib/runner"
-import type { OpenedTab } from "@/stores/tab-slice"
 import * as log from "@tauri-apps/plugin-log"
 import { debounce } from "lodash/fp"
 import {
@@ -29,7 +29,7 @@ import { solutionEditorPageDataSchema } from "../editor/schema"
 import { TestcaseItem } from "./testcase-item"
 
 interface TestcaseContentProps {
-	tab: OpenedTab
+	tab: TabInstance
 }
 export function TestcaseContent({ tab }: TestcaseContentProps) {
 	const problemTabData = solutionEditorPageDataSchema.parse(tab.data)

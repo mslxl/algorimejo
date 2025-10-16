@@ -1,18 +1,16 @@
 import type { FC } from "react"
-import type { CreateSolutionEditorTabOptions, CreateTabOptions } from "./options"
-import { configureStore } from "@reduxjs/toolkit"
+import type { AlgorimejoEvents } from "./events"
 import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
+import mitt from "mitt"
 import { SolutionEditor } from "@/feat/editor/editor"
-import { selectSolutionEditorTabIndex } from "@/feat/editor/utils"
+import { solutionEditorPageDataSchema } from "@/feat/editor/schema"
 import { ProgramPreference } from "@/feat/program-pref"
 import { WorkspacePreference } from "@/feat/workspace-pref"
-import { reducer as sidebarReducer } from "@/stores/sidebar-slice"
-import * as tabActions from "@/stores/tab-slice"
-import { reducer as tabReducer } from "@/stores/tab-slice"
 import { AlgorimejoApp } from "./app"
-import { Disposable } from "./disposable"
+import { DockManager } from "./dock-manager"
+import { TabManager } from "./tab-manager"
 
 export type PanelPosition = "left" | "right" | "bottom"
 export interface PanelProps {
@@ -35,25 +33,19 @@ export interface MainUIProps<T = unknown> {
 	data: T
 }
 
-export type StateSelector<T> = (
-	state: ReturnType<Algorimejo["store"]["getState"]>,
-) => T
-
-// This is a workaround to make the type checker happy
-export function makeStateSelector<T>(
-	selector: StateSelector<T>,
-): StateSelector<T> {
-	return state => selector(state)
-}
-
+export type AlgorimejoEventBus = ReturnType<typeof mitt<AlgorimejoEvents>>
+/**
+ * The main class of Algorimejo
+ * It is a singleton class that manages the state of the application
+ *
+ * Do not instantiate this class directly, use the `algorimejo` instance instead
+ * You can use `algorimejo.ready(callback)` to wait for the instance to be ready
+ */
 export class Algorimejo {
 	private _app?: AlgorimejoApp
-	private _store = configureStore({
-		reducer: {
-			sidebar: sidebarReducer,
-			tab: tabReducer,
-		},
-	})
+	public readonly events: AlgorimejoEventBus = mitt<AlgorimejoEvents>()
+	public readonly dock = new DockManager(this.events)
+	public readonly tab = new TabManager(this.events)
 
 	private _queryClient = new QueryClient()
 
@@ -61,7 +53,14 @@ export class Algorimejo {
 	private ui = new Map<string, FC<MainUIProps>>()
 
 	private isReady = false
-	private readyListener = new Set<() => void>()
+
+	get app(): AlgorimejoApp {
+		if (!this.isReady || !this._app) {
+			throw new Error("app is not ready")
+		}
+		return this._app
+	}
+
 	constructor() {
 		(async () => {
 			this.provideUI("solution-editor", SolutionEditor)
@@ -73,46 +72,13 @@ export class Algorimejo {
 				}),
 			])
 		})().then(() => {
-			this.readyListener.forEach(f => f())
+			this.events.emit("ready")
 			this.isReady = true
 		})
 	}
 
-	get app(): AlgorimejoApp {
-		if (!this.isReady || !this._app) {
-			throw new Error("app is not ready")
-		}
-		return this._app
-	}
-
-	get store() {
-		return this._store
-	}
-
 	get queryClient() {
 		return this._queryClient
-	}
-
-	dispatch(...args: Parameters<(typeof this.store)["dispatch"]>) {
-		this._store.dispatch(...args)
-	}
-
-	selectStateValue<T>(selector: StateSelector<T>): T {
-		return selector(this._store.getState())
-	}
-
-	watchState<T>(selector: StateSelector<T>, callback: (value: T) => void) {
-		let old: T | null = null
-		const unsub = this.store.subscribe(() => {
-			const nu = selector(this.store.getState())
-			if (nu !== old) {
-				callback(nu)
-				old = nu
-			}
-		})
-		return new Disposable(() => {
-			unsub()
-		})
 	}
 
 	getPanel(key: string): PanelAttrs {
@@ -149,78 +115,65 @@ export class Algorimejo {
 		this.ui.set(key, fc as FC<MainUIProps<unknown>>)
 	}
 
-	selectTab(index: number) {
-		this.dispatch(tabActions.select(index))
-	}
-
-	createTab(
-		key: string,
-		data: unknown,
-		{ title, icon }: CreateTabOptions,
-	): string {
-		const id = uniqueId("tab")
-		this.dispatch(
-			tabActions.create({
-				key,
-				id,
-				data,
-				title,
-				icon,
-			}),
-		)
-		return id
-	}
-
-	createWorkspacePrefTab() {
-		this.createTab("workspace-pref", {}, {
+	openWorkspacePrefTab() {
+		this.tab.openTab({
+			id: uniqueId("tab-"),
+			key: "workspace-pref",
 			title: "Workspace Preferences",
 			icon: "LucideColumnsSettings",
+			data: {},
 		})
 	}
 
-	createProgramPrefTab() {
-		this.createTab("program-pref", {}, {
+	openProgramPrefTab() {
+		this.tab.openTab({
+			id: uniqueId("tab-"),
+			key: "program-pref",
 			title: "Program Preferences",
 			icon: "LucideSettings2",
+			data: {},
 		})
 	}
 
-	createSolutionEditorTab(
-		solutionID: string,
-		problemID: string,
-		{ reuseTab = true, ...options }: CreateSolutionEditorTabOptions,
-	) {
-		const index = reuseTab
-			? this.selectStateValue(selectSolutionEditorTabIndex(solutionID))
-			: -1
-		if (index === -1) {
-			return this.createTab(
-				"solution-editor",
-				{
-					problemID,
-					solutionID,
-				},
-				options,
-			)
+	findSolutionTabID(solutionID: string): string | null {
+		return this.tab.findTabByData({
+			key: "solution-editor",
+			predicate: (data) => {
+				const result = solutionEditorPageDataSchema.safeParse(data)
+				return result.success && result.data.solutionID === solutionID
+			},
+		})?.id ?? null
+	}
+
+	openSolutionTab(options: {
+		problemID: string
+		solutionID: string
+		reuse?: boolean
+		language?: string
+		title: string
+	}) {
+		const existedTab = this.findSolutionTabID(options.solutionID)
+		if (options.reuse && existedTab) {
+			this.tab.selectTabByID(existedTab)
+			return
 		}
-		this.selectTab(index)
-		return this.selectStateValue(v => v.tab.tabs[index].id)
-	}
-
-	renameTab(index: number, title: string) {
-		log.trace(`rename tab${index} to ${title}`)
-		this.dispatch(tabActions.rename({ index, title }))
-	}
-
-	closeTab(index: number) {
-		this.dispatch(tabActions.close(index))
+		const tabID = uniqueId("tab-")
+		this.tab.openTab({
+			id: tabID,
+			key: "solution-editor",
+			data: {
+				problemID: options.problemID,
+				solutionID: options.solutionID,
+			},
+			title: options.title,
+		})
 	}
 
 	ready(callback: () => void) {
 		if (this.isReady) {
 			callback()
 		}
-		this.readyListener.add(callback)
+		this.events.on("ready", callback)
 	}
 
 	invalidateClient() {

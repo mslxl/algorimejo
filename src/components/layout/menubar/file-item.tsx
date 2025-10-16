@@ -41,13 +41,11 @@ export function MenubarFileItem() {
 			onSuccess: (data) => {
 				const problem = data.problem
 				if (problem.solutions[0].document) {
-					algorimejo.createSolutionEditorTab(
-						problem.solutions[0].id,
-						problem.id,
-						{
-							title: `${problem.name} - ${problem.solutions[0].name}`,
-						},
-					)
+					algorimejo.openSolutionTab({
+						problemID: problem.id,
+						solutionID: problem.solutions[0].id,
+						title: `${problem.name} - ${problem.solutions[0].name}`,
+					})
 				}
 				else {
 					toast.error(
@@ -61,10 +59,10 @@ export function MenubarFileItem() {
 		commands.exitApp()
 	}
 	function handleOpenWorkspacePrefs() {
-		algorimejo.createWorkspacePrefTab()
+		algorimejo.openWorkspacePrefTab()
 	}
 	function handleOpenProgramPrefs() {
-		algorimejo.createProgramPrefTab()
+		algorimejo.openProgramPrefTab()
 	}
 	return (
 		<MenubarMenu>

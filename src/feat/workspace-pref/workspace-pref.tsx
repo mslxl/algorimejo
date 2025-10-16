@@ -13,6 +13,7 @@ import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
 import { useWorkspaceConfigMutation } from "@/hooks/use-workspace-config-mutation"
 import { CompilerSection } from "./sections/compiler"
 import { EditorSection } from "./sections/editor"
+import { StorageSection } from "./sections/storage"
 import { WorkspacePrefsChangesetApplyContext, WorkspacePrefsChangesetContext, WorkspacePrefsChangesetSetterContext } from "./workspace-prefs-changeset-context"
 
 export function WorkspacePref() {
@@ -93,6 +94,7 @@ export function WorkspacePref() {
 							<ScrollArea className="flex-1">
 								<EditorSection />
 								<CompilerSection />
+								<StorageSection />
 							</ScrollArea>
 						</PrefsProvider>
 					</div>

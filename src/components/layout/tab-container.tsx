@@ -1,13 +1,11 @@
 import type { HTMLAttributes } from "react"
-import type { OpenedTab } from "@/stores/tab-slice"
+import type { TabInstance } from "@/lib/algorimejo/tab-manager"
 import { LucideFileCode2, LucideX } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { Suspense } from "react"
-import { useAppDispatch } from "@/hooks/use-app-dispatch"
-import { useAppSelector } from "@/hooks/use-app-selector"
 import { algorimejo } from "@/lib/algorimejo"
+import { useObservable } from "@/lib/observable"
 import { cn } from "@/lib/utils"
-import { close, select } from "@/stores/tab-slice"
 import { LucideIcon } from "../lucide-icon"
 import { TabbarScrollArea } from "../tabbar-scroll-area"
 import { Skeleton } from "../ui/skeleton"
@@ -16,14 +14,13 @@ import { WelcomePage } from "../welcome-page"
 interface TabBarProps extends HTMLAttributes<HTMLDivElement> {}
 
 function TabBar({ className, ...props }: TabBarProps) {
-	const tabs = useAppSelector(state => state.tab.tabs)
-	const selectedIndex = useAppSelector(state => state.tab.selected)
-	const dispatch = useAppDispatch()
+	const tabs = useObservable(algorimejo.tab.tabs)
+	const selectedIndex = useObservable(algorimejo.tab.selectedIndex)
 	function handleClickTab(idx: number) {
-		dispatch(close(idx))
+		algorimejo.tab.removeTabByIndex(idx)
 	}
 	function handleSelectTab(idx: number) {
-		dispatch(select(idx))
+		algorimejo.tab.selectTabByIndex(idx)
 	}
 	return (
 		<TabbarScrollArea className={cn("bg-secondary/40 select-none", className)}>
@@ -88,7 +85,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 }
 
 interface TabContentProps {
-	tab: OpenedTab
+	tab: TabInstance
 }
 
 function TabContent({ tab }: TabContentProps) {
@@ -119,10 +116,7 @@ function TabContent({ tab }: TabContentProps) {
 
 interface TabContainerProps extends HTMLAttributes<HTMLDivElement> {}
 export function TabContainer({ className, ...props }: TabContainerProps) {
-	const currentTab = useAppSelector(
-		state =>
-			(state.tab.tabs[state.tab.selected] as undefined | OpenedTab) ?? null,
-	)
+	const currentTab = useObservable(algorimejo.tab.selectedTab)
 
 	return (
 		<div className={cn(className, "flex flex-col")} {...props}>

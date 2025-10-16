@@ -35,5 +35,6 @@ export function getFileExtensionOfLanguage(language: LanguageBase) {
 		.with("JavaScript", () => "js")
 		.with("Go", () => "go")
 		.with("Text", () => "txt")
+		.with("Unknown", () => "txt")
 		.exhaustive()
 }

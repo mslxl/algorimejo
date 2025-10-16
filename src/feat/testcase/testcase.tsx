@@ -1,10 +1,8 @@
 import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo"
-import type { OpenedTab } from "@/stores/tab-slice"
 import { LucidePlaySquare } from "lucide-react"
 import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default"
-import { useAppDispatch } from "@/hooks/use-app-dispatch"
-import { useAppSelector } from "@/hooks/use-app-selector"
-import * as sidebarReducers from "@/stores/sidebar-slice"
+import { algorimejo } from "@/lib/algorimejo"
+import { useObservable } from "@/lib/observable"
 import { TestcaseContent } from "./testcase-content"
 
 export function TestcaseButton(props: PanelButtonProps) {
@@ -17,13 +15,10 @@ export function TestcaseButton(props: PanelButtonProps) {
 }
 
 export function Testcase() {
-	const dispatch = useAppDispatch()
-	const currentTab = useAppSelector(
-		state =>
-			(state.tab.tabs[state.tab.selected] as undefined | OpenedTab) ?? null,
-	)
+	const currentTab = useObservable(algorimejo.tab.selectedTab)
+
 	function handleOpenFileBrowser() {
-		dispatch(sidebarReducers.select({ key: "file-browser" }))
+		algorimejo.dock.select(null, "file-browser")
 	}
 	if (currentTab === null || currentTab.key !== "solution-editor") {
 		return (

@@ -3,6 +3,7 @@ import type { Problem, Solution } from "@/lib/client"
 import * as log from "@tauri-apps/plugin-log"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
+import { ta } from "zod/v4/locales"
 import { SolutionSetting } from "@/components/solution-setting"
 import {
 	AlertDialog,
@@ -26,7 +27,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset"
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
-import { selectSolutionEditorTabIndex } from "../editor/utils"
 import { TreeStyledLi } from "./tree-styled-item"
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
@@ -67,11 +67,12 @@ export function ProblemListItem({
 					toast.error(`Fail to rename: ${error}`)
 				},
 				onSuccess: () => {
-					const tabIndex = algorimejo.selectStateValue(
-						selectSolutionEditorTabIndex(solution.id),
-					)
-					if (tabIndex !== -1) {
-						algorimejo.renameTab(tabIndex, `${newName} - ${problem.name}`)
+					const tabID = algorimejo.findSolutionTabID(solution.id)
+					if (tabID) {
+						algorimejo.tab.renameTab(
+							tabID,
+							`${newName} - ${problem.name}`,
+						)
 					}
 				},
 			},
@@ -84,11 +85,9 @@ export function ProblemListItem({
 			},
 			onSuccess: () => {
 				if (solution.document) {
-					const tabIndex = algorimejo.selectStateValue(
-						selectSolutionEditorTabIndex(solution.id),
-					)
-					if (tabIndex !== -1) {
-						algorimejo.closeTab(tabIndex)
+					const tabID = algorimejo.findSolutionTabID(solution.id)
+					if (tabID) {
+						algorimejo.tab.removeTabByID(tabID)
 					}
 				}
 			},
@@ -96,13 +95,11 @@ export function ProblemListItem({
 	}
 	function handleOpenSolution() {
 		if (solution.document) {
-			algorimejo.createSolutionEditorTab(
-				solution.id,
-				problem.id,
-				{
-					title: `${solution.name} - ${problem.name}`,
-				},
-			)
+			algorimejo.openSolutionTab({
+				problemID: problem.id,
+				solutionID: solution.id,
+				title: `${solution.name} - ${problem.name}`,
+			})
 		}
 		else {
 			const msg = `Solution ${solution.name} has no document included! This should not happen! Please report this issue to the developer.`

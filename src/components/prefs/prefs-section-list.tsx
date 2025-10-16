@@ -14,7 +14,7 @@ export function PrefsSectionList({ className, onItemClick, ...props }: PrefsSect
 
 	const sections = useMemo(() =>
 		Object.entries(groupBy("section", items ?? []))
-			.sort(([a], [b]) => a.localeCompare(b))
+			// .sort(([a], [b]) => a.localeCompare(b)) // Why I add this?
 			.map(([key, values]) => ({
 				key,
 				item: values[0],
