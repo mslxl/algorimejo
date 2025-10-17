@@ -3,7 +3,6 @@ import type { Problem, Solution } from "@/lib/client"
 import * as log from "@tauri-apps/plugin-log"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
-import { ta } from "zod/v4/locales"
 import { SolutionSetting } from "@/components/solution-setting"
 import {
 	AlertDialog,

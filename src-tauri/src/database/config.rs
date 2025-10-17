@@ -1,19 +1,9 @@
-use std::{collections::HashMap, path};
+use std::{collections::HashMap, path::{self, PathBuf}};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::commands::runner::ENV_KEY_BUNDLED_LSP;
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub enum LanguageBase {
-    Cpp,
-    TypeScript,
-    JavaScript,
-    Go,
-    Python,
-    Text,
-}
+use crate::{commands::runner::ENV_KEY_BUNDLED_LSP, database::language::LanguageBase};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum LanguageServerProtocolConnectionType {
@@ -41,6 +31,9 @@ pub struct WorkspaceConfig {
     pub font_size: u32,
     pub language: HashMap<String, AdvLanguageItem>,
     pub default_language: Option<String>,
+    pub duplicate_save: bool,
+    pub duplicate_save_location: Option<PathBuf>,
+
 }
 
 impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
@@ -50,6 +43,8 @@ impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
             font_size: value.font_size,
             language: value.language,
             default_language: value.default_language,
+            duplicate_save: false,
+            duplicate_save_location: None,
         }
     }
 }
@@ -65,6 +60,10 @@ pub struct WorkspaceLocalDeserialized {
     #[serde(default = "WorkspaceLocalDeserialized::default_language")]
     pub language: HashMap<String, AdvLanguageItem>,
     pub default_language: Option<String>,
+    #[serde(default = "WorkspaceLocalDeserialized::default_duplicate_save")]
+    pub duplicate_save: bool,
+    #[serde(default = "WorkspaceLocalDeserialized::default_duplicate_save_location")]
+    pub duplicate_save_location: Option<PathBuf>,
 }
 impl WorkspaceLocalDeserialized {
     fn default_font_size() -> u32 {
@@ -111,6 +110,12 @@ impl WorkspaceLocalDeserialized {
         );
         language
     }
+    fn default_duplicate_save() -> bool {
+        false
+    }
+    fn default_duplicate_save_location() -> Option<PathBuf> {
+        None
+    }
 }
 
 impl Default for WorkspaceLocalDeserialized {
@@ -120,6 +125,8 @@ impl Default for WorkspaceLocalDeserialized {
             font_family: Self::default_font_family(),
             font_size: Self::default_font_size(),
             default_language: None,
+            duplicate_save: Self::default_duplicate_save(),
+            duplicate_save_location: Self::default_duplicate_save_location(),
         }
     }
 }

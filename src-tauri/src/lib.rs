@@ -55,6 +55,7 @@ pub fn run() {
             commands::database::load_document,
             commands::database::apply_change,
             commands::database::resolve_checker,
+            commands::database::save_duplicated_file,
             commands::runner::get_checkers_name,
             commands::runner::launch_language_server,
             commands::runner::kill_language_server,
