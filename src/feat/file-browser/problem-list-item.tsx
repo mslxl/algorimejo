@@ -47,6 +47,7 @@ export function ProblemListItem({
 }: ProblemListItemProps) {
 	const [isRenaming, setIsRenaming] = useState(false)
 	const [isEditingOptions, setIsEditingOptions] = useState(false)
+	const [isContextMenuOpen, setIsContextMenuOpen] = useState(false)
 	const solutionChangesetMutation = useSolutionChangeset()
 	const solutionDeleterMutation = useSolutionDeleter()
 	const inputRenameRef = useRef<HTMLInputElement>(null)
@@ -54,6 +55,7 @@ export function ProblemListItem({
 	const currentTab = useObservable(algorimejo.tab.selectedTab)
 	const tabData = currentTab?.data as SolutionTabData | undefined
 	const isSelected = tabData?.solutionID === solution.id
+	const isActive = !isSelected && isContextMenuOpen 
 
 	function handleStartRename() {
 		setIsRenaming(true)
@@ -133,7 +135,8 @@ export function ProblemListItem({
 			data-selected={isSelected ? "true" : "false"}
 			className={cn(
 				props.className,
-				isSelected && "bg-primary/10"
+				isSelected && "bg-primary/10",
+				isActive  && "bg-secondary"
 			)}
 		>
 			<Dialog open={isEditingOptions} onOpenChange={setIsEditingOptions}>
@@ -177,7 +180,7 @@ export function ProblemListItem({
 					/>
 				)
 				: (
-					<ContextMenu key={solution.id}>
+					<ContextMenu key={solution.id}  onOpenChange={setIsContextMenuOpen}>
 						<ContextMenuTrigger asChild>
 							<button
 								type="button"
@@ -187,7 +190,7 @@ export function ProblemListItem({
 									"size-full truncate py-0.5 text-left",
 									"data-[selected=false]:hover:bg-secondary/30",
 									//isSelected && "font-semibold",
-									// "data-[state=open]:bg-secondary/30"
+									isActive  && "bg-secondary"
 								)}
 							>
 								{solution.name}
