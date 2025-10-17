@@ -139,7 +139,7 @@ export function ProblemCollapsible({
 				</DialogContent>
 			</Dialog>
 
-			<ContextMenu>
+			<ContextMenu key={problem.id}>
 				{isRenaming
 					? (
 							<div className="flex w-full items-center gap-1 text-sm">

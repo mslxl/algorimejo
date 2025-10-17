@@ -153,7 +153,7 @@ export function ProblemListItem({
 						/>
 					)
 				: (
-						<ContextMenu>
+						<ContextMenu key={solution.id}>
 							<ContextMenuTrigger asChild>
 								<button
 									type="button"
