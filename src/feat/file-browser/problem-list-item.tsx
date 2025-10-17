@@ -3,6 +3,8 @@ import type { Problem, Solution } from "@/lib/client"
 import * as log from "@tauri-apps/plugin-log"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
+import { useObservable } from "@/lib/observable"
+import { cn } from "@/lib/utils"
 import { SolutionSetting } from "@/components/solution-setting"
 import {
 	AlertDialog,
@@ -28,6 +30,12 @@ import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
 import { TreeStyledLi } from "./tree-styled-item"
 
+interface SolutionTabData {
+	problemID: string
+	solutionID: string
+	title: string
+}
+
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
 	solution: Solution
 	problem: Problem
@@ -42,6 +50,10 @@ export function ProblemListItem({
 	const solutionChangesetMutation = useSolutionChangeset()
 	const solutionDeleterMutation = useSolutionDeleter()
 	const inputRenameRef = useRef<HTMLInputElement>(null)
+
+	const currentTab = useObservable(algorimejo.tab.selectedTab)
+	const tabData = currentTab?.data as SolutionTabData | undefined
+	const isSelected = tabData?.solutionID === solution.id
 
 	function handleStartRename() {
 		setIsRenaming(true)
@@ -94,11 +106,16 @@ export function ProblemListItem({
 	}
 	function handleOpenSolution() {
 		if (solution.document) {
-			algorimejo.openSolutionTab({
-				problemID: problem.id,
-				solutionID: solution.id,
-				title: `${solution.name} - ${problem.name}`,
-			})
+			const existingTabID = algorimejo.findSolutionTabID(solution.id)
+			if (existingTabID) {
+				algorimejo.tab.selectTabByID(existingTabID)
+			} else {
+				algorimejo.openSolutionTab({
+					problemID: problem.id,
+					solutionID: solution.id,
+					title: `${solution.name} - ${problem.name}`,
+				})
+			}
 		}
 		else {
 			const msg = `Solution ${solution.name} has no document included! This should not happen! Please report this issue to the developer.`
@@ -111,7 +128,14 @@ export function ProblemListItem({
 		}
 	}
 	return (
-		<TreeStyledLi {...props}>
+		<TreeStyledLi
+			{...props}
+			data-selected={isSelected ? "true" : "false"}
+			className={cn(
+				props.className,
+				isSelected && "bg-primary/10"
+			)}
+		>
 			<Dialog open={isEditingOptions} onOpenChange={setIsEditingOptions}>
 				<DialogContent>
 					<DialogHeader>
@@ -136,65 +160,71 @@ export function ProblemListItem({
 
 			{isRenaming
 				? (
-						<input
-							className="w-full shadow-none ring-0 outline-1"
-							autoComplete="off"
-							type="text"
-							name="name"
-							defaultValue={solution.name}
-							onBlur={e => handleProblemRename(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									handleProblemRename(e.currentTarget.value)
-								}
-							}}
-							onFocus={e => e.target.select()}
-							ref={inputRenameRef}
-						/>
-					)
+					<input
+						className="w-full shadow-none ring-0 outline-1"
+						autoComplete="off"
+						type="text"
+						name="name"
+						defaultValue={solution.name}
+						onBlur={e => handleProblemRename(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								handleProblemRename(e.currentTarget.value)
+							}
+						}}
+						onFocus={e => e.target.select()}
+						ref={inputRenameRef}
+					/>
+				)
 				: (
-						<ContextMenu key={solution.id}>
-							<ContextMenuTrigger asChild>
-								<button
-									type="button"
-									onClick={handleOpenSolution}
-									className="size-full truncate py-0.5 text-left"
-								>
-									{solution.name}
-								</button>
-							</ContextMenuTrigger>
-							<ContextMenuContent>
-								<ContextMenuItem>Open</ContextMenuItem>
-								<ContextMenuSeparator />
-								<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
-								<ContextMenuSeparator />
-								<ContextMenuItem onClick={handleStartRename}>
-									Rename
+					<ContextMenu key={solution.id}>
+						<ContextMenuTrigger asChild>
+							<button
+								type="button"
+								onClick={handleOpenSolution}
+								data-selected={isSelected ? "true" : "false"}
+								className={cn(
+									"size-full truncate py-0.5 text-left",
+									"data-[selected=false]:hover:bg-secondary/30",
+									//isSelected && "font-semibold",
+									// "data-[state=open]:bg-secondary/30"
+								)}
+							>
+								{solution.name}
+							</button>
+						</ContextMenuTrigger>
+						<ContextMenuContent>
+							<ContextMenuItem>Open</ContextMenuItem>
+							<ContextMenuSeparator />
+							<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
+							<ContextMenuSeparator />
+							<ContextMenuItem onClick={handleStartRename}>
+								Rename
+							</ContextMenuItem>
+							<AlertDialog>
+								<ContextMenuItem asChild>
+									<AlertDialogTrigger className="w-full">
+										Delete
+									</AlertDialogTrigger>
 								</ContextMenuItem>
-								<AlertDialog>
-									<ContextMenuItem asChild>
-										<AlertDialogTrigger className="w-full">
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Delete Solution</AlertDialogTitle>
+										<AlertDialogDescription>
+											Are you sure you want to delete this solution?
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction onClick={handleSolutionDelete}>
 											Delete
-										</AlertDialogTrigger>
-									</ContextMenuItem>
-									<AlertDialogContent>
-										<AlertDialogHeader>
-											<AlertDialogTitle>Delete Solution</AlertDialogTitle>
-											<AlertDialogDescription>
-												Are you sure you want to delete this solution?
-											</AlertDialogDescription>
-										</AlertDialogHeader>
-										<AlertDialogFooter>
-											<AlertDialogCancel>Cancel</AlertDialogCancel>
-											<AlertDialogAction onClick={handleSolutionDelete}>
-												Delete
-											</AlertDialogAction>
-										</AlertDialogFooter>
-									</AlertDialogContent>
-								</AlertDialog>
-							</ContextMenuContent>
-						</ContextMenu>
-					)}
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</ContextMenuContent>
+					</ContextMenu>
+				)}
 		</TreeStyledLi>
 	)
 }
