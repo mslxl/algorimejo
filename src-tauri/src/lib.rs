@@ -51,7 +51,6 @@ pub fn run() {
             commands::database::get_string_of_doc,
             commands::database::launch_competitive_companion_listener,
             commands::database::shutdown_competitive_companion_listener,
-            // TODO: cataloging
             commands::database::load_document,
             commands::database::apply_change,
             commands::database::resolve_checker,

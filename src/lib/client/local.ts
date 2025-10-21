@@ -83,8 +83,8 @@ async applyChange(docId: string, change: number[]) : Promise<null> {
 async resolveChecker(name: string) : Promise<string> {
     return await TAURI_INVOKE("resolve_checker", { name });
 },
-async saveDuplicatedFile(problem: Problem, solution: Solution) : Promise<null> {
-    return await TAURI_INVOKE("save_duplicated_file", { problem, solution });
+async saveDuplicatedFile(problem: Problem, solution: Solution, content: string | null) : Promise<null> {
+    return await TAURI_INVOKE("save_duplicated_file", { problem, solution, content });
 },
 async getCheckersName() : Promise<string[]> {
     return await TAURI_INVOKE("get_checkers_name");

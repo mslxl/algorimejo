@@ -3,7 +3,12 @@ use std::{collections::HashMap, mem::uninitialized, path::PathBuf};
 use crate::{
     commands::{QueryClientInvalidateEvent, ToastEvent, ToastKind},
     database::{
-        competitive_companion::handle_competitive_companion_message, config::{AdvLanguageItem, WorkspaceConfig}, language::LanguageBase, CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult, CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams, GetProblemsResult
+        competitive_companion::handle_competitive_companion_message,
+        config::{AdvLanguageItem, WorkspaceConfig},
+        language::LanguageBase,
+        CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
+        CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
+        GetProblemsResult,
     },
     document::DocumentRepo,
     model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
@@ -11,6 +16,7 @@ use crate::{
 };
 use chrono::Local;
 use log::{error, trace, warn};
+use nom::combinator::Opt;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{path::BaseDirectory, Manager, Runtime, State};
@@ -372,8 +378,9 @@ pub async fn save_duplicated_file(
     repo: State<'_, DocumentRepo>,
     db: State<'_, DatabaseRepo>,
     problem: Problem,
-    solution: Solution
-)->Result<(), String>{
+    solution: Solution,
+    content: Option<String>,
+) -> Result<(), String> {
     let cfg = {
         let cfg_guard = db.config.read().map_err(|e| e.to_string())?;
         if !cfg_guard.duplicate_save {
@@ -385,22 +392,39 @@ pub async fn save_duplicated_file(
         return Err("Solution has no document".to_string());
     }
     if let Some(location) = &cfg.duplicate_save_location.clone() {
-        std::fs::create_dir_all(&location).map_err(|e| e.to_string())?;
-        let lang = LanguageBase::from(solution.language.as_ref());
-        if lang == LanguageBase::Unknown {
-            warn!("Unknown language for solution {}", &solution.id);
-        }
+        tokio::fs::create_dir_all(&location)
+            .await
+            .map_err(|e| e.to_string())?;
 
-        let filename = format!(
-            "{}-{}.{}",
-            &problem.name,
-            &solution.name,
-            lang.extension()
-        );
+        let lang = match cfg.language.get(&solution.language) {
+            Some(base_lang) => base_lang.base.clone(),
+            None => {
+                warn!(
+                    "Unknown language {} for solution {}",
+                    &solution.language, &solution.id
+                );
+                LanguageBase::Unknown
+            }
+        };
+
+        let filename = format!("{}-{}.{}", &problem.name, &solution.name, lang.extension());
         let filepath = location.join(&filename);
 
-        let content = get_string_of_doc(solution.document.unwrap().id, String::from("content"), db.clone(), repo).await.map_err(|e| e.to_string())?;
-        // std::fs::write(&filepath, &content).map_err(|e| e.to_string())?;
+        let content = if let Some(c) = content {
+            c
+        } else {
+            get_string_of_doc(
+                solution.document.unwrap().id,
+                String::from("content"),
+                db.clone(),
+                repo,
+            )
+            .await
+            .map_err(|e| e.to_string())?
+        };
+        tokio::fs::write(&filepath, &content)
+            .await
+            .map_err(|e| e.to_string())?;
         trace!("Saved duplicated file to {:?}", &filepath);
         Ok(())
     } else {

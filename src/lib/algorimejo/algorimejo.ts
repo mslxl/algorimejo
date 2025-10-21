@@ -62,6 +62,11 @@ export class Algorimejo {
 	}
 
 	constructor() {
+		// event log
+		this.events.on("*", (tag, payload) => {
+			log.trace(`event "${tag}" emitted with payload: ${JSON.stringify(payload)}`)
+		});
+
 		(async () => {
 			this.provideUI("solution-editor", SolutionEditor)
 			this.provideUI("workspace-pref", WorkspacePreference)

@@ -52,8 +52,8 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	const ytext = useMemo(() => ydoc.getText("content"), [ydoc])
 
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	const emitDocumentChangeEventDebounced = useCallback(debounce(500, () => {
-		algorimejo.events.emit("documentChangedDebounced", { documentID, ytext })
+	const emitDocumentChangeEventDebounced = useCallback(debounce(2000, () => {
+		algorimejo.events.emit("documentChangedDebounced", { documentID, ytext, language })
 	}), [ydoc, documentID])
 
 	useEffect(() => {
@@ -63,7 +63,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 					toast.error(`failed to apply change with local error message: ${e}`)
 				})
 
-				algorimejo.events.emit("documentChanged", { documentID, ytext })
+				algorimejo.events.emit("documentChanged", { documentID, ytext, language })
 				emitDocumentChangeEventDebounced()
 			}
 		}
@@ -71,7 +71,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 		return () => {
 			ydoc.off("update", cb)
 		}
-	}, [ydoc, documentID, emitDocumentChangeEventDebounced, ytext])
+	}, [ydoc, documentID, emitDocumentChangeEventDebounced, ytext, language])
 
 	const workspaceConfig = useWorkspaceConfig()
 	const programConfig = useProgramConfig()

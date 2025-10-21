@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq, Hash)]
 pub enum LanguageBase {
     Cpp,
@@ -15,7 +14,7 @@ pub enum LanguageBase {
 
 impl From<&str> for LanguageBase {
     fn from(value: &str) -> Self {
-        match value {
+        match value.to_lowercase().as_str() {
             "cpp" => LanguageBase::Cpp,
             "ts" | "typescript" => LanguageBase::TypeScript,
             "js" | "javascript" => LanguageBase::JavaScript,

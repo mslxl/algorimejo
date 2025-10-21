@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::{self, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{self, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -33,7 +36,6 @@ pub struct WorkspaceConfig {
     pub default_language: Option<String>,
     pub duplicate_save: bool,
     pub duplicate_save_location: Option<PathBuf>,
-
 }
 
 impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
@@ -43,8 +45,8 @@ impl From<WorkspaceLocalDeserialized> for WorkspaceConfig {
             font_size: value.font_size,
             language: value.language,
             default_language: value.default_language,
-            duplicate_save: false,
-            duplicate_save_location: None,
+            duplicate_save: value.duplicate_save,
+            duplicate_save_location: value.duplicate_save_location,
         }
     }
 }
@@ -90,18 +92,16 @@ impl WorkspaceLocalDeserialized {
                         ""
                     }
                 ),
-                lsp: Some(
-                    format!(
-                        "%{}{}clangd{}",
-                        ENV_KEY_BUNDLED_LSP,
-                        path::MAIN_SEPARATOR,
-                        if cfg!(target_os = "windows") {
-                            ".exe"
-                        } else {
-                            ""
-                        }
-                    )
-                ),
+                lsp: Some(format!(
+                    "%{}{}clangd{}",
+                    ENV_KEY_BUNDLED_LSP,
+                    path::MAIN_SEPARATOR,
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                )),
                 lsp_connect: Some(LanguageServerProtocolConnectionType::StdIO),
                 initial_solution_content: Some(
                     "#include<iostream>\nint main(){\n\treturn 0;\n}".to_string(),

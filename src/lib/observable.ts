@@ -19,7 +19,7 @@ export interface WriteObservable<T> extends ReadObservable<T> {
  *
  * Need to be replaced by something more efficient in the future.
  */
-export class Observable<T> implements ReadObservable<T> {
+export class Observable<T> implements ReadObservable<T>, WriteObservable<T> {
 	private _value: { (): T, (value: T): void }
 	constructor(value: T) {
 		this._value = signal(value)

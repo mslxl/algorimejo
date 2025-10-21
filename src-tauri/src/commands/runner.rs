@@ -1,5 +1,7 @@
 use std::{
-    collections::HashMap, hash::{DefaultHasher, Hash, Hasher}, path::PathBuf
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    path::PathBuf,
 };
 
 use log::trace;
@@ -295,7 +297,6 @@ pub async fn execute_program_detached(
     command: String,
     env: HashMap<String, String>,
 ) -> Result<(), String> {
-
     // Get the default environment
     let def_env = get_default_env(&app).map_err(|e| e.to_string())?;
     // Parse command with the default environment
@@ -318,8 +319,6 @@ pub async fn execute_program_detached(
         // .arg(PathBuf::from(origin_cmd.get_program()).file_name().unwrap())
         .arg(origin_cmd.get_program())
         .args(origin_cmd.get_args());
-
-
 
     // TODO: not work on LINUX, need futhuer investgivate
     command_flag_create_new_console(&mut cmd);

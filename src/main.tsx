@@ -4,7 +4,7 @@ import { attachConsole } from "@tauri-apps/plugin-log"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { iconImage } from "@/assets"
-import { loadFeatures } from "@/feat"
+import { loadFeatures, loadServices } from "@/feat"
 import { algorimejo } from "@/lib/algorimejo"
 import { routeTree } from "@/routeTree.gen"
 import "@fontsource/jetbrains-mono"
@@ -31,6 +31,7 @@ if (!rootElement.innerHTML) {
 		algorimejo.ready(async () => {
 			await loadFeatures()
 			await attachConsole()
+			await loadServices()
 			ReactDOM.createRoot(rootElement).render(
 				<React.StrictMode>
 					<QueryClientProvider client={algorimejo.queryClient}>

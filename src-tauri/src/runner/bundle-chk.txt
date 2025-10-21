@@ -6,16 +6,3 @@ dcmp
 fcmp
 hcmp
 icmp
-lcmp
-ncmp
-nyesno
-pointscmp
-pointsinfo
-rcmp
-rcmp4
-rcmp6
-rcmp9
-rncmp
-uncmp
-wcmp
-yesno
