@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::uninitialized, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     commands::{QueryClientInvalidateEvent, ToastEvent, ToastKind},
@@ -14,12 +14,10 @@ use crate::{
     model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
     runner::BUNDLED_CHECKER_NAME,
 };
-use chrono::Local;
 use log::{error, trace, warn};
-use nom::combinator::Opt;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::{path::BaseDirectory, Manager, Runtime, State};
+use tauri::{path::BaseDirectory, Manager, Runtime, State, Url};
 use tauri_specta::Event;
 use tokio::{
     io::{AsyncReadExt, BufReader},
@@ -407,8 +405,21 @@ pub async fn save_duplicated_file(
             }
         };
 
+        let problem_url_host = if let Some(url) = problem.url {
+            Url::parse(&url)
+                .ok()
+                .and_then(|u| u.host_str().map(|s| s.to_string()))
+                .unwrap_or("unknown".to_string())
+        } else {
+            "unknown".to_string()
+        };
+
         let filename = format!("{}-{}.{}", &problem.name, &solution.name, lang.extension());
-        let filepath = location.join(&filename);
+        let group_dir = location.join(problem_url_host);
+        let filepath = group_dir.join(&filename);
+        if !group_dir.exists() {
+            tokio::fs::create_dir_all(&group_dir).await.map_err(|e| e.to_string())?;
+        }
 
         let content = if let Some(c) = content {
             c
@@ -428,6 +439,6 @@ pub async fn save_duplicated_file(
         trace!("Saved duplicated file to {:?}", &filepath);
         Ok(())
     } else {
-        Err("Duplicated save location is not set".to_string())
+        Err("Duplicated save location is not set, please check your settings".to_string())
     }
 }
