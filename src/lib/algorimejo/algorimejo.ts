@@ -10,6 +10,7 @@ import { ProgramPreference } from "@/feat/program-pref"
 import { WorkspacePreference } from "@/feat/workspace-pref"
 import { AlgorimejoApp } from "./app"
 import { DockManager } from "./dock-manager"
+import { LanguageClient } from "./language"
 import { TabManager } from "./tab-manager"
 
 export type PanelPosition = "left" | "right" | "bottom"
@@ -46,6 +47,7 @@ export class Algorimejo {
 	public readonly events: AlgorimejoEventBus = mitt<AlgorimejoEvents>()
 	public readonly dock = new DockManager(this.events)
 	public readonly tab = new TabManager(this.events)
+	public readonly langClient = new LanguageClient(this.events)
 
 	private _queryClient = new QueryClient()
 

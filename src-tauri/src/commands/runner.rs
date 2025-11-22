@@ -117,7 +117,7 @@ pub async fn launch_language_server(
             response_body.emit(&handle).unwrap();
         }
         if !reader.is_alive().await {
-            log::trace!("language server {} is dead", &pid);
+            log::warn!("language server {} is dead", &pid);
             let response_body = LanguageServerEvent {
                 pid: pid.to_string(),
                 response: LanguageServerResponse::Closed {
