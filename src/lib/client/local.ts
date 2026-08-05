@@ -121,6 +121,18 @@ async executeProgram(taskTag: string, commands: string, env: Partial<{ [key in s
 },
 async executeProgramDetached(taskTag: string, command: string, env: Partial<{ [key in string]: string }>) : Promise<null> {
     return await TAURI_INVOKE("execute_program_detached", { taskTag, command, env });
+},
+async launchPtySession(sessionId: string, taskTag: string, command: string, env: Partial<{ [key in string]: string }>, cols: number, rows: number) : Promise<null> {
+    return await TAURI_INVOKE("launch_pty_session", { sessionId, taskTag, command, env, cols, rows });
+},
+async writePtySession(sessionId: string, data: string) : Promise<null> {
+    return await TAURI_INVOKE("write_pty_session", { sessionId, data });
+},
+async resizePtySession(sessionId: string, cols: number, rows: number) : Promise<null> {
+    return await TAURI_INVOKE("resize_pty_session", { sessionId, cols, rows });
+},
+async killPtySession(sessionId: string) : Promise<null> {
+    return await TAURI_INVOKE("kill_pty_session", { sessionId });
 }
 }
 
@@ -131,6 +143,7 @@ export const events = __makeEvents__<{
 languageServerEvent: LanguageServerEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
 programOutputEvent: ProgramOutputEvent,
+ptyProcessEvent: PtyProcessEvent,
 queryClientInvalidateEvent: QueryClientInvalidateEvent,
 toastEvent: ToastEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
@@ -138,6 +151,7 @@ workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 languageServerEvent: "language-server-event",
 programConfigUpdateEvent: "program-config-update-event",
 programOutputEvent: "program-output-event",
+ptyProcessEvent: "pty-process-event",
 queryClientInvalidateEvent: "query-client-invalidate-event",
 toastEvent: "toast-event",
 workspaceConfigUpdateEvent: "workspace-config-update-event"
@@ -170,6 +184,7 @@ export type IOMethod =
  */
 "StdIO"
 export type Keymap = "Default" | "Vim" | "Emacs"
+export type DetachedRunMode = "EmbeddedTerminal" | "ExternalTerminal"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text" | "Unknown"
 export type LanguageServerEvent = { session_id: string; pid: string; response: LanguageServerResponse }
 export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null }
@@ -177,11 +192,13 @@ export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; group: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
-export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[]; keymap: Keymap }
+export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[]; keymap: Keymap; detached_run_mode: DetachedRunMode }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
 export type ProgramOutputEvent = { task_tag: string; source: ProgramOutputSource; line: string }
 export type ProgramOutputSource = "Stdout" | "Stderr"
+export type PtyProcessEvent = { session_id: string; event: PtyProcessEventKind }
+export type PtyProcessEventKind = { type: "Output"; data: number[] } | { type: "Stderr"; data: number[] } | { type: "Exit"; exit_code: number; signal: string | null } | { type: "Error"; message: string }
 export type ProgramSimpleOutput = { exit_code: number; stdout: string; stderr: string; is_timeout: boolean }
 export type QueryClientInvalidateEvent = { query_key: string[] | null }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }

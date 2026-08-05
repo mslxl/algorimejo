@@ -2,6 +2,7 @@ import type { AdvLanguageItem, ProgramSimpleOutput } from "./client"
 import { MD5 } from "crypto-js"
 import { commands, events } from "./client"
 import { getFileExtensionOfLanguage } from "./client/type"
+import { embeddedTerminal } from "./embedded-terminal"
 import { LRUCache } from "./lru-cache"
 
 const MAX_COMPILE_TIMEOUT = 12000
@@ -276,7 +277,13 @@ export async function runProgramDetached({ tag, solutionDocID, language }: RunPr
 			compilerExitCode: compileInfo.exit_code,
 		}
 	}
-	await commands.executeProgramDetached(tag, language.cmd_run, {})
+	const config = await commands.getProgConfig()
+	if (config.detached_run_mode === "EmbeddedTerminal") {
+		await embeddedTerminal.launch(tag, language.cmd_run)
+	}
+	else {
+		await commands.executeProgramDetached(tag, language.cmd_run, {})
+	}
 	return {
 		result: "AC",
 	}

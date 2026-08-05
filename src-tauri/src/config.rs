@@ -15,6 +15,12 @@ pub enum Keymap {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub enum DetachedRunMode {
+    EmbeddedTerminal,
+    ExternalTerminal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProgramConfig {
     pub workspace: Option<PathBuf>,
     pub theme: String,
@@ -23,6 +29,7 @@ pub struct ProgramConfig {
     pub competitive_companion_enabled: bool,
     pub workspace_history: Vec<PathBuf>,
     pub keymap: Keymap,
+    pub detached_run_mode: DetachedRunMode,
 }
 
 impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
@@ -35,6 +42,7 @@ impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
             competitive_companion_enabled: value.competitive_companion_enabled,
             workspace_history: value.workspace_history,
             keymap: value.keymap,
+            detached_run_mode: value.detached_run_mode,
         }
     }
 }
@@ -60,6 +68,9 @@ pub struct ProgramConfigLocalDeserialized {
 
     #[serde(default = "ProgramConfigLocalDeserialized::default_keymap")]
     pub keymap: Keymap,
+
+    #[serde(default = "ProgramConfigLocalDeserialized::default_detached_run_mode")]
+    pub detached_run_mode: DetachedRunMode,
 }
 
 impl ProgramConfigLocalDeserialized {
@@ -84,6 +95,9 @@ impl ProgramConfigLocalDeserialized {
     fn default_keymap() -> Keymap {
         Keymap::Default
     }
+    fn default_detached_run_mode() -> DetachedRunMode {
+        DetachedRunMode::EmbeddedTerminal
+    }
 }
 
 impl Default for ProgramConfigLocalDeserialized {
@@ -96,6 +110,7 @@ impl Default for ProgramConfigLocalDeserialized {
             competitive_companion_enabled: Self::default_competitive_companion_enabled(),
             workspace_history: Self::default_workspace_history(),
             keymap: Self::default_keymap(),
+            detached_run_mode: Self::default_detached_run_mode(),
         }
     }
 }

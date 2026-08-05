@@ -1,0 +1,8 @@
+.embedded-terminal-host .xterm {
+	height: 100%;
+	padding: 6px 8px;
+}
+
+.embedded-terminal-host .xterm-viewport {
+	overscroll-behavior: contain;
+}

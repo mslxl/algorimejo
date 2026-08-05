@@ -57,6 +57,7 @@
 		"@uiw/codemirror-extensions-hyper-link": "^4.25.2",
 		"@uiw/codemirror-extensions-line-numbers-relative": "^4.25.2",
 		"@uiw/codemirror-themes-all": "^4.25.2",
+		"@xterm/addon-fit": "^0.10.0",
 		"@xterm/xterm": "^5.5.0",
 		"alien-signals": "^3.0.1",
 		"class-variance-authority": "^0.7.1",

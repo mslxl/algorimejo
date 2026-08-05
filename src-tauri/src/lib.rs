@@ -26,6 +26,7 @@ pub fn run() {
             commands::database::WorkspaceConfigUpdateEvent,
             commands::runner::LanguageServerEvent,
             commands::runner::ProgramOutputEvent,
+            commands::terminal::PtyProcessEvent,
         ])
         .commands(collect_commands![
             commands::exit_app::<tauri::Wry>,
@@ -66,7 +67,11 @@ pub fn run() {
             commands::runner::execute_program_callback,
             commands::runner::write_file_to_task_tag,
             commands::runner::execute_program,
-            commands::runner::execute_program_detached
+            commands::runner::execute_program_detached,
+            commands::terminal::launch_pty_session,
+            commands::terminal::write_pty_session,
+            commands::terminal::resize_pty_session,
+            commands::terminal::kill_pty_session
         ]);
 
     #[cfg(debug_assertions)]
@@ -121,6 +126,7 @@ pub fn run() {
             setup::setup_competitive_companion_listener(app)?;
 
             app.manage(commands::runner::LangServerState::default());
+            app.manage(commands::terminal::PtySessionState::default());
             app.manage(commands::lsp_manager::LanguageServerManagerState::default());
 
             Ok(())
@@ -130,7 +136,9 @@ pub fn run() {
         .run(|handle, event| match event {
             RunEvent::Exit => {
                 let state = handle.state::<commands::runner::LangServerState>();
+                let pty_state = handle.state::<commands::terminal::PtySessionState>();
                 log::trace!("Recycling external resources");
+                pty_state.kill_all();
                 block_in_place(|| {
                     block_on(async {
                         // ignore the result

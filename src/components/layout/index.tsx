@@ -33,6 +33,7 @@ const sidebarPanelClassname = css`
 
 export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 	const leftDockKeys = useObservable(algorimejo.dock.left)
+	const bottomDockKeys = useObservable(algorimejo.dock.bottom)
 	const rightDockKeys = useObservable(algorimejo.dock.right)
 
 	const bottomSelectedID = useObservable(algorimejo.dock.bottomSelected)
@@ -168,7 +169,9 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 					{renderSidebarButton(rightDockKeys, "right", rightSelectedID, id => algorimejo.dock.select("right", id))}
 				</div>
 			</div>
-			<div className="h-5 border-t"></div>
+			<div className="flex h-6 shrink-0 items-center border-t">
+				{renderSidebarButton(bottomDockKeys, "bottom", bottomSelectedID, id => algorimejo.dock.select("bottom", id))}
+			</div>
 		</div>
 	)
 }

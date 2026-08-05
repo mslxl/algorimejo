@@ -12,7 +12,7 @@ function RouteComponent() {
 		algorimejo.dock.replace({
 			left: ["file-browser", "testcase"],
 			right: [],
-			bottom: [],
+			bottom: ["terminal"],
 		})
 	}, [])
 	return (

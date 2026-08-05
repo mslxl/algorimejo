@@ -1,4 +1,4 @@
-import type { AdvLanguageItem, Keymap, LanguageBase, LanguageServerProtocolConnectionType } from "./local"
+import type { AdvLanguageItem, DetachedRunMode, Keymap, LanguageBase, LanguageServerProtocolConnectionType } from "./local"
 import { identity } from "lodash"
 import { sortBy } from "lodash/fp"
 import { match } from "ts-pattern"
@@ -6,6 +6,7 @@ import { match } from "ts-pattern"
 export const languageBaseValues: LanguageBase[] = sortBy(identity, ["Cpp", "TypeScript", "Python", "JavaScript", "Go", "Text"])
 export const languageServerProtocolConnectionTypeValues: LanguageServerProtocolConnectionType[] = ["StdIO", "WebSocket"]
 export const keymapValues: Keymap[] = ["Default", "Vim", "Emacs"]
+export const detachedRunModeValues: DetachedRunMode[] = ["EmbeddedTerminal", "ExternalTerminal"]
 export const textLanguageItem: AdvLanguageItem = {
 	base: "Text",
 	cmd_compile: "",

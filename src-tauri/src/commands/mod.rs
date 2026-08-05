@@ -10,6 +10,7 @@ use tauri_specta::Event;
 pub mod database;
 pub mod lsp_manager;
 pub mod runner;
+pub mod terminal;
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
 pub struct ProgramConfigUpdateEvent {
