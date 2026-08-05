@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use crate::database::config::{AdvLanguageItem, WorkspaceConfig};
-use crate::schema::{documents, problems, solutions, test_cases};
+use crate::schema::{
+    checker, checker_self_tests, documents, problem_checker, problems, solutions, test_cases,
+};
 use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{
@@ -16,9 +18,12 @@ use specta::Type;
 use uuid::Uuid;
 
 use crate::model::{
-    Checker, Document, Problem, ProblemChangeset, ProblemRow, Solution, SolutionChangeset,
-    SolutionRow, TestCase,
+    Checker, CheckerKind, CheckerRow, CheckerScope, CheckerSelfTest, Document, Problem,
+    ProblemChangeset, ProblemDataChangeset, ProblemRow, Solution, SolutionChangeset, SolutionRow,
+    TestCase,
 };
+
+pub const DEFAULT_CHECKER_ID: &str = "builtin:wcmp";
 
 pub mod competitive_companion;
 pub mod config;
@@ -69,7 +74,7 @@ pub struct CreateProblemParams {
     pub url: Option<String>,
     pub group: Option<String>,
     pub statement: Option<String>,
-    pub checker: Option<String>,
+    pub checker_id: Option<String>,
     pub time_limit: i32,
     pub memory_limit: i32,
     pub initial_solution: Option<CreateSolutionParams>,
@@ -103,12 +108,40 @@ pub struct CreateCheckerParams {
     pub language: String,
     pub description: Option<String>,
     pub content: Option<String>,
+    pub scope: CheckerScope,
+    pub owner_problem_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 
 pub struct CreateCheckerResult {
     pub checker: Checker,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct UpdateCheckerParams {
+    pub name: String,
+    pub language: String,
+    pub description: Option<String>,
+    pub scope: CheckerScope,
+    pub owner_problem_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct CheckerUsage {
+    pub problem_id: String,
+    pub problem_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct UpsertCheckerSelfTestParams {
+    pub id: Option<String>,
+    pub checker_id: String,
+    pub name: String,
+    pub expected_verdict: String,
+    pub input: String,
+    pub output: String,
+    pub answer: String,
 }
 
 impl DatabaseRepo {
@@ -194,13 +227,24 @@ impl DatabaseRepo {
                 problems::memory_limit.eq(params.memory_limit),
                 problems::group.eq(&group),
                 problems::statement.eq(&params.statement),
-                problems::checker.eq(&params.checker),
                 problems::create_datetime.eq(now),
                 problems::modified_datetime.eq(now),
             );
 
             diesel::insert_into(problems::table)
                 .values(&new_problem)
+                .execute(conn)?;
+
+            let selected_checker = params
+                .checker_id
+                .clone()
+                .unwrap_or_else(|| DEFAULT_CHECKER_ID.to_string());
+            self.validate_checker_visibility(conn, &problem_id, &selected_checker)?;
+            diesel::insert_into(problem_checker::table)
+                .values((
+                    problem_checker::problem_id.eq(&problem_id),
+                    problem_checker::checker_id.eq(&selected_checker),
+                ))
                 .execute(conn)?;
 
             // Create initial solution if provided
@@ -217,7 +261,7 @@ impl DatabaseRepo {
                 url: params.url,
                 group: group,
                 statement: params.statement,
-                checker: params.checker,
+                checker: self.get_checker_with_conn(conn, &selected_checker)?,
                 create_datetime: now,
                 modified_datetime: now,
                 time_limit: params.time_limit,
@@ -322,65 +366,407 @@ impl DatabaseRepo {
     pub fn create_checker(&self, params: CreateCheckerParams) -> Result<CreateCheckerResult> {
         let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        // Start a transaction
+        if params.name.trim().is_empty() {
+            return Err(anyhow::anyhow!("Checker name cannot be empty"));
+        }
+
+        let owner_problem_id = match params.scope {
+            CheckerScope::Global => None,
+            CheckerScope::Problem => Some(
+                params
+                    .owner_problem_id
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("A problem checker must have an owner"))?,
+            ),
+        };
+
         conn.transaction(|conn| {
-            // Use local time to match SQLite's CURRENT_TIMESTAMP behavior
             let now = chrono::Local::now().naive_local();
             let checker_id = Uuid::new_v4().to_string();
             let document_id = Uuid::new_v4().to_string();
             let document_filename = format!("{}.chk.bin", checker_id);
 
-            // Create the document
-            let new_document = (
-                documents::id.eq(&document_id),
-                documents::create_datetime.eq(now),
-                documents::modified_datetime.eq(now),
-                documents::filename.eq(&document_filename),
-            );
+            if let Some(problem_id) = owner_problem_id.as_ref() {
+                let exists = problems::table
+                    .filter(problems::id.eq(problem_id))
+                    .count()
+                    .get_result::<i64>(conn)?
+                    > 0;
+                if !exists {
+                    return Err(anyhow::anyhow!("Problem {} not found", problem_id));
+                }
+            }
 
-            diesel::insert_into(documents::table)
-                .values(&new_document)
-                .execute(conn)?;
-
-            // Create the checker
-            let new_checker = (
-                crate::schema::checker::id.eq(&checker_id),
-                crate::schema::checker::name.eq(&params.name),
-                crate::schema::checker::language.eq(&params.language),
-                crate::schema::checker::description.eq(&params.description),
-                crate::schema::checker::document_id.eq(&document_id),
-            );
-
-            diesel::insert_into(crate::schema::checker::table)
-                .values(&new_checker)
-                .execute(conn)?;
-
-            // Build the checker result
-            let document = Document {
-                id: document_id,
+            let new_document = Document {
+                id: document_id.clone(),
                 create_datetime: now,
                 modified_datetime: now,
                 filename: document_filename,
             };
 
-            let checker = Checker {
-                id: checker_id,
-                name: params.name,
-                language: params.language,
-                description: params.description,
-                document_id: document.id.clone(),
-                document: Some(document),
-            };
+            diesel::insert_into(documents::table)
+                .values(&new_document)
+                .execute(conn)?;
 
-            Ok(CreateCheckerResult { checker })
+            let new_checker = (
+                checker::id.eq(&checker_id),
+                checker::kind.eq("custom"),
+                checker::scope.eq(match params.scope {
+                    CheckerScope::Global => "global",
+                    CheckerScope::Problem => "problem",
+                }),
+                checker::owner_problem_id.eq(&owner_problem_id),
+                checker::name.eq(params.name.trim()),
+                checker::description.eq(&params.description),
+                checker::language.eq(Some(&params.language)),
+                checker::document_id.eq(Some(&document_id)),
+                checker::create_datetime.eq(now),
+                checker::modified_datetime.eq(now),
+            );
+
+            diesel::insert_into(checker::table)
+                .values(&new_checker)
+                .execute(conn)?;
+
+            Ok(CreateCheckerResult {
+                checker: self.get_checker_with_conn(conn, &checker_id)?,
+            })
         })
     }
 
-    pub fn delete_problem(&self, problem_id: &str) -> Result<()> {
-        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    pub fn base_folder(&self) -> &std::path::Path {
+        &self.base_folder
+    }
 
-        diesel::delete(problems::table.filter(problems::id.eq(problem_id))).execute(&mut conn)?;
+    pub fn seed_builtin_checkers(&self, names: &[&str]) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        let now = chrono::Local::now().naive_local();
+        conn.transaction(|conn| {
+            for name in names {
+                let id = format!("builtin:{}", name);
+                diesel::insert_into(checker::table)
+                    .values((
+                        checker::id.eq(id),
+                        checker::kind.eq("builtin"),
+                        checker::scope.eq("global"),
+                        checker::owner_problem_id.eq::<Option<String>>(None),
+                        checker::name.eq(*name),
+                        checker::description.eq::<Option<String>>(None),
+                        checker::language.eq::<Option<String>>(None),
+                        checker::document_id.eq::<Option<String>>(None),
+                        checker::create_datetime.eq(now),
+                        checker::modified_datetime.eq(now),
+                    ))
+                    .on_conflict(checker::id)
+                    .do_nothing()
+                    .execute(conn)?;
+            }
+            diesel::sql_query(format!(
+                "INSERT OR IGNORE INTO problem_checker (problem_id, checker_id) SELECT id, '{}' FROM problems",
+                DEFAULT_CHECKER_ID
+            ))
+            .execute(conn)?;
+            Ok(())
+        })
+    }
+
+    fn get_checker_with_conn(
+        &self,
+        conn: &mut SqliteConnection,
+        checker_id: &str,
+    ) -> Result<Checker> {
+        let row = checker::table
+            .filter(checker::id.eq(checker_id))
+            .select(CheckerRow::as_select())
+            .first::<CheckerRow>(conn)?;
+        let document = match row.document_id.as_ref() {
+            Some(document_id) => documents::table
+                .filter(documents::id.eq(document_id))
+                .select(Document::as_select())
+                .first::<Document>(conn)
+                .optional()?,
+            None => None,
+        };
+        Ok(Checker {
+            id: row.id,
+            kind: match row.kind.as_str() {
+                "builtin" => CheckerKind::Builtin,
+                "custom" => CheckerKind::Custom,
+                value => return Err(anyhow::anyhow!("Unknown checker kind: {}", value)),
+            },
+            scope: match row.scope.as_str() {
+                "global" => CheckerScope::Global,
+                "problem" => CheckerScope::Problem,
+                value => return Err(anyhow::anyhow!("Unknown checker scope: {}", value)),
+            },
+            owner_problem_id: row.owner_problem_id,
+            name: row.name,
+            description: row.description,
+            language: row.language,
+            document,
+            create_datetime: row.create_datetime,
+            modified_datetime: row.modified_datetime,
+        })
+    }
+
+    pub fn get_checker(&self, checker_id: &str) -> Result<Checker> {
+        let mut conn = self.pool.get()?;
+        self.get_checker_with_conn(&mut conn, checker_id)
+    }
+
+    pub fn get_visible_checkers(&self, problem_id: Option<&str>) -> Result<Vec<Checker>> {
+        let mut conn = self.pool.get()?;
+        let mut query = checker::table.into_boxed();
+        query = match problem_id {
+            Some(problem_id) => query.filter(
+                checker::scope
+                    .eq("global")
+                    .or(checker::owner_problem_id.eq(problem_id)),
+            ),
+            None => query.filter(checker::scope.eq("global")),
+        };
+        let rows = query
+            .order((checker::kind.asc(), checker::name.asc()))
+            .select(CheckerRow::as_select())
+            .load::<CheckerRow>(&mut conn)?;
+        rows.into_iter()
+            .map(|row| self.get_checker_with_conn(&mut conn, &row.id))
+            .collect()
+    }
+
+    fn validate_checker_visibility(
+        &self,
+        conn: &mut SqliteConnection,
+        problem_id: &str,
+        checker_id: &str,
+    ) -> Result<()> {
+        let visible = checker::table
+            .filter(checker::id.eq(checker_id))
+            .filter(
+                checker::scope
+                    .eq("global")
+                    .or(checker::owner_problem_id.eq(problem_id)),
+            )
+            .count()
+            .get_result::<i64>(conn)?
+            > 0;
+        if !visible {
+            return Err(anyhow::anyhow!(
+                "Checker {} is not visible to problem {}",
+                checker_id,
+                problem_id
+            ));
+        }
         Ok(())
+    }
+
+    pub fn get_visible_checker(&self, problem_id: &str, checker_id: &str) -> Result<Checker> {
+        let mut conn = self.pool.get()?;
+        self.validate_checker_visibility(&mut conn, problem_id, checker_id)?;
+        self.get_checker_with_conn(&mut conn, checker_id)
+    }
+
+    pub fn set_problem_checker(&self, problem_id: &str, checker_id: &str) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            self.validate_checker_visibility(conn, problem_id, checker_id)?;
+            diesel::insert_into(problem_checker::table)
+                .values((
+                    problem_checker::problem_id.eq(problem_id),
+                    problem_checker::checker_id.eq(checker_id),
+                ))
+                .on_conflict(problem_checker::problem_id)
+                .do_update()
+                .set(problem_checker::checker_id.eq(checker_id))
+                .execute(conn)?;
+            Ok(())
+        })
+    }
+
+    fn get_problem_checker_with_conn(
+        &self,
+        conn: &mut SqliteConnection,
+        problem_id: &str,
+    ) -> Result<Checker> {
+        let checker_id = problem_checker::table
+            .filter(problem_checker::problem_id.eq(problem_id))
+            .select(problem_checker::checker_id)
+            .first::<String>(conn)
+            .optional()?
+            .unwrap_or_else(|| DEFAULT_CHECKER_ID.to_string());
+        self.get_checker_with_conn(conn, &checker_id)
+    }
+
+    pub fn update_checker(&self, checker_id: &str, params: UpdateCheckerParams) -> Result<Checker> {
+        let mut conn = self.pool.get()?;
+        let existing = self.get_checker_with_conn(&mut conn, checker_id)?;
+        if existing.kind == CheckerKind::Builtin {
+            return Err(anyhow::anyhow!("Built-in checkers are read-only"));
+        }
+        if params.name.trim().is_empty() {
+            return Err(anyhow::anyhow!("Checker name cannot be empty"));
+        }
+        let owner_problem_id = match params.scope {
+            CheckerScope::Global => None,
+            CheckerScope::Problem => Some(
+                params
+                    .owner_problem_id
+                    .ok_or_else(|| anyhow::anyhow!("A problem checker must have an owner"))?,
+            ),
+        };
+        if let Some(owner_problem_id) = owner_problem_id.as_ref() {
+            let invisible_usages = problem_checker::table
+                .filter(problem_checker::checker_id.eq(checker_id))
+                .filter(problem_checker::problem_id.ne(owner_problem_id))
+                .count()
+                .get_result::<i64>(&mut conn)?;
+            if invisible_usages > 0 {
+                return Err(anyhow::anyhow!(
+                    "Checker is used by another problem and cannot be made problem-local"
+                ));
+            }
+        }
+        diesel::update(checker::table.filter(checker::id.eq(checker_id)))
+            .set((
+                checker::scope.eq(match params.scope {
+                    CheckerScope::Global => "global",
+                    CheckerScope::Problem => "problem",
+                }),
+                checker::owner_problem_id.eq(owner_problem_id),
+                checker::name.eq(params.name.trim()),
+                checker::description.eq(params.description),
+                checker::language.eq(Some(params.language)),
+            ))
+            .execute(&mut conn)?;
+        self.get_checker_with_conn(&mut conn, checker_id)
+    }
+
+    pub fn get_checker_usages(&self, checker_id: &str) -> Result<Vec<CheckerUsage>> {
+        let mut conn = self.pool.get()?;
+        let rows = problem_checker::table
+            .inner_join(problems::table)
+            .filter(problem_checker::checker_id.eq(checker_id))
+            .select((problems::id, problems::name))
+            .load::<(String, String)>(&mut conn)?;
+        Ok(rows
+            .into_iter()
+            .map(|(problem_id, problem_name)| CheckerUsage {
+                problem_id,
+                problem_name,
+            })
+            .collect())
+    }
+
+    pub fn delete_checker(&self, checker_id: &str) -> Result<()> {
+        let existing = self.get_checker(checker_id)?;
+        if existing.kind == CheckerKind::Builtin {
+            return Err(anyhow::anyhow!("Built-in checkers cannot be deleted"));
+        }
+        if !self.get_checker_usages(checker_id)?.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Checker is still used by one or more problems"
+            ));
+        }
+        let document = existing.document;
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            diesel::delete(checker::table.filter(checker::id.eq(checker_id))).execute(conn)?;
+            if let Some(document) = document.as_ref() {
+                diesel::delete(documents::table.filter(documents::id.eq(&document.id)))
+                    .execute(conn)?;
+            }
+            Ok::<(), diesel::result::Error>(())
+        })?;
+        if let Some(document) = document {
+            let path = self.doc_folder.join(document.filename);
+            if path.exists() {
+                std::fs::remove_file(path)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_checker_self_tests(&self, checker_id: &str) -> Result<Vec<CheckerSelfTest>> {
+        let mut conn = self.pool.get()?;
+        Ok(checker_self_tests::table
+            .filter(checker_self_tests::checker_id.eq(checker_id))
+            .order(checker_self_tests::name.asc())
+            .select(CheckerSelfTest::as_select())
+            .load(&mut conn)?)
+    }
+
+    pub fn get_checker_self_test(&self, self_test_id: &str) -> Result<CheckerSelfTest> {
+        let mut conn = self.pool.get()?;
+        Ok(checker_self_tests::table
+            .filter(checker_self_tests::id.eq(self_test_id))
+            .select(CheckerSelfTest::as_select())
+            .first(&mut conn)?)
+    }
+
+    pub fn upsert_checker_self_test(
+        &self,
+        params: UpsertCheckerSelfTestParams,
+    ) -> Result<CheckerSelfTest> {
+        if !matches!(
+            params.expected_verdict.as_str(),
+            "AC" | "WA" | "PE" | "CHKRE"
+        ) {
+            return Err(anyhow::anyhow!("Invalid expected checker verdict"));
+        }
+        let mut conn = self.pool.get()?;
+        let item = CheckerSelfTest {
+            id: params.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
+            checker_id: params.checker_id,
+            name: params.name,
+            expected_verdict: params.expected_verdict,
+            input: params.input,
+            output: params.output,
+            answer: params.answer,
+        };
+        diesel::insert_into(checker_self_tests::table)
+            .values(&item)
+            .on_conflict(checker_self_tests::id)
+            .do_update()
+            .set((
+                checker_self_tests::name.eq(&item.name),
+                checker_self_tests::expected_verdict.eq(&item.expected_verdict),
+                checker_self_tests::input.eq(&item.input),
+                checker_self_tests::output.eq(&item.output),
+                checker_self_tests::answer.eq(&item.answer),
+            ))
+            .execute(&mut conn)?;
+        Ok(item)
+    }
+
+    pub fn delete_checker_self_test(&self, self_test_id: &str) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        diesel::delete(checker_self_tests::table.filter(checker_self_tests::id.eq(self_test_id)))
+            .execute(&mut conn)?;
+        Ok(())
+    }
+
+    pub fn delete_problem(&self, problem_id: &str) -> Result<Vec<Document>> {
+        let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let checker_documents = checker::table
+            .inner_join(documents::table.on(checker::document_id.eq(documents::id.nullable())))
+            .filter(checker::owner_problem_id.eq(problem_id))
+            .select(Document::as_select())
+            .load::<Document>(&mut conn)?;
+        conn.transaction(|conn| {
+            diesel::delete(problems::table.filter(problems::id.eq(problem_id))).execute(conn)?;
+            for document in &checker_documents {
+                diesel::delete(documents::table.filter(documents::id.eq(&document.id)))
+                    .execute(conn)?;
+            }
+            Ok::<(), diesel::result::Error>(())
+        })?;
+        for document in &checker_documents {
+            let path = self.doc_folder.join(&document.filename);
+            if path.exists() {
+                std::fs::remove_file(path)?;
+            }
+        }
+        Ok(checker_documents)
     }
 
     /// Deletes a solution from the database by its ID
@@ -412,6 +798,7 @@ impl DatabaseRepo {
 
         // Get solutions for this problem
         let solutions = self.get_solutions_for_problem(&problem_row.id)?;
+        let selected_checker = self.get_problem_checker_with_conn(&mut conn, &problem_row.id)?;
 
         // Construct the Problem struct with populated solutions
         let problem = Problem {
@@ -422,7 +809,7 @@ impl DatabaseRepo {
             statement: problem_row.statement,
             time_limit: problem_row.time_limit,
             memory_limit: problem_row.memory_limit,
-            checker: problem_row.checker,
+            checker: selected_checker,
             create_datetime: problem_row.create_datetime,
             modified_datetime: problem_row.modified_datetime,
             solutions,
@@ -530,7 +917,7 @@ impl DatabaseRepo {
                 url: row.url.clone(),
                 group: row.group.clone(),
                 statement: row.statement.clone(),
-                checker: row.checker.clone(),
+                checker: self.get_problem_checker_with_conn(&mut conn, &row.id)?,
                 time_limit: row.time_limit,
                 memory_limit: row.memory_limit,
                 create_datetime: row.create_datetime,
@@ -590,11 +977,32 @@ impl DatabaseRepo {
 
     pub fn update_problem(&self, problem_id: &str, params: ProblemChangeset) -> Result<()> {
         let mut conn = self.pool.get().map_err(|e| anyhow::anyhow!("{}", e))?;
-
-        diesel::update(problems::table.filter(problems::id.eq(problem_id)))
-            .set(&params)
-            .execute(&mut conn)?;
-        Ok(())
+        conn.transaction(|conn| {
+            let data = ProblemDataChangeset {
+                name: params.name,
+                url: params.url,
+                group: params.group,
+                statement: params.statement,
+                time_limit: params.time_limit,
+                memory_limit: params.memory_limit,
+            };
+            diesel::update(problems::table.filter(problems::id.eq(problem_id)))
+                .set(&data)
+                .execute(conn)?;
+            if let Some(checker_id) = params.checker_id {
+                self.validate_checker_visibility(conn, problem_id, &checker_id)?;
+                diesel::insert_into(problem_checker::table)
+                    .values((
+                        problem_checker::problem_id.eq(problem_id),
+                        problem_checker::checker_id.eq(&checker_id),
+                    ))
+                    .on_conflict(problem_checker::problem_id)
+                    .do_update()
+                    .set(problem_checker::checker_id.eq(&checker_id))
+                    .execute(conn)?;
+            }
+            Ok(())
+        })
     }
 
     pub fn update_solution(&self, solution_id: &str, params: SolutionChangeset) -> Result<()> {
@@ -680,5 +1088,133 @@ impl DatabaseRepo {
         let config = self.config.read().unwrap();
         let languages = config.language.clone();
         Ok(languages)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{database::config::WorkspaceLocalDeserialized, setup::MIGRATIONS};
+    use diesel_migrations::MigrationHarness;
+
+    fn test_repo() -> DatabaseRepo {
+        let manager = ConnectionManager::<SqliteConnection>::new(":memory:");
+        let pool = Pool::builder().max_size(1).build(manager).unwrap();
+        {
+            let mut connection = pool.get().unwrap();
+            diesel::sql_query("PRAGMA foreign_keys = ON")
+                .execute(&mut connection)
+                .unwrap();
+            connection.run_pending_migrations(MIGRATIONS).unwrap();
+        }
+        let base = std::env::temp_dir().join(format!("algorimejo-checker-test-{}", Uuid::new_v4()));
+        let repo = DatabaseRepo::new(pool, base, WorkspaceLocalDeserialized::default().into());
+        repo.seed_builtin_checkers(&["wcmp", "ncmp"]).unwrap();
+        repo
+    }
+
+    fn create_problem(repo: &DatabaseRepo, name: &str) -> Problem {
+        repo.create_problem(CreateProblemParams {
+            name: name.to_string(),
+            url: None,
+            group: None,
+            statement: None,
+            checker_id: None,
+            time_limit: 1000,
+            memory_limit: 0,
+            initial_solution: None,
+        })
+        .unwrap()
+        .problem
+    }
+
+    fn create_checker(
+        repo: &DatabaseRepo,
+        name: &str,
+        scope: CheckerScope,
+        owner_problem_id: Option<String>,
+    ) -> Checker {
+        repo.create_checker(CreateCheckerParams {
+            name: name.to_string(),
+            language: "cpp 17".to_string(),
+            description: None,
+            content: None,
+            scope,
+            owner_problem_id,
+        })
+        .unwrap()
+        .checker
+    }
+
+    #[test]
+    fn new_problems_use_the_seeded_default_checker() {
+        let repo = test_repo();
+        let problem = create_problem(&repo, "A");
+
+        assert_eq!(problem.checker.id, DEFAULT_CHECKER_ID);
+        assert_eq!(problem.checker.kind, CheckerKind::Builtin);
+    }
+
+    #[test]
+    fn problem_checkers_are_only_visible_to_their_owner() {
+        let repo = test_repo();
+        let first = create_problem(&repo, "A");
+        let second = create_problem(&repo, "B");
+        let local = create_checker(
+            &repo,
+            "local",
+            CheckerScope::Problem,
+            Some(first.id.clone()),
+        );
+
+        assert!(repo.get_visible_checker(&first.id, &local.id).is_ok());
+        assert!(repo.get_visible_checker(&second.id, &local.id).is_err());
+        assert!(repo.set_problem_checker(&second.id, &local.id).is_err());
+    }
+
+    #[test]
+    fn a_used_global_checker_cannot_be_made_local_to_another_problem() {
+        let repo = test_repo();
+        let first = create_problem(&repo, "A");
+        let second = create_problem(&repo, "B");
+        let global = create_checker(&repo, "shared", CheckerScope::Global, None);
+        repo.set_problem_checker(&second.id, &global.id).unwrap();
+
+        let result = repo.update_checker(
+            &global.id,
+            UpdateCheckerParams {
+                name: global.name,
+                language: global.language.unwrap(),
+                description: None,
+                scope: CheckerScope::Problem,
+                owner_problem_id: Some(first.id),
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            repo.get_checker(&global.id).unwrap().scope,
+            CheckerScope::Global
+        );
+    }
+
+    #[test]
+    fn deleting_a_problem_removes_its_local_checker_document() {
+        let repo = test_repo();
+        let problem = create_problem(&repo, "A");
+        let local = create_checker(
+            &repo,
+            "local",
+            CheckerScope::Problem,
+            Some(problem.id.clone()),
+        );
+        let document_id = local.document.unwrap().id;
+
+        let removed_documents = repo.delete_problem(&problem.id).unwrap();
+
+        assert_eq!(removed_documents.len(), 1);
+        assert_eq!(removed_documents[0].id, document_id);
+        assert!(repo.get_checker(&local.id).is_err());
+        assert!(repo.get_document(&document_id).unwrap().is_none());
     }
 }

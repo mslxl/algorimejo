@@ -7,6 +7,7 @@ use specta::Type;
 use tauri::{Manager, Runtime, State};
 use tauri_specta::Event;
 
+pub mod checker;
 pub mod database;
 pub mod lsp_manager;
 pub mod runner;
@@ -110,7 +111,7 @@ pub async fn get_default_create_problem_params(
         group,
         url,
         statement,
-        checker: Some("wcmp".to_string()),
+        checker_id: Some(crate::database::DEFAULT_CHECKER_ID.to_string()),
         time_limit: 3000,
         memory_limit: 1024,
         initial_solution: Some(get_default_create_solution_params(app, name.clone()).await?),

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use crate::{
     commands::{QueryClientInvalidateEvent, ToastEvent, ToastKind},
@@ -6,18 +6,20 @@ use crate::{
         competitive_companion::handle_competitive_companion_message,
         config::{AdvLanguageItem, WorkspaceConfig},
         language::LanguageBase,
-        CreateCheckerParams, CreateCheckerResult, CreateProblemParams, CreateProblemResult,
-        CreateSolutionParams, CreateSolutionResult, DatabaseRepo, GetProblemsParams,
-        GetProblemsResult,
+        CheckerUsage, CreateCheckerParams, CreateCheckerResult, CreateProblemParams,
+        CreateProblemResult, CreateSolutionParams, CreateSolutionResult, DatabaseRepo,
+        GetProblemsParams, GetProblemsResult, UpdateCheckerParams, UpsertCheckerSelfTestParams,
     },
     document::DocumentRepo,
-    model::{Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase},
-    runner::BUNDLED_CHECKER_NAME,
+    model::{
+        Checker, CheckerSelfTest, Problem, ProblemChangeset, Solution, SolutionChangeset, TestCase,
+    },
+    runner::checker_sdk::sdk_info,
 };
 use log::{error, trace, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::{path::BaseDirectory, Manager, Runtime, State, Url};
+use tauri::{AppHandle, Manager, Runtime, State, Url};
 use tauri_specta::Event;
 use tokio::{
     io::{AsyncReadExt, BufReader},
@@ -90,8 +92,29 @@ pub async fn get_solution(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_problem(problem_id: String, db: State<'_, DatabaseRepo>) -> Result<(), String> {
-    db.delete_problem(&problem_id).map_err(|e| e.to_string())
+pub async fn delete_problem(
+    app: AppHandle,
+    problem_id: String,
+    db: State<'_, DatabaseRepo>,
+    doc_repo: State<'_, DocumentRepo>,
+) -> Result<(), String> {
+    let checker_ids = db
+        .get_visible_checkers(Some(&problem_id))
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|checker| checker.owner_problem_id.as_deref() == Some(&problem_id))
+        .map(|checker| checker.id)
+        .collect::<Vec<_>>();
+    let documents = db.delete_problem(&problem_id).map_err(|e| e.to_string())?;
+    for document in documents {
+        doc_repo.unmanage(&document.id);
+    }
+    for checker_id in checker_ids {
+        if let Err(error) = super::checker::remove_checker_cache(&app, &db, &checker_id).await {
+            warn!("Failed to remove cache for Checker {checker_id}: {error}");
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -130,8 +153,140 @@ pub async fn delete_solution(
 pub async fn create_checker(
     params: CreateCheckerParams,
     db: State<'_, DatabaseRepo>,
+    doc_repo: State<'_, DocumentRepo>,
 ) -> Result<CreateCheckerResult, String> {
-    db.create_checker(params).map_err(|e| e.to_string())
+    let language = db
+        .get_language_item(&params.language)
+        .map_err(|error| error.to_string())?;
+    sdk_info(language.base).map_err(|error| error.to_string())?;
+    let content = params.content.clone().unwrap_or_default();
+    let result = db.create_checker(params).map_err(|e| e.to_string())?;
+    let document = result
+        .checker
+        .document
+        .as_ref()
+        .ok_or_else(|| "Custom checker has no source document".to_string())?;
+    let initialization = db
+        .get_document_filepath(&document.id)
+        .and_then(|filepath| doc_repo.manage(document.id.clone(), filepath).map(|_| ()))
+        .and_then(|_| doc_repo.set_string_of_doc(&document.id, "content", &content));
+    if let Err(error) = initialization {
+        doc_repo.unmanage(&document.id);
+        if let Err(rollback_error) = db.delete_checker(&result.checker.id) {
+            return Err(format!(
+                "Failed to initialize Checker source: {error}; rollback failed: {rollback_error}"
+            ));
+        }
+        return Err(format!("Failed to initialize Checker source: {error}"));
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_checker(
+    checker_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Checker, String> {
+    db.get_checker(&checker_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_visible_checkers(
+    problem_id: Option<String>,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Vec<Checker>, String> {
+    db.get_visible_checkers(problem_id.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_checker(
+    checker_id: String,
+    params: UpdateCheckerParams,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Checker, String> {
+    let language = db
+        .get_language_item(&params.language)
+        .map_err(|error| error.to_string())?;
+    sdk_info(language.base).map_err(|error| error.to_string())?;
+    db.update_checker(&checker_id, params)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_checker(
+    app: AppHandle,
+    checker_id: String,
+    db: State<'_, DatabaseRepo>,
+    doc_repo: State<'_, DocumentRepo>,
+) -> Result<(), String> {
+    let document_id = db
+        .get_checker(&checker_id)
+        .ok()
+        .and_then(|checker| checker.document.map(|document| document.id));
+    db.delete_checker(&checker_id).map_err(|e| e.to_string())?;
+    if let Some(document_id) = document_id {
+        doc_repo.unmanage(&document_id);
+    }
+    if let Err(error) = super::checker::remove_checker_cache(&app, &db, &checker_id).await {
+        warn!("Failed to remove cache for Checker {checker_id}: {error}");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_checker_usages(
+    checker_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Vec<CheckerUsage>, String> {
+    db.get_checker_usages(&checker_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_problem_checker(
+    problem_id: String,
+    checker_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<(), String> {
+    db.set_problem_checker(&problem_id, &checker_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_checker_self_tests(
+    checker_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<Vec<CheckerSelfTest>, String> {
+    db.get_checker_self_tests(&checker_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn upsert_checker_self_test(
+    params: UpsertCheckerSelfTestParams,
+    db: State<'_, DatabaseRepo>,
+) -> Result<CheckerSelfTest, String> {
+    db.upsert_checker_self_test(params)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_checker_self_test(
+    self_test_id: String,
+    db: State<'_, DatabaseRepo>,
+) -> Result<(), String> {
+    db.delete_checker_self_test(&self_test_id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -263,33 +418,6 @@ pub async fn get_languages(
     db.get_languages().map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn resolve_checker(app: tauri::AppHandle, name: String) -> Result<PathBuf, String> {
-    if BUNDLED_CHECKER_NAME.contains(&name.as_str()) {
-        let path = app
-            .path()
-            .resolve(
-                format!(
-                    "testlib/{}{}",
-                    &name,
-                    if cfg!(target_os = "windows") {
-                        ".exe"
-                    } else {
-                        ""
-                    }
-                ),
-                BaseDirectory::Resource,
-            )
-            .map_err(|e| format!("Failed to resolve checker {}, this may caused by incomplete resource, please check testlib folder or try to reinstall the app: {}", name, e.to_string()))?;
-        trace!("resolved checker {} to {:?}", &name, &path);
-        Ok(path)
-    } else {
-        //TODO: custom checker with testlib
-        unimplemented!()
-    }
-}
-
 #[derive(Default)]
 pub struct CompetitiveCompanionListenerState {
     shutdown_tx: Mutex<Option<tokio::sync::mpsc::UnboundedSender<()>>>,
@@ -418,7 +546,9 @@ pub async fn save_duplicated_file(
         let group_dir = location.join(problem_url_host);
         let filepath = group_dir.join(&filename);
         if !group_dir.exists() {
-            tokio::fs::create_dir_all(&group_dir).await.map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(&group_dir)
+                .await
+                .map_err(|e| e.to_string())?;
         }
 
         let content = if let Some(c) = content {

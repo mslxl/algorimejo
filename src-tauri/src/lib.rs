@@ -39,6 +39,20 @@ pub fn run() {
             commands::database::create_problem,
             commands::database::create_solution,
             commands::database::create_checker,
+            commands::database::get_checker,
+            commands::database::get_visible_checkers,
+            commands::database::update_checker,
+            commands::database::delete_checker,
+            commands::database::get_checker_usages,
+            commands::database::set_problem_checker,
+            commands::database::get_checker_self_tests,
+            commands::database::upsert_checker_self_test,
+            commands::database::delete_checker_self_test,
+            commands::checker::get_checker_sdk_info,
+            commands::checker::get_checker_editor_info,
+            commands::checker::build_checker,
+            commands::checker::execute_checker,
+            commands::checker::run_checker_self_test,
             commands::database::get_solution,
             commands::database::delete_problem,
             commands::database::delete_solution,
@@ -54,7 +68,6 @@ pub fn run() {
             commands::database::shutdown_competitive_companion_listener,
             commands::database::load_document,
             commands::database::apply_change,
-            commands::database::resolve_checker,
             commands::database::save_duplicated_file,
             commands::runner::get_checkers_name,
             commands::runner::launch_language_server,
@@ -116,6 +129,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_decorum::init())
+        .manage(commands::checker::CheckerBuildState::default())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);

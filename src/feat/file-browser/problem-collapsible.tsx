@@ -99,7 +99,7 @@ export function ProblemCollapsible({
 					url: null,
 					group: null,
 					statement: null,
-					checker: null,
+					checker_id: null,
 					time_limit: null,
 					memory_limit: null,
 				},

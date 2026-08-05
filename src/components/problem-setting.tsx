@@ -1,5 +1,6 @@
-import type { Problem } from "@/lib/client"
+import type { Checker, Problem } from "@/lib/client"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { LucidePencil } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { toast } from "react-toastify"
 import { z } from "zod"
@@ -9,27 +10,29 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { useCheckerNames } from "@/hooks/use-checker-names"
+import { CheckerCreateDialog } from "@/feat/checker/checker-create-dialog"
+import { useCheckers } from "@/hooks/use-checker-names"
 import { useProblem } from "@/hooks/use-problem"
 import { useProblemChangeset } from "@/hooks/use-problem-changeset"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { algorimejo } from "@/lib/algorimejo"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "./ui/select"
 
 const problemSettingFormSchema = z.object({
 	name: z.string(),
 	url: z.url().optional(),
 	group: z.string(),
 	statement: z.string().optional(),
-	checker: z.string(),
+	checker_id: z.string(),
 	time_limit: z.number(),
 	memory_limit: z.number(),
 })
 
 interface ProblemSettingContentProps extends ProblemSettingProps {
 	problemData: Problem
-	availableCheckerNames: string[]
+	availableCheckers: Checker[]
 }
 
-export function ProblemSettingContent({ problemID, problemData, availableCheckerNames, onCancel, onSubmitCompleted }: ProblemSettingContentProps) {
+export function ProblemSettingContent({ problemID, problemData, availableCheckers, onCancel, onSubmitCompleted }: ProblemSettingContentProps) {
 	const form = useForm<z.infer<typeof problemSettingFormSchema>>({
 		resolver: zodResolver(problemSettingFormSchema),
 		defaultValues: {
@@ -37,7 +40,7 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 			url: problemData.url ?? undefined,
 			group: problemData.group,
 			statement: problemData.statement ?? undefined,
-			checker: problemData.checker ?? undefined,
+			checker_id: problemData.checker.id,
 			time_limit: problemData.time_limit,
 			memory_limit: problemData.memory_limit,
 		},
@@ -60,7 +63,7 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 				url: convertNullIfEmpty(data.url),
 				group: data.group,
 				statement: convertNullIfEmpty(data.statement),
-				checker: data.checker,
+				checker_id: data.checker_id,
 				time_limit: data.time_limit,
 				memory_limit: data.memory_limit,
 			},
@@ -145,27 +148,47 @@ export function ProblemSettingContent({ problemID, problemData, availableChecker
 				/>
 				<FormField
 					control={form.control}
-					name="checker"
+					name="checker_id"
 					render={({ field }) => {
+						const selectedChecker = availableCheckers.find(checker => checker.id === field.value)
 						return (
 							<FormItem>
 								<FormLabel className="font-medium">Checker</FormLabel>
-								<Select onValueChange={field.onChange} defaultValue={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{
-											availableCheckerNames.map(name => (
-												<SelectItem key={name} value={name}>
-													{name}
-												</SelectItem>
-											))
-										}
-									</SelectContent>
-								</Select>
+								<div className="flex items-center gap-2">
+									<Select onValueChange={field.onChange} value={field.value}>
+										<FormControl>
+											<SelectTrigger className="flex-1">
+												<SelectValue />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent>
+											{(["Problem", "Global"] as const).map(scope => (
+												<SelectGroup key={scope}>
+													<SelectLabel>{scope === "Problem" ? "This Problem" : "Global"}</SelectLabel>
+													{availableCheckers.filter(checker => checker.scope === scope && checker.kind === "Custom").map(checker => (
+														<SelectItem key={checker.id} value={checker.id}>{checker.name}</SelectItem>
+													))}
+												</SelectGroup>
+											))}
+											<SelectGroup>
+												<SelectLabel>Built-in</SelectLabel>
+												{availableCheckers.filter(checker => checker.kind === "Builtin").map(checker => (
+													<SelectItem key={checker.id} value={checker.id}>{checker.name}</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+									{selectedChecker?.kind === "Custom" && (
+										<Button type="button" size="icon" variant="outline" title="Edit checker" onClick={() => algorimejo.openCheckerTab({ checkerID: selectedChecker.id, title: selectedChecker.name, reuse: true })}><LucidePencil /></Button>
+									)}
+									<CheckerCreateDialog
+										problemID={problemID}
+										onCreated={(checker) => {
+											field.onChange(checker.id)
+											algorimejo.openCheckerTab({ checkerID: checker.id, title: checker.name, reuse: true })
+										}}
+									/>
+								</div>
 							</FormItem>
 						)
 					}}
@@ -219,14 +242,14 @@ interface ProblemSettingProps {
 }
 export function ProblemSetting({ problemID, ...props }: ProblemSettingProps) {
 	const problemData = useProblem(problemID)
-	const checkerNames = useCheckerNames()
+	const checkers = useCheckers(problemID)
 	if (problemData.status === "error") {
 		return <ErrorLabel message={problemData.error} location="get problem data" />
 	}
-	else if (checkerNames.status === "error") {
-		return <ErrorLabel message={checkerNames.error} location="get available checkers" />
+	else if (checkers.status === "error") {
+		return <ErrorLabel message={checkers.error} location="get available checkers" />
 	}
-	else if (problemData.status === "pending" || checkerNames.status === "pending") {
+	else if (problemData.status === "pending" || checkers.status === "pending") {
 		return (
 			<div>
 				<Skeleton className="h-10 w-full" />
@@ -234,5 +257,5 @@ export function ProblemSetting({ problemID, ...props }: ProblemSettingProps) {
 			</div>
 		)
 	}
-	return <ProblemSettingContent problemID={problemID} problemData={problemData.data} availableCheckerNames={checkerNames.data} {...props} />
+	return <ProblemSettingContent problemID={problemID} problemData={problemData.data} availableCheckers={checkers.data} {...props} />
 }

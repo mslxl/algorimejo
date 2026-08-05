@@ -3,10 +3,27 @@
 diesel::table! {
     checker (id) {
         id -> Text,
+        kind -> Text,
+        scope -> Text,
+        owner_problem_id -> Nullable<Text>,
         name -> Text,
-        language -> Text,
         description -> Nullable<Text>,
-        document_id -> Text,
+        language -> Nullable<Text>,
+        document_id -> Nullable<Text>,
+        create_datetime -> Timestamp,
+        modified_datetime -> Timestamp,
+    }
+}
+
+diesel::table! {
+    checker_self_tests (id) {
+        id -> Text,
+        checker_id -> Text,
+        name -> Text,
+        expected_verdict -> Text,
+        input -> Text,
+        output -> Text,
+        answer -> Text,
     }
 }
 
@@ -26,11 +43,17 @@ diesel::table! {
         url -> Nullable<Text>,
         group -> Text,
         statement -> Nullable<Text>,
-        checker -> Nullable<Text>,
         create_datetime -> Timestamp,
         modified_datetime -> Timestamp,
         time_limit -> Integer,
         memory_limit -> Integer,
+    }
+}
+
+diesel::table! {
+    problem_checker (problem_id) {
+        problem_id -> Text,
+        checker_id -> Text,
     }
 }
 
@@ -54,8 +77,19 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(checker -> documents (document_id));
+diesel::joinable!(checker -> problems (owner_problem_id));
+diesel::joinable!(checker_self_tests -> checker (checker_id));
+diesel::joinable!(problem_checker -> checker (checker_id));
+diesel::joinable!(problem_checker -> problems (problem_id));
 diesel::joinable!(solutions -> problems (problem_id));
 diesel::joinable!(test_cases -> problems (problem_id));
 
-diesel::allow_tables_to_appear_in_same_query!(checker, documents, problems, solutions, test_cases,);
+diesel::allow_tables_to_appear_in_same_query!(
+    checker,
+    checker_self_tests,
+    documents,
+    problem_checker,
+    problems,
+    solutions,
+    test_cases,
+);

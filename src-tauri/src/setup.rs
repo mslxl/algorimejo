@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Result};
 use diesel::{
     r2d2::{ConnectionManager, Pool},
-    SqliteConnection,
+    r2d2::{CustomizeConnection, Error as PoolError},
+    RunQueryDsl, SqliteConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::{info, trace};
@@ -10,6 +11,21 @@ use tauri_plugin_decorum::WebviewWindowExt;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
+#[derive(Debug)]
+struct SqliteConnectionCustomizer;
+
+impl CustomizeConnection<SqliteConnection, PoolError> for SqliteConnectionCustomizer {
+    fn on_acquire(&self, connection: &mut SqliteConnection) -> Result<(), PoolError> {
+        diesel::sql_query("PRAGMA foreign_keys = ON")
+            .execute(connection)
+            .map_err(PoolError::QueryError)?;
+        diesel::sql_query("PRAGMA busy_timeout = 5000")
+            .execute(connection)
+            .map_err(PoolError::QueryError)?;
+        Ok(())
+    }
+}
+
 use crate::{
     commands::database::{
         launch_competitive_companion_listener, CompetitiveCompanionListenerState,
@@ -17,6 +33,7 @@ use crate::{
     config::ProgramConfigRepo,
     database::{self, config::WorkspaceLocalDeserialized},
     document::DocumentRepo,
+    runner::BUNDLED_CHECKER_NAME,
 };
 
 pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
@@ -54,7 +71,9 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
 
     let manager = ConnectionManager::<SqliteConnection>::new(database_path);
 
-    let pool = Pool::builder().build(manager)?;
+    let pool = Pool::builder()
+        .connection_customizer(Box::new(SqliteConnectionCustomizer))
+        .build(manager)?;
 
     trace!("run pending migrations");
     pool.get()
@@ -70,6 +89,7 @@ pub fn setup_database<R: Runtime>(app: &mut tauri::App<R>) -> Result<()> {
     };
 
     let repository = database::DatabaseRepo::new(pool, workspace.clone(), db_config.into());
+    repository.seed_builtin_checkers(&BUNDLED_CHECKER_NAME)?;
 
     app.manage(repository);
 

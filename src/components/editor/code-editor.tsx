@@ -22,11 +22,12 @@ import { useLanguageExtension } from "./language"
 interface CodeEditorProps {
 	className?: string
 	documentID: string
+	documentUri?: string
 	language?: string
 	textarea?: boolean
 }
 
-export function CodeEditorSuspend({ className,	documentID,	language = "Text",	textarea }: CodeEditorProps) {
+export function CodeEditorSuspend({ className, documentID, documentUri, language = "Text", textarea }: CodeEditorProps) {
 	const [isDocumentLoaded, setIsDocumentLoaded] = useState(false)
 	const ydoc = useMemo(() => {
 		const doc = new Y.Doc()
@@ -82,7 +83,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	// Load language
 	// if user set language to Text, use Text
 	// else use the language base from workspace setting
-	const languageServerDocumentUri = new URL(
+	const languageServerDocumentUri = documentUri ?? new URL(
 		`${encodeURIComponent(documentID)}.${getFileExtensionOfLanguage(languageItem.base)}`,
 		"file:///algorimejo/",
 	).toString()

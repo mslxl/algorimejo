@@ -3,6 +3,7 @@ use std::{path::PathBuf, process::Command};
 use log::trace;
 use once_cell::sync::Lazy;
 
+pub mod checker_sdk;
 pub mod cmd;
 pub mod lang_server;
 pub mod run;

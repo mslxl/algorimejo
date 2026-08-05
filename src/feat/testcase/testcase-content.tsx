@@ -119,6 +119,7 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 			})
 			.exhaustive()
 	}, testcases.map(() => "UNRUN" as RunTestResultStatus))
+	const [checkerMessages, setCheckerMessages] = useState<Record<string, string>>({})
 	const itemsRef = useRef<TestcaseItemRef[]>([])
 
 	useEffect(() => {
@@ -174,13 +175,15 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 			return false
 		}
 		dispatchItemsStatus({ type: "set", index, status: "PD" })
+		setCheckerMessages(current => ({ ...current, [testcase.id]: "" }))
 		itemsRef.current[index]?.clearOutput()
 		const info = await runTestcase({
 			tag,
 			testcaseInputDocID: testcase.input_document_id,
 			testcaseOutputDocID: testcase.answer_document_id,
 			solutionDocID: solution.data.document!.id,
-			checkerName: problem.checker ?? "wcmp",
+			problemID: problem.id,
+			checkerID: problem.checker.id,
 			language: languageItem.data,
 			runTimeout: problem.time_limit,
 			programOutputListener: (line, ty) => {
@@ -190,9 +193,11 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 			},
 		})
 		dispatchItemsStatus({ type: "set", index, status: info.result })
+		if ("checkerMsg" in info)
+			setCheckerMessages(current => ({ ...current, [testcase.id]: info.checkerMsg }))
 		log.trace(`testcase ${tag} result: ${JSON.stringify(info)}`)
 		return true
-	}, [languageItem.data, problem.checker, problem.time_limit, solution.data])
+	}, [languageItem.data, problem.checker.id, problem.id, problem.time_limit, solution.data])
 
 	const beginRun = useCallback(() => {
 		if (runLockRef.current)
@@ -289,6 +294,7 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 								index={index}
 								key={testcase.id}
 								status={itemsStatus[index]}
+								checkerMessage={checkerMessages[testcase.id]}
 								disabled={isRunning}
 								onRunTestcase={testcase => handleRunTestcase(testcase, index)}
 							/>

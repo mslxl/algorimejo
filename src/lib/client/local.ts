@@ -35,6 +35,48 @@ async createSolution(problemId: string, params: CreateSolutionParams) : Promise<
 async createChecker(params: CreateCheckerParams) : Promise<CreateCheckerResult> {
     return await TAURI_INVOKE("create_checker", { params });
 },
+async getChecker(checkerId: string) : Promise<Checker> {
+    return await TAURI_INVOKE("get_checker", { checkerId });
+},
+async getVisibleCheckers(problemId: string | null) : Promise<Checker[]> {
+    return await TAURI_INVOKE("get_visible_checkers", { problemId });
+},
+async updateChecker(checkerId: string, params: UpdateCheckerParams) : Promise<Checker> {
+    return await TAURI_INVOKE("update_checker", { checkerId, params });
+},
+async deleteChecker(checkerId: string) : Promise<null> {
+    return await TAURI_INVOKE("delete_checker", { checkerId });
+},
+async getCheckerUsages(checkerId: string) : Promise<CheckerUsage[]> {
+    return await TAURI_INVOKE("get_checker_usages", { checkerId });
+},
+async setProblemChecker(problemId: string, checkerId: string) : Promise<null> {
+    return await TAURI_INVOKE("set_problem_checker", { problemId, checkerId });
+},
+async getCheckerSelfTests(checkerId: string) : Promise<CheckerSelfTest[]> {
+    return await TAURI_INVOKE("get_checker_self_tests", { checkerId });
+},
+async upsertCheckerSelfTest(params: UpsertCheckerSelfTestParams) : Promise<CheckerSelfTest> {
+    return await TAURI_INVOKE("upsert_checker_self_test", { params });
+},
+async deleteCheckerSelfTest(selfTestId: string) : Promise<null> {
+    return await TAURI_INVOKE("delete_checker_self_test", { selfTestId });
+},
+async getCheckerSdkInfo(language: string) : Promise<CheckerSdkInfo> {
+    return await TAURI_INVOKE("get_checker_sdk_info", { language });
+},
+async getCheckerEditorInfo(checkerId: string) : Promise<CheckerEditorInfo> {
+    return await TAURI_INVOKE("get_checker_editor_info", { checkerId });
+},
+async buildChecker(checkerId: string) : Promise<CheckerBuildResult> {
+    return await TAURI_INVOKE("build_checker", { checkerId });
+},
+async executeChecker(problemId: string, checkerId: string, inputFilename: string, outputFilename: string, answerFilename: string) : Promise<CheckerRunResult> {
+    return await TAURI_INVOKE("execute_checker", { problemId, checkerId, inputFilename, outputFilename, answerFilename });
+},
+async runCheckerSelfTest(selfTestId: string) : Promise<CheckerSelfTestResult> {
+    return await TAURI_INVOKE("run_checker_self_test", { selfTestId });
+},
 async getSolution(solutionId: string) : Promise<Solution> {
     return await TAURI_INVOKE("get_solution", { solutionId });
 },
@@ -79,9 +121,6 @@ async loadDocument(docId: string) : Promise<number[]> {
 },
 async applyChange(docId: string, change: number[]) : Promise<null> {
     return await TAURI_INVOKE("apply_change", { docId, change });
-},
-async resolveChecker(name: string) : Promise<string> {
-    return await TAURI_INVOKE("resolve_checker", { name });
 },
 async saveDuplicatedFile(problem: Problem, solution: Solution, content: string | null) : Promise<null> {
     return await TAURI_INVOKE("save_duplicated_file", { problem, solution, content });
@@ -164,10 +203,21 @@ workspaceConfigUpdateEvent: "workspace-config-update-event"
 /** user-defined types **/
 
 export type AdvLanguageItem = { base: LanguageBase; cmd_compile: string; cmd_before_run: string | null; cmd_after_run: string | null; cmd_run: string; lsp: string | null; lsp_connect: LanguageServerProtocolConnectionType | null; initial_solution_content: string | null }
-export type Checker = { id: string; name: string; language: string; description: string | null; document_id: string; document: Document | null }
-export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null }
+export type Checker = { id: string; kind: CheckerKind; scope: CheckerScope; owner_problem_id: string | null; name: string; description: string | null; language: string | null; document: Document | null; create_datetime: string; modified_datetime: string }
+export type CheckerBuildResult = { status: CheckerBuildStatus; stdout: string; stderr: string; exit_code: number; cache_hit: boolean; source_path: string }
+export type CheckerBuildStatus = "Ready" | "CompileError" | "CompileTimeout"
+export type CheckerEditorInfo = { source_path: string; sdk: CheckerSdkInfo }
+export type CheckerKind = "Builtin" | "Custom"
+export type CheckerRunResult = { verdict: CheckerRunVerdict; message: string; stdout: string; stderr: string; exit_code: number; is_timeout: boolean; build: CheckerBuildResult | null }
+export type CheckerRunVerdict = "AC" | "WA" | "PE" | "CHKCE" | "CHKCETLE" | "CHKTLE" | "CHKRE"
+export type CheckerScope = "Global" | "Problem"
+export type CheckerSdkInfo = { source_filename: string; template: string; documentation: string }
+export type CheckerSelfTest = { id: string; checker_id: string; name: string; expected_verdict: string; input: string; output: string; answer: string }
+export type CheckerSelfTestResult = { self_test: CheckerSelfTest; run: CheckerRunResult; passed: boolean }
+export type CheckerUsage = { problem_id: string; problem_name: string }
+export type CreateCheckerParams = { name: string; language: string; description: string | null; content: string | null; scope: CheckerScope; owner_problem_id: string | null }
 export type CreateCheckerResult = { checker: Checker }
-export type CreateProblemParams = { name: string; url: string | null; group: string | null; statement: string | null; checker: string | null; time_limit: number; memory_limit: number; initial_solution: CreateSolutionParams | null }
+export type CreateProblemParams = { name: string; url: string | null; group: string | null; statement: string | null; checker_id: string | null; time_limit: number; memory_limit: number; initial_solution: CreateSolutionParams | null }
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
@@ -190,8 +240,8 @@ export type LanguageServerEvent = { session_id: string; pid: string; response: L
 export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
-export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
-export type ProblemChangeset = { name: string | null; url: string | null; group: string | null; statement: string | null; checker: string | null; time_limit: number | null; memory_limit: number | null }
+export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: Checker; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
+export type ProblemChangeset = { name: string | null; url: string | null; group: string | null; statement: string | null; checker_id: string | null; time_limit: number | null; memory_limit: number | null }
 export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[]; keymap: Keymap; detached_run_mode: DetachedRunMode }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
@@ -207,6 +257,8 @@ export type SortOrder = "Asc" | "Desc"
 export type TestCase = { id: string; problem_id: string; input_document_id: string; answer_document_id: string }
 export type ToastEvent = { kind: ToastKind; message: string }
 export type ToastKind = "Info" | "Error" | "Warning" | "Success"
+export type UpdateCheckerParams = { name: string; language: string; description: string | null; scope: CheckerScope; owner_problem_id: string | null }
+export type UpsertCheckerSelfTestParams = { id: string | null; checker_id: string; name: string; expected_verdict: string; input: string; output: string; answer: string }
 export type WorkspaceConfig = { font_family: string; font_size: number; language: Partial<{ [key in string]: AdvLanguageItem }>; default_language: string | null; duplicate_save: boolean; duplicate_save_location: string | null }
 export type WorkspaceConfigUpdateEvent = { new: WorkspaceConfig }
 

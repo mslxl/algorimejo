@@ -87,19 +87,13 @@ export async function executeProgram(tag: string, inputFileDocID: string, langua
 	}
 }
 
-export async function checkOutput(tag: string, inputDocID: string, outputFile: string, answerDocID: string, checkerName: string) {
+export async function checkOutput(tag: string, problemID: string, inputDocID: string, outputFile: string, answerDocID: string, checkerID: string) {
 	const inputContent = await commands.getStringOfDoc(inputDocID, "content")
 	const answerContent = await commands.getStringOfDoc(answerDocID, "content")
 	const inputFile = await commands.writeFileToTaskTag(tag, `case-${inputDocID}.in`, inputContent)
 	const answerFile = await commands.writeFileToTaskTag(tag, `case-${answerDocID}.ans`, answerContent)
 
-	const checker = await commands.resolveChecker(checkerName)
-	const res = await commands.executeProgram(tag, `${checker} %INPUT %OUTPUT %ANSWER`, {
-		INPUT: inputFile,
-		ANSWER: answerFile,
-		OUTPUT: outputFile,
-	}, 12000)
-	return res
+	return commands.executeChecker(problemID, checkerID, inputFile, outputFile, answerFile)
 }
 
 interface RunTestcaseParams {
@@ -107,7 +101,8 @@ interface RunTestcaseParams {
 	testcaseInputDocID: string
 	testcaseOutputDocID: string
 	solutionDocID: string
-	checkerName: string
+	problemID: string
+	checkerID: string
 	language: AdvLanguageItem
 	runTimeout: number
 	programOutputListener?: (line: string, type: "stdout" | "stderr") => void
@@ -122,6 +117,9 @@ type RunTestResult = {
 } | {
 	// What's up? you make a compile-time generated table? that is not funny
 	result: "CETLE"
+} | {
+	result: "CHKCE" | "CHKCETLE"
+	checkerMsg: string
 } | {
 	result: "AC"
 	stdout: string
@@ -175,7 +173,8 @@ export async function runTestcase({
 	testcaseInputDocID,
 	testcaseOutputDocID,
 	solutionDocID,
-	checkerName,
+	problemID,
+	checkerID,
 	language,
 	runTimeout,
 	programOutputListener,
@@ -212,41 +211,47 @@ export async function runTestcase({
 				stdoutFile: runInfo.output_file,
 			}
 		}
-		const checkInfo = await checkOutput(tag, testcaseInputDocID, runInfo.output_file, testcaseOutputDocID, checkerName)
-		if (checkInfo.is_timeout) {
+		const checkInfo = await checkOutput(tag, problemID, testcaseInputDocID, runInfo.output_file, testcaseOutputDocID, checkerID)
+		if (checkInfo.verdict === "CHKCE" || checkInfo.verdict === "CHKCETLE") {
+			return {
+				result: checkInfo.verdict,
+				checkerMsg: checkInfo.message,
+			}
+		}
+		else if (checkInfo.verdict === "CHKTLE") {
 			return {
 				result: "CHKTLE",
 				stdout: runInfo.content,
 				stripped: runInfo.type === "Strip",
 				stdoutFile: runInfo.output_file,
-				checkerMsg: checkInfo.stderr,
+				checkerMsg: checkInfo.message,
 			}
 		}
-		else if (checkInfo.exit_code === 1 || checkInfo.exit_code === 3) {
+		else if (checkInfo.verdict === "WA") {
 			return {
 				result: "WA",
 				stdout: runInfo.content,
 				stripped: runInfo.type === "Strip",
 				stdoutFile: runInfo.output_file,
-				checkerMsg: checkInfo.stderr,
+				checkerMsg: checkInfo.message,
 			}
 		}
-		else if (checkInfo.exit_code === 2) {
+		else if (checkInfo.verdict === "PE") {
 			return {
 				result: "PE",
 				stdout: runInfo.content,
 				stripped: runInfo.type === "Strip",
 				stdoutFile: runInfo.output_file,
-				checkerMsg: checkInfo.stderr,
+				checkerMsg: checkInfo.message,
 			}
 		}
-		else if (checkInfo.exit_code === 0) {
+		else if (checkInfo.verdict === "AC") {
 			return {
 				result: "AC",
 				stdout: runInfo.content,
 				stripped: runInfo.type === "Strip",
 				stdoutFile: runInfo.output_file,
-				checkerMsg: checkInfo.stderr,
+				checkerMsg: checkInfo.message,
 			}
 		}
 		else {
@@ -269,7 +274,7 @@ export async function runTestcase({
 				stdout: runInfo.content,
 				stripped: runInfo.type === "Strip",
 				stdoutFile: runInfo.output_file,
-				checkerMsg: checkInfo.stderr,
+				checkerMsg: checkInfo.message,
 			}
 		}
 	}
@@ -315,6 +320,8 @@ export async function runProgramDetached({ tag, solutionDocID, language }: RunPr
 }
 
 export const runTestStatusToColor: Record<RunTestResultStatus, `#${string}`> = {
+	CHKCE: "#DC2626",
+	CHKCETLE: "#EA580C",
 	PD: "#3B82F6", // 蓝色 - 等待中
 	UNRUN: "#6B7280", // 灰色 - 未运行
 	CE: "#DC2626", // 深红色 - 编译错误

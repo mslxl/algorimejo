@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useWorkspaceConfig } from "@/hooks/use-workspace-config"
 import { useWorkspaceConfigMutation } from "@/hooks/use-workspace-config-mutation"
+import { CheckersSection } from "./sections/checkers"
 import { CompilerSection } from "./sections/compiler"
 import { EditorSection } from "./sections/editor"
 import { StorageSection } from "./sections/storage"
@@ -94,6 +95,7 @@ export function WorkspacePref() {
 							<ScrollArea className="min-w-0 flex-1">
 								<EditorSection />
 								<CompilerSection />
+								<CheckersSection />
 								<StorageSection />
 							</ScrollArea>
 						</PrefsProvider>

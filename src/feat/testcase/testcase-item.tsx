@@ -14,6 +14,7 @@ interface TestcaseItemProps {
 	index: number
 	colsNum: number
 	status: RunTestResultStatus
+	checkerMessage?: string
 	disabled?: boolean
 	onRunTestcase?: (testcase: TestCase) => void
 }
@@ -23,7 +24,7 @@ export interface TestcaseItemRef {
 }
 
 export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
-	({ testcase, colsNum, index, status, disabled, onRunTestcase }, ref) => {
+	({ testcase, colsNum, index, status, checkerMessage, disabled, onRunTestcase }, ref) => {
 		const outputRef = useRef<CodeMirrorTextareaRef | null>(null)
 
 		useImperativeHandle(ref, () => ({
@@ -54,6 +55,7 @@ export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
 							{status}
 						</div>
 					</div>
+					{checkerMessage && <p className="font-mono text-xs break-words text-muted-foreground">{checkerMessage}</p>}
 
 					<div className="flex items-center gap-1">
 						<Button variant="destructive" size="sm" className="h-7 w-7 p-0">

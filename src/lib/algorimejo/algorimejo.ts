@@ -4,6 +4,8 @@ import { QueryClient } from "@tanstack/react-query"
 import * as log from "@tauri-apps/plugin-log"
 import { uniqueId } from "lodash/fp"
 import mitt from "mitt"
+import { CheckerEditor } from "@/feat/checker"
+import { checkerEditorDataSchema } from "@/feat/checker/schema"
 import { SolutionEditor } from "@/feat/editor/editor"
 import { solutionEditorPageDataSchema } from "@/feat/editor/schema"
 import { ProgramPreference } from "@/feat/program-pref"
@@ -71,6 +73,7 @@ export class Algorimejo {
 
 		(async () => {
 			this.provideUI("solution-editor", SolutionEditor)
+			this.provideUI("checker-editor", CheckerEditor)
 			this.provideUI("workspace-pref", WorkspacePreference)
 			this.provideUI("program-pref", ProgramPreference)
 			await Promise.all([
@@ -173,6 +176,31 @@ export class Algorimejo {
 				solutionID: options.solutionID,
 			},
 			title: options.title,
+		})
+	}
+
+	findCheckerTabID(checkerID: string): string | null {
+		return this.tab.findTabByData({
+			key: "checker-editor",
+			predicate: (data) => {
+				const result = checkerEditorDataSchema.safeParse(data)
+				return result.success && result.data.checkerID === checkerID
+			},
+		})?.id ?? null
+	}
+
+	openCheckerTab(options: { checkerID: string, title: string, reuse?: boolean }) {
+		const existing = this.findCheckerTabID(options.checkerID)
+		if (options.reuse && existing) {
+			this.tab.selectTabByID(existing)
+			return
+		}
+		this.tab.openTab({
+			id: uniqueId("tab-"),
+			key: "checker-editor",
+			data: { checkerID: options.checkerID },
+			title: options.title,
+			icon: "LucideListChecks",
 		})
 	}
 

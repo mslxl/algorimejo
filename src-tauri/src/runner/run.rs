@@ -18,10 +18,10 @@ use crate::runner::command_flag_hide_new_console;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct ProgramSimpleOutput {
-    exit_code: i32,
-    stdout: String,
-    stderr: String,
-    is_timeout: bool,
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub is_timeout: bool,
 }
 
 pub async fn launch_program_without_input(
@@ -42,11 +42,7 @@ pub async fn launch_program_without_input(
     let mut stderr_reader = BufReader::new(child.stderr.take().unwrap());
 
     let wait_for_process = async {
-        match tokio::time::timeout(
-            Duration::from_millis(timeout_millis as u64),
-            child.wait(),
-        )
-        .await
+        match tokio::time::timeout(Duration::from_millis(timeout_millis as u64), child.wait()).await
         {
             Ok(status) => {
                 trace!("program exited");

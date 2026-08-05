@@ -39,7 +39,7 @@ export function ProblemDetail({ problem, ...props }: ProblemDetailProps) {
 					)}
 					<tr>
 						<td>Checker</td>
-						<td>{problem.checker ?? <LucideX className="size-[1em]" />}</td>
+						<td>{problem.checker?.name ?? <LucideX className="size-[1em]" />}</td>
 					</tr>
 					<tr>
 						<td>Solutions</td>

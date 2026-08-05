@@ -110,6 +110,10 @@ impl DocumentRepo {
         self.docs.read().unwrap().contains_key(doc_id)
     }
 
+    pub fn unmanage(&self, doc_id: &str) {
+        self.docs.write().unwrap().remove(doc_id);
+    }
+
     pub fn save_all(&self) -> Result<()> {
         for doc in self.docs.read().unwrap().values() {
             doc.save_document()?;
