@@ -15,11 +15,16 @@ use tokio::sync::RwLock;
 
 use crate::runner::{
     cmd::parse_command_with_env,
-    command_flag_create_new_console, get_bundled_checker_names,
+    get_bundled_checker_names,
     lang_server::{IOMethod, LangServerProcess, LangServerWriter},
     run::{launch_program, launch_program_without_input, ProgramOutput, ProgramSimpleOutput},
     temp_dir,
 };
+
+#[cfg(target_os = "linux")]
+use crate::runner::launch_command_in_terminal;
+#[cfg(not(target_os = "linux"))]
+use crate::runner::command_flag_create_new_console;
 
 pub static ENV_KEY_BUNDLED_LSP: &str = "BUNDLED_LSP";
 pub static ENV_KEY_MANAGED_LSP: &str = "MANAGED_LSP";
@@ -390,20 +395,30 @@ pub async fn execute_program_detached(
 
     // DO NOT USE UNC PATH
     // consolepauser can not work noramlly with UNC path, which is so strange but keep it in mind
-    let mut cmd = std::process::Command::new(dunce::canonicalize(cmd.get_program()).unwrap());
+    let consolepauser = dunce::canonicalize(cmd.get_program()).map_err(|error| {
+        format!(
+            "failed to resolve console pauser {}: {error}",
+            cmd.get_program().to_string_lossy()
+        )
+    })?;
+    let mut cmd = std::process::Command::new(consolepauser);
     cmd.current_dir(&temp_dir)
         .arg("1")
         // .arg(PathBuf::from(origin_cmd.get_program()).file_name().unwrap())
         .arg(origin_cmd.get_program())
         .args(origin_cmd.get_args());
 
-    // TODO: not work on LINUX, need futhuer investgivate
-    command_flag_create_new_console(&mut cmd);
-    cmd.current_dir(&temp_dir);
+    #[cfg(target_os = "linux")]
+    {
+        return launch_command_in_terminal(&cmd);
+    }
 
-    trace!("launch program detached cmd: {:?}", &cmd);
-    cmd.spawn().map_err(|e| e.to_string())?;
-    // trace!("output: {:?}", cmd.output());
+    #[cfg(not(target_os = "linux"))]
+    {
+        command_flag_create_new_console(&mut cmd);
+        trace!("launch program detached cmd: {:?}", &cmd);
+        cmd.spawn().map_err(|e| e.to_string())?;
 
-    Ok(())
+        Ok(())
+    }
 }

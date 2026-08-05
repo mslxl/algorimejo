@@ -47,6 +47,47 @@ pub fn command_flag_create_new_console(command: &mut Command) {
     }
 }
 
+#[cfg(target_os = "linux")]
+pub fn launch_command_in_terminal(command: &Command) -> Result<(), String> {
+    // TODO: Test these fallbacks across Linux desktop environments and make the terminal configurable.
+    const TERMINALS: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e"]),
+        ("gnome-terminal", &["--"]),
+        ("kgx", &["--"]),
+        ("konsole", &["-e"]),
+        ("xfce4-terminal", &["-x"]),
+        ("mate-terminal", &["-x"]),
+        ("alacritty", &["-e"]),
+        ("kitty", &[]),
+        ("wezterm", &["start", "--"]),
+        ("xterm", &["-e"]),
+    ];
+
+    let mut errors = Vec::new();
+    for (terminal, terminal_args) in TERMINALS {
+        let mut terminal_command = Command::new(terminal);
+        terminal_command
+            .args(*terminal_args)
+            .arg(command.get_program())
+            .args(command.get_args());
+
+        if let Some(current_dir) = command.get_current_dir() {
+            terminal_command.current_dir(current_dir);
+        }
+
+        trace!("launch detached program in terminal: {:?}", &terminal_command);
+        match terminal_command.spawn() {
+            Ok(_) => return Ok(()),
+            Err(error) => errors.push(format!("{terminal}: {error}")),
+        }
+    }
+
+    Err(format!(
+        "No supported terminal emulator could be started. Tried: {}",
+        errors.join("; ")
+    ))
+}
+
 pub fn temp_dir(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("algorime-{}", name))
 }
