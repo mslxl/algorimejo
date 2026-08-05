@@ -41,35 +41,42 @@ pub async fn launch_program_without_input(
     let mut stdout_reader = BufReader::new(child.stdout.take().unwrap());
     let mut stderr_reader = BufReader::new(child.stderr.take().unwrap());
 
-    let mut is_timeout = false;
-    let start_time = Instant::now();
-    loop {
-        tokio::select! {
-            _ = tokio::time::sleep(Duration::from_millis(200)) => {
-                if start_time.elapsed().as_millis() > timeout_millis {
-                    is_timeout = true;
-                    trace!("timeout! kill process {}", pid);
-                    child.kill().await?;
-                    break;
-                }
-            }
-            Ok(_) = child.wait() => {
+    let wait_for_process = async {
+        match tokio::time::timeout(
+            Duration::from_millis(timeout_millis as u64),
+            child.wait(),
+        )
+        .await
+        {
+            Ok(status) => {
                 trace!("program exited");
-                break;
+                std::io::Result::Ok((status?, false))
+            }
+            Err(_) => {
+                trace!("timeout! kill process {}", pid);
+                child.kill().await?;
+                std::io::Result::Ok((child.wait().await?, true))
             }
         }
-    }
-    let exit_code = child.wait().await?.code().unwrap_or(-1);
-    trace!("process {} exit code: {}", pid, exit_code);
+    };
+    let read_stdout = async {
+        let mut stdout = String::new();
+        let size = stdout_reader.read_to_string(&mut stdout).await?;
+        std::io::Result::Ok((stdout, size))
+    };
+    let read_stderr = async {
+        let mut stderr = String::new();
+        let size = stderr_reader.read_to_string(&mut stderr).await?;
+        std::io::Result::Ok((stderr, size))
+    };
 
-    let mut stdout = String::new();
-    let mut stderr = String::new();
-    let (stdout_result, stderr_result) = tokio::join!(
-        stdout_reader.read_to_string(&mut stdout),
-        stderr_reader.read_to_string(&mut stderr)
-    );
-    let stdout_sz = stdout_result?;
-    let stderr_sz = stderr_result?;
+    let (status_result, stdout_result, stderr_result) =
+        tokio::join!(wait_for_process, read_stdout, read_stderr);
+    let (status, is_timeout) = status_result?;
+    let (stdout, stdout_sz) = stdout_result?;
+    let (stderr, stderr_sz) = stderr_result?;
+    let exit_code = status.code().unwrap_or(-1);
+    trace!("process {} exit code: {}", pid, exit_code);
     trace!(
         "collected program {} output: stdout: {} bytes, stderr: {} bytes",
         pid,
@@ -225,5 +232,130 @@ pub async fn launch_program<
             content,
             output_file: output_file.as_ref().to_path_buf(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn test_dir() -> PathBuf {
+        std::env::temp_dir().join(format!("algorimejo-runner-test-{}", uuid::Uuid::new_v4()))
+    }
+
+    #[cfg(windows)]
+    fn input_echo_command() -> Command {
+        let mut command = Command::new("cmd.exe");
+        command.args([
+            "/D",
+            "/V:ON",
+            "/S",
+            "/C",
+            "set /p input=& echo stdout:!input!& echo stderr:!input!>&2",
+        ]);
+        command
+    }
+
+    #[cfg(unix)]
+    fn input_echo_command() -> Command {
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "IFS= read -r input; printf 'stdout:%s\\n' \"$input\"; printf 'stderr:%s\\n' \"$input\" >&2",
+        ]);
+        command
+    }
+
+    #[cfg(windows)]
+    fn large_output_command() -> Command {
+        let mut command = Command::new("cmd.exe");
+        command.args([
+            "/D",
+            "/S",
+            "/C",
+            "for /L %i in (1,1,10000) do @echo 1234567890",
+        ]);
+        command
+    }
+
+    #[cfg(unix)]
+    fn large_output_command() -> Command {
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "i=0; while [ $i -lt 10000 ]; do echo 1234567890; i=$((i + 1)); done",
+        ]);
+        command
+    }
+
+    #[cfg(windows)]
+    fn endless_command() -> Command {
+        let mut command = Command::new("cmd.exe");
+        command.args(["/D", "/S", "/C", "for /L %i in (1,0,2) do @rem"]);
+        command
+    }
+
+    #[cfg(unix)]
+    fn endless_command() -> Command {
+        let mut command = Command::new("sh");
+        command.args(["-c", "while :; do :; done"]);
+        command
+    }
+
+    #[tokio::test]
+    async fn launch_program_redirects_input_and_captures_output() {
+        let dir = test_dir();
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("input.txt");
+        let output = dir.join("output.txt");
+        fs::write(&input, "hello\n").unwrap();
+        let mut stdout_lines = Vec::new();
+        let mut stderr_lines = Vec::new();
+
+        let result = launch_program(
+            input_echo_command(),
+            &input,
+            &output,
+            5_000,
+            |line| stdout_lines.push(line.to_string()),
+            |line| stderr_lines.push(line.to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(stdout_lines, ["stdout:hello"]);
+        assert_eq!(stderr_lines, ["stderr:hello"]);
+        assert_eq!(fs::read_to_string(&output).unwrap(), "stdout:hello\n");
+        assert!(matches!(
+            result,
+            ProgramOutput::Full {
+                exit_code: 0,
+                is_timeout: false,
+                ..
+            }
+        ));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn launch_program_without_input_drains_large_output() {
+        let result = launch_program_without_input(large_output_command(), 5_000)
+            .await
+            .unwrap();
+
+        assert!(!result.is_timeout);
+        assert_eq!(result.exit_code, 0);
+        assert!(result.stdout.len() >= 100_000);
+    }
+
+    #[tokio::test]
+    async fn launch_program_without_input_kills_timed_out_process() {
+        let result = launch_program_without_input(endless_command(), 100)
+            .await
+            .unwrap();
+
+        assert!(result.is_timeout);
+        assert_ne!(result.exit_code, 0);
     }
 }

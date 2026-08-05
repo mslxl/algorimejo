@@ -20,45 +20,70 @@ export async function compileCode(tag: string, codeDocID: string, language: AdvL
 	const res = await commands.executeProgram(tag, language.cmd_compile, {
 		SRC: source,
 	}, timeout)
-	if (res.is_timeout) {
-		throw new Error("Compile timeout")
-	}
-	cache.put(hash, res)
+	if (!res.is_timeout)
+		cache.put(hash, res)
 	return res
 }
 
 export type ExecuteProgramOutputListener = (line: string, type: "stdout" | "stderr") => void
+
+async function executeRunHook(tag: string, command: string, hookName: "before" | "after") {
+	const result = await commands.executeProgram(tag, command, {}, 3000)
+	if (result.is_timeout)
+		throw new Error(`${hookName} run command timed out`)
+	if (result.exit_code !== 0) {
+		const details = result.stderr.trim() || result.stdout.trim()
+		throw new Error(`${hookName} run command exited with code ${result.exit_code}${details ? `: ${details}` : ""}`)
+	}
+}
+
 export async function executeProgram(tag: string, inputFileDocID: string, language: AdvLanguageItem, timeout: number, outputListener?: ExecuteProgramOutputListener) {
 	const inputContent = await commands.getStringOfDoc(inputFileDocID, "content")
 	// TODO: Actually we can copy the content in rust, but I am lazy. Fix it later
 	const inputFile = await commands.writeFileToTaskTag(tag, `case-${inputFileDocID}.txt`, inputContent)
 
-	let unsub = Promise.resolve(() => {})
+	const unsub = await events.programOutputEvent.listen((e) => {
+		if (e.payload.task_tag !== tag)
+			return
+		if (e.payload.source === "Stdout") {
+			outputListener?.(e.payload.line, "stdout")
+		}
+		else {
+			outputListener?.(e.payload.line, "stderr")
+		}
+	})
 
 	try {
-		unsub = events.programOutputEvent.listen((e) => {
-			if (e.payload.task_tag !== tag)
-				return
-			if (e.payload.source === "Stdout") {
-				outputListener?.(e.payload.line, "stdout")
-			}
-			else {
-				outputListener?.(e.payload.line, "stderr")
-			}
-		})
-
 		if (language.cmd_before_run) {
-			commands.executeProgram(tag, language.cmd_before_run, {}, 3000)
-		}
-		const execuatedResult = await commands.executeProgramCallback(tag, language.cmd_run, {}, inputFile, timeout)
-		if (language.cmd_after_run) {
-			commands.executeProgram(tag, language.cmd_after_run, {}, 3000)
+			await executeRunHook(tag, language.cmd_before_run, "before")
 		}
 
-		return execuatedResult
+		const execution = await commands.executeProgramCallback(tag, language.cmd_run, {}, inputFile, timeout).then(
+			result => ({ ok: true as const, result }),
+			error => ({ ok: false as const, error: error as unknown }),
+		)
+		const cleanup = language.cmd_after_run
+			? await executeRunHook(tag, language.cmd_after_run, "after").then(
+					() => ({ ok: true as const }),
+					error => ({ ok: false as const, error: error as unknown }),
+				)
+			: { ok: true as const }
+
+		if (!execution.ok) {
+			if (!cleanup.ok) {
+				const executionMessage = execution.error instanceof Error ? execution.error.message : String(execution.error)
+				const afterMessage = cleanup.error instanceof Error ? cleanup.error.message : String(cleanup.error)
+				throw new Error(`Program execution failed: ${executionMessage}; ${afterMessage}`)
+			}
+			throw execution.error
+		}
+		if (!cleanup.ok)
+			throw cleanup.error
+
+		return execution.result
 	}
 	finally {
-		unsub.then(unsub => unsub())
+		unsub()
 	}
 }
 

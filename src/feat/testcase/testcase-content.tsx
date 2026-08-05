@@ -104,6 +104,8 @@ interface TestcaseListProps {
 function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 	const testcaseCreateMutation = useTestcaseCreator()
 	const [isEditingProblemOptions, setIsEditingProblemOptions] = useState(false)
+	const [isRunning, setIsRunning] = useState(false)
+	const runLockRef = useRef(false)
 
 	const [itemsStatus, dispatchItemsStatus] = useReducer((state: RunTestResultStatus[], action: { type: "set", index: number, status: RunTestResultStatus } | { type: "reset", length: number }) => {
 		return match(action)
@@ -162,16 +164,15 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 		language: solution.data?.language,
 	})
 
-	const handleRunTestcase = useCallback(async (testcase: TestCase, index: number) => {
+	const executeTestcase = useCallback(async (testcase: TestCase, index: number, tag: string) => {
 		if (!solution.data) {
 			toast.error("Solution is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
-			return
+			return false
 		}
 		if (!languageItem.data) {
 			toast.error("Language is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
-			return
+			return false
 		}
-		const tag = `tt-${testcase.id}`
 		dispatchItemsStatus({ type: "set", index, status: "PD" })
 		itemsRef.current[index]?.clearOutput()
 		const info = await runTestcase({
@@ -190,31 +191,80 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 		})
 		dispatchItemsStatus({ type: "set", index, status: info.result })
 		log.trace(`testcase ${tag} result: ${JSON.stringify(info)}`)
+		return true
 	}, [languageItem.data, problem.checker, problem.time_limit, solution.data])
 
-	const handleRunAllTestcases = useCallback(() => {
-		for (let i = 0; i < testcases.length; i++) {
-			handleRunTestcase(testcases[i], i)
+	const beginRun = useCallback(() => {
+		if (runLockRef.current)
+			return false
+
+		runLockRef.current = true
+		setIsRunning(true)
+		return true
+	}, [])
+
+	const endRun = useCallback(() => {
+		runLockRef.current = false
+		setIsRunning(false)
+	}, [])
+
+	const handleRunTestcase = useCallback(async (testcase: TestCase, index: number) => {
+		if (!beginRun())
+			return
+
+		try {
+			await executeTestcase(testcase, index, `tt-${testcase.id}`)
 		}
-	}, [handleRunTestcase, testcases])
+		finally {
+			endRun()
+		}
+	}, [beginRun, endRun, executeTestcase])
+
+	const handleRunAllTestcases = useCallback(async () => {
+		if (!beginRun())
+			return
+
+		try {
+			const tag = `tta-${solutionID}`
+			for (let i = 0; i < testcases.length; i++) {
+				const didRun = await executeTestcase(testcases[i], i, tag)
+				if (!didRun)
+					break
+			}
+		}
+		finally {
+			endRun()
+		}
+	}, [beginRun, endRun, executeTestcase, solutionID, testcases])
 
 	const handleRunTestcaseDetached = useCallback(async () => {
-		if (!solution.data) {
-			toast.error("Solution is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+		if (!beginRun())
 			return
+
+		try {
+			if (!solution.data) {
+				toast.error("Solution is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+				return
+			}
+			if (!languageItem.data) {
+				toast.error("Language is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
+				return
+			}
+			const tag = `sol-${solution.data.id}`
+			const info = await runProgramDetached({
+				tag,
+				solutionDocID: solution.data.document!.id,
+				language: languageItem.data,
+			})
+			log.trace(`run (detached) ${tag} result: ${JSON.stringify(info)}`)
 		}
-		if (!languageItem.data) {
-			toast.error("Language is not loaded, please wait for a moment. If it still not loaded, please report this issue.")
-			return
+		catch (error) {
+			toast.error(error instanceof Error ? error.message : String(error))
 		}
-		const tag = `sol-${solution.data.id}`
-		const info = await runProgramDetached({
-			tag,
-			solutionDocID: solution.data.document!.id,
-			language: languageItem.data,
-		})
-		log.trace(`run (detached) ${tag} result: ${JSON.stringify(info)}`)
-	}, [solution, languageItem])
+		finally {
+			endRun()
+		}
+	}, [beginRun, endRun, languageItem.data, solution.data])
 	return (
 		<div className="flex h-full flex-col p-2 pr-0" ref={panelRef}>
 			<Dialog open={isEditingProblemOptions} onOpenChange={setIsEditingProblemOptions}>
@@ -239,6 +289,7 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 								index={index}
 								key={testcase.id}
 								status={itemsStatus[index]}
+								disabled={isRunning}
 								onRunTestcase={testcase => handleRunTestcase(testcase, index)}
 							/>
 						))}
@@ -266,9 +317,9 @@ function TestcaseList({ problem, testcases, solutionID }: TestcaseListProps) {
 					<LucidePlus />
 				</Button>
 				<span className="flex">
-					<Button onClick={handleRunAllTestcases} className="rounded-r-none">Run All</Button>
+					<Button onClick={handleRunAllTestcases} className="rounded-r-none" disabled={isRunning || testcases.length === 0}>Run All</Button>
 					<DropdownMenu>
-						<DropdownMenuTrigger className="inline-flex h-9 w-auto shrink-0 items-center justify-center rounded-md rounded-l-none bg-primary px-1 py-2 text-sm font-medium whitespace-nowrap text-primary-foreground shadow-xs transition-all outline-none hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+						<DropdownMenuTrigger disabled={isRunning} className="inline-flex h-9 w-auto shrink-0 items-center justify-center rounded-md rounded-l-none bg-primary px-1 py-2 text-sm font-medium whitespace-nowrap text-primary-foreground shadow-xs transition-all outline-none hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
 							<LucideMoreVertical />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>

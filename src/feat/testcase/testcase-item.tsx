@@ -14,6 +14,7 @@ interface TestcaseItemProps {
 	index: number
 	colsNum: number
 	status: RunTestResultStatus
+	disabled?: boolean
 	onRunTestcase?: (testcase: TestCase) => void
 }
 export interface TestcaseItemRef {
@@ -22,7 +23,7 @@ export interface TestcaseItemRef {
 }
 
 export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
-	({ testcase, colsNum, index, status, onRunTestcase }, ref) => {
+	({ testcase, colsNum, index, status, disabled, onRunTestcase }, ref) => {
 		const outputRef = useRef<CodeMirrorTextareaRef | null>(null)
 
 		useImperativeHandle(ref, () => ({
@@ -62,6 +63,7 @@ export const TestcaseItem = forwardRef<TestcaseItemRef, TestcaseItemProps>(
 							variant="outline"
 							size="sm"
 							className="h-7 w-7 p-0"
+							disabled={disabled}
 							onClick={() => onRunTestcase?.(testcase)}
 						>
 							<LucidePlay className="h-3 w-3" />
