@@ -89,14 +89,26 @@ async saveDuplicatedFile(problem: Problem, solution: Solution, content: string |
 async getCheckersName() : Promise<string[]> {
     return await TAURI_INVOKE("get_checkers_name");
 },
-async launchLanguageServer(commands: string, ioMethod: IOMethod) : Promise<string> {
-    return await TAURI_INVOKE("launch_language_server", { commands, ioMethod });
+async launchLanguageServer(commands: string, ioMethod: IOMethod, sessionId: string) : Promise<string> {
+    return await TAURI_INVOKE("launch_language_server", { commands, ioMethod, sessionId });
 },
-async killLanguageServer(pid: string) : Promise<null> {
-    return await TAURI_INVOKE("kill_language_server", { pid });
+async killLanguageServer(pid: string, sessionId: string) : Promise<null> {
+    return await TAURI_INVOKE("kill_language_server", { pid, sessionId });
 },
-async sendMessageToLanguageServer(pid: string, message: string) : Promise<null> {
-    return await TAURI_INVOKE("send_message_to_language_server", { pid, message });
+async killAllLanguageServers() : Promise<null> {
+    return await TAURI_INVOKE("kill_all_language_servers");
+},
+async sendMessageToLanguageServer(pid: string, sessionId: string, message: string) : Promise<null> {
+    return await TAURI_INVOKE("send_message_to_language_server", { pid, sessionId, message });
+},
+async listLanguageServerPackages() : Promise<LanguageServerPackage[]> {
+    return await TAURI_INVOKE("list_language_server_packages");
+},
+async installLanguageServerPackage(packageId: string) : Promise<LanguageServerPackage> {
+    return await TAURI_INVOKE("install_language_server_package", { packageId });
+},
+async uninstallLanguageServerPackage(packageId: string) : Promise<null> {
+    return await TAURI_INVOKE("uninstall_language_server_package", { packageId });
 },
 async executeProgramCallback(taskTag: string, commands: string, env: Partial<{ [key in string]: string }>, inputFilename: string, timeoutMillis: number) : Promise<ProgramOutput> {
     return await TAURI_INVOKE("execute_program_callback", { taskTag, commands, env, inputFilename, timeoutMillis });
@@ -159,7 +171,8 @@ export type IOMethod =
 "StdIO"
 export type Keymap = "Default" | "Vim" | "Emacs"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text" | "Unknown"
-export type LanguageServerEvent = { pid: string; response: LanguageServerResponse }
+export type LanguageServerEvent = { session_id: string; pid: string; response: LanguageServerResponse }
+export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: string | null; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }

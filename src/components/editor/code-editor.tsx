@@ -82,7 +82,11 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 	// Load language
 	// if user set language to Text, use Text
 	// else use the language base from workspace setting
-	const languageExtension = useLanguageExtension(languageItem, `file:///${documentID}.${getFileExtensionOfLanguage(languageItem.base)}`)
+	const languageServerDocumentUri = new URL(
+		`${encodeURIComponent(documentID)}.${getFileExtensionOfLanguage(languageItem.base)}`,
+		"file:///algorimejo/",
+	).toString()
+	const languageExtension = useLanguageExtension(languageItem, languageServerDocumentUri)
 	// if the language is not configured in workspace setting, show error toast
 	useEffect(() => {
 		if (workspaceConfig.status !== "success")
@@ -103,7 +107,7 @@ export function CodeEditorSuspend({ className,	documentID,	language = "Text",	te
 		}
 	}, [workspaceConfig.status, language, documentID, workspaceLangCfg])
 
-	if (languageExtension.status === "error") {
+	if (languageExtension.error) {
 		return <ErrorLabel message={languageExtension.error} location="initializing language extension" />
 	}
 	else if (workspaceConfig.status === "error") {

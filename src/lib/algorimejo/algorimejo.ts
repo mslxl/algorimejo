@@ -47,7 +47,7 @@ export class Algorimejo {
 	public readonly events: AlgorimejoEventBus = mitt<AlgorimejoEvents>()
 	public readonly dock = new DockManager(this.events)
 	public readonly tab = new TabManager(this.events)
-	public readonly langClient = new LanguageClient(this.events)
+	public readonly langClient = new LanguageClient()
 
 	private _queryClient = new QueryClient()
 

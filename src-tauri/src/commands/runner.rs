@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
     path::PathBuf,
+    time::Duration,
 };
 
 use log::trace;
@@ -21,6 +22,7 @@ use crate::runner::{
 };
 
 pub static ENV_KEY_BUNDLED_LSP: &str = "BUNDLED_LSP";
+pub static ENV_KEY_MANAGED_LSP: &str = "MANAGED_LSP";
 pub fn get_default_env(app: &tauri::AppHandle) -> anyhow::Result<HashMap<String, String>> {
     let path_resolver = app.path();
     let mut env = HashMap::new();
@@ -28,6 +30,14 @@ pub fn get_default_env(app: &tauri::AppHandle) -> anyhow::Result<HashMap<String,
         ENV_KEY_BUNDLED_LSP.to_string(),
         path_resolver
             .resolve("lang-server", BaseDirectory::Resource)?
+            .display()
+            .to_string(),
+    );
+    env.insert(
+        ENV_KEY_MANAGED_LSP.to_string(),
+        path_resolver
+            .app_data_dir()?
+            .join("language-servers")
             .display()
             .to_string(),
     );
@@ -49,27 +59,43 @@ type ChildPID = String;
 
 #[derive(Default)]
 pub struct LangServerState {
-    pub writers: RwLock<HashMap<ChildPID, LangServerWriter>>,
-    pub processes: RwLock<HashMap<ChildPID, LangServerProcess>>,
+    servers: RwLock<HashMap<ChildPID, LangServerHandle>>,
+}
+
+#[derive(Clone)]
+struct LangServerHandle {
+    process: LangServerProcess,
+    writer: LangServerWriter,
+    session_id: String,
 }
 
 impl LangServerState {
     pub async fn kill_all(&self) {
-        let mut processes = self.processes.write().await;
-        for (_, process) in processes.iter() {
-            process.kill().await.unwrap();
+        let servers = {
+            let mut state = self.servers.write().await;
+            state.drain().collect::<Vec<_>>()
+        };
+
+        for (pid, server) in servers {
+            if let Err(error) = server.process.kill().await {
+                log::warn!("failed to kill language server {pid}: {error}");
+            }
         }
-        processes.clear();
-        let mut writers = self.writers.write().await;
-        for (_, writer) in writers.iter() {
-            writer.kill().await.unwrap();
-        }
-        writers.clear();
     }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn kill_all_language_servers(
+    state: tauri::State<'_, LangServerState>,
+) -> Result<(), String> {
+    state.kill_all().await;
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Type, Event, Clone, Debug)]
 pub struct LanguageServerEvent {
+    session_id: String,
     pid: ChildPID,
     response: LanguageServerResponse,
 }
@@ -88,6 +114,7 @@ pub async fn launch_language_server(
     state: tauri::State<'_, LangServerState>,
     commands: String,
     io_method: IOMethod,
+    session_id: String,
 ) -> Result<ChildPID, String> {
     let env = get_default_env(&app).map_err(|e| e.to_string())?;
     let cmd = parse_command_with_env(&commands, &env).map_err(|e| e.to_string())?;
@@ -96,41 +123,66 @@ pub async fn launch_language_server(
     let writer = process.create_writer();
     let reader = process.create_reader();
 
-    {
-        let mut process_state = state.processes.write().await;
-        process_state.insert(pid.to_string(), process);
-        let mut writer_state = state.writers.write().await;
-        writer_state.insert(pid.to_string(), writer);
-    }
+    state.servers.write().await.insert(
+        pid.to_string(),
+        LangServerHandle {
+            process,
+            writer,
+            session_id: session_id.clone(),
+        },
+    );
 
     tokio::spawn(async move {
         let pid = pid.to_string();
         let handle = app;
         let state = handle.state::<LangServerState>();
         let reader = reader;
-        while let Ok(message) = reader.receive_message().await {
-            log::trace!("lsp <- {}: {}", &pid, &message);
-            let response_body = LanguageServerEvent {
-                pid: pid.to_string(),
-                response: LanguageServerResponse::Message { msg: message },
-            };
-            response_body.emit(&handle).unwrap();
+        loop {
+            match reader.receive_message().await {
+                Ok(message) => {
+                    log::trace!("lsp <- {}: {}", &pid, &message);
+                    let response_body = LanguageServerEvent {
+                        session_id: session_id.clone(),
+                        pid: pid.to_string(),
+                        response: LanguageServerResponse::Message { msg: message },
+                    };
+                    if let Err(error) = response_body.emit(&handle) {
+                        log::warn!("failed to emit a message from language server {pid}: {error}");
+                    }
+                }
+                Err(error) => {
+                    log::warn!("language server {pid} stdout closed: {error}");
+                    break;
+                }
+            }
         }
-        if !reader.is_alive().await {
-            log::warn!("language server {} is dead", &pid);
-            let response_body = LanguageServerEvent {
-                pid: pid.to_string(),
-                response: LanguageServerResponse::Closed {
-                    exit_code: reader.exit_code().await.unwrap_or(0),
-                },
-            };
-            response_body.emit(&handle).unwrap();
 
-            log::trace!("recycling language server {} handler", &pid);
-            let mut process_state = state.processes.write().await;
-            process_state.remove(&pid);
-            let mut writer_state = state.writers.write().await;
-            writer_state.remove(&pid);
+        let exit_code = match reader.wait_for_exit(Duration::from_secs(1)).await {
+            Ok(status) => status.code().unwrap_or(-1),
+            Err(error) => {
+                log::warn!("failed to reap language server {pid}: {error}");
+                -1
+            }
+        };
+
+        log::trace!("recycling language server {} handler", &pid);
+        let mut servers = state.servers.write().await;
+        if servers
+            .get(&pid)
+            .is_some_and(|server| server.session_id == session_id)
+        {
+            servers.remove(&pid);
+        }
+        drop(servers);
+
+        log::warn!("language server {pid} terminated with exit code {exit_code}");
+        let response_body = LanguageServerEvent {
+            session_id,
+            pid,
+            response: LanguageServerResponse::Closed { exit_code },
+        };
+        if let Err(error) = response_body.emit(&handle) {
+            log::warn!("failed to emit language server termination: {error}");
         }
     });
 
@@ -142,12 +194,20 @@ pub async fn launch_language_server(
 pub async fn kill_language_server(
     state: tauri::State<'_, LangServerState>,
     pid: ChildPID,
+    session_id: String,
 ) -> Result<(), String> {
     log::trace!("killing language server: {}", &pid);
-    let process_state = state.processes.write().await;
-    let process = process_state.get(&pid).ok_or("Process not found")?;
+    let process = {
+        let servers = state.servers.read().await;
+        servers
+            .get(&pid)
+            .filter(|server| server.session_id == session_id)
+            .map(|server| server.process.clone())
+    };
 
-    process.kill().await.map_err(|e| e.to_string())?;
+    if let Some(process) = process {
+        process.kill().await.map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
@@ -156,16 +216,33 @@ pub async fn kill_language_server(
 pub async fn send_message_to_language_server(
     state: tauri::State<'_, LangServerState>,
     pid: ChildPID,
+    session_id: String,
     message: String,
 ) -> Result<(), String> {
     log::trace!("lsp -> {}: {}", &pid, &message);
-    let writer_state = state.writers.write().await;
-    let writer = writer_state.get(&pid).ok_or("Writer not found")?;
-    writer
-        .send_message(&message)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    let server = {
+        let servers = state.servers.read().await;
+        servers
+            .get(&pid)
+            .filter(|server| server.session_id == session_id)
+            .cloned()
+            .ok_or("Language server not found")?
+    };
+
+    let error =
+        match tokio::time::timeout(Duration::from_secs(5), server.writer.send_message(&message))
+            .await
+        {
+            Ok(Ok(())) => return Ok(()),
+            Ok(Err(error)) => error.to_string(),
+            Err(_) => format!("Timed out writing to language server {pid}"),
+        };
+
+    log::warn!("failed to write to language server {pid}: {error}; terminating it");
+    if let Err(kill_error) = server.process.kill().await {
+        log::warn!("failed to terminate unresponsive language server {pid}: {kill_error}");
+    }
+    Err(error)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

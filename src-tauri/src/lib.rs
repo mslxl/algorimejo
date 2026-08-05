@@ -58,7 +58,11 @@ pub fn run() {
             commands::runner::get_checkers_name,
             commands::runner::launch_language_server,
             commands::runner::kill_language_server,
+            commands::runner::kill_all_language_servers,
             commands::runner::send_message_to_language_server,
+            commands::lsp_manager::list_language_server_packages,
+            commands::lsp_manager::install_language_server_package,
+            commands::lsp_manager::uninstall_language_server_package,
             commands::runner::execute_program_callback,
             commands::runner::write_file_to_task_tag,
             commands::runner::execute_program,
@@ -117,6 +121,7 @@ pub fn run() {
             setup::setup_competitive_companion_listener(app)?;
 
             app.manage(commands::runner::LangServerState::default());
+            app.manage(commands::lsp_manager::LanguageServerManagerState::default());
 
             Ok(())
         })

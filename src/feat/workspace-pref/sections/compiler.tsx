@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { languageBaseValues, languageServerProtocolConnectionTypeValues } from "@/lib/client/type"
+import { LanguageServerManager } from "../language-server-manager"
 import { useWorkspacePrefsChangeset, useWorkspacePrefsChangesetApply, useWorkspacePrefsChangesetSetter } from "../workspace-prefs-changeset-context"
 
 export function CompilerSection() {
@@ -100,10 +101,10 @@ export function CompilerSection() {
 				</Select>
 			</PrefsItem>
 
-			<PrefsItem name="Language Configuration" description="Configure compiler settings for different programming languages" className="flex gap-6" hoverHighlight={false}>
-				<div className="flex size-full gap-6">
+			<PrefsItem name="Language Configuration" description="Configure compiler settings for different programming languages" className="gap-6" hoverHighlight={false}>
+				<div className="flex size-full min-w-0 flex-col gap-6 xl:flex-row">
 					{/* Language List Panel */}
-					<Card className="flex w-80 flex-col">
+					<Card className="flex w-full min-w-0 flex-col xl:w-80 xl:shrink-0">
 						<CardHeader className="pb-3">
 							<CardTitle className="text-lg">Languages</CardTitle>
 							<CardDescription>Select a language to configure</CardDescription>
@@ -149,7 +150,7 @@ export function CompilerSection() {
 								</Button>
 							</div>
 							<Separator />
-							<ScrollArea className="flex-1 p-4">
+							<ScrollArea className="max-h-56 flex-1 p-4 xl:max-h-none">
 								<div className="space-y-1">
 									{languageNames.map(item => (
 										<button
@@ -171,7 +172,7 @@ export function CompilerSection() {
 					</Card>
 
 					{/* Configuration Panel */}
-					<Card className="flex-1">
+					<Card className="min-w-0 flex-1">
 						<CardHeader>
 							<div className="flex items-center gap-2">
 								<LucideSettings className="h-5 w-5" />
@@ -179,7 +180,7 @@ export function CompilerSection() {
 							</div>
 							<CardDescription>Configure compiler and language server settings</CardDescription>
 						</CardHeader>
-						<CardContent className="space-y-6">
+						<CardContent className="min-w-0 space-y-6">
 							{/* Language Syntax Base */}
 							<div className="space-y-2">
 								<Label htmlFor="language-base" className="text-sm font-medium">Language Syntax Base</Label>
@@ -347,6 +348,20 @@ export function CompilerSection() {
 							{/* Language Server */}
 							<div className="space-y-4">
 								<h4 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Language Server</h4>
+								<LanguageServerManager
+									key={selectedLanguageName}
+									languageBase={changeset.language[selectedLanguageName]!.base}
+									launchCommand={changeset.language[selectedLanguageName]!.lsp}
+									connection={changeset.language[selectedLanguageName]!.lsp_connect}
+									onUse={command => setChangeset((draft) => {
+										draft.language[selectedLanguageName]!.lsp = command
+										draft.language[selectedLanguageName]!.lsp_connect = "StdIO"
+									}, true)}
+									onDisable={() => setChangeset((draft) => {
+										draft.language[selectedLanguageName]!.lsp = null
+										draft.language[selectedLanguageName]!.lsp_connect = null
+									}, true)}
+								/>
 								<div className="space-y-4">
 									<div className="space-y-2">
 										<Label htmlFor="lsp-cmd" className="text-sm font-medium">

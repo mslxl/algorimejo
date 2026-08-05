@@ -91,7 +91,7 @@ export function WorkspacePref() {
 								className="min-w-48 border-r px-2"
 								onItemClick={handleFocusSection}
 							/>
-							<ScrollArea className="flex-1">
+							<ScrollArea className="min-w-0 flex-1">
 								<EditorSection />
 								<CompilerSection />
 								<StorageSection />

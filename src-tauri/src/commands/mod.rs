@@ -8,6 +8,7 @@ use tauri::{Manager, Runtime, State};
 use tauri_specta::Event;
 
 pub mod database;
+pub mod lsp_manager;
 pub mod runner;
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
