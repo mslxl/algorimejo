@@ -30,6 +30,8 @@ pub struct ProgramConfig {
     pub workspace_history: Vec<PathBuf>,
     pub keymap: Keymap,
     pub detached_run_mode: DetachedRunMode,
+    pub wakatime_enabled: bool,
+    pub wakatime_cli_path: String,
 }
 
 impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
@@ -43,6 +45,8 @@ impl From<ProgramConfigLocalDeserialized> for ProgramConfig {
             workspace_history: value.workspace_history,
             keymap: value.keymap,
             detached_run_mode: value.detached_run_mode,
+            wakatime_enabled: value.wakatime_enabled,
+            wakatime_cli_path: value.wakatime_cli_path,
         }
     }
 }
@@ -71,6 +75,11 @@ pub struct ProgramConfigLocalDeserialized {
 
     #[serde(default = "ProgramConfigLocalDeserialized::default_detached_run_mode")]
     pub detached_run_mode: DetachedRunMode,
+
+    #[serde(default = "ProgramConfigLocalDeserialized::default_wakatime_enabled")]
+    pub wakatime_enabled: bool,
+    #[serde(default = "ProgramConfigLocalDeserialized::default_wakatime_cli_path")]
+    pub wakatime_cli_path: String,
 }
 
 impl ProgramConfigLocalDeserialized {
@@ -98,6 +107,12 @@ impl ProgramConfigLocalDeserialized {
     fn default_detached_run_mode() -> DetachedRunMode {
         DetachedRunMode::EmbeddedTerminal
     }
+    fn default_wakatime_enabled() -> bool {
+        false
+    }
+    fn default_wakatime_cli_path() -> String {
+        "wakatime-cli".to_string()
+    }
 }
 
 impl Default for ProgramConfigLocalDeserialized {
@@ -111,6 +126,8 @@ impl Default for ProgramConfigLocalDeserialized {
             workspace_history: Self::default_workspace_history(),
             keymap: Self::default_keymap(),
             detached_run_mode: Self::default_detached_run_mode(),
+            wakatime_enabled: Self::default_wakatime_enabled(),
+            wakatime_cli_path: Self::default_wakatime_cli_path(),
         }
     }
 }
@@ -153,5 +170,17 @@ impl ProgramConfigRepo {
     }
     pub fn write(&self) -> Result<RwLockWriteGuard<'_, ProgramConfig>> {
         Ok(self.data.write().unwrap())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_config_defaults_wakatime_to_disabled() {
+        let config: ProgramConfigLocalDeserialized = toml::from_str("").unwrap();
+        assert!(!config.wakatime_enabled);
+        assert_eq!(config.wakatime_cli_path, "wakatime-cli");
     }
 }

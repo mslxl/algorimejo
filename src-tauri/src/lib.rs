@@ -32,6 +32,8 @@ pub fn run() {
             commands::exit_app::<tauri::Wry>,
             commands::get_prog_config,
             commands::set_prog_config::<tauri::Wry>,
+            commands::wakatime::check_wakatime_cli,
+            commands::wakatime::send_wakatime_heartbeat,
             commands::get_default_create_problem_params,
             commands::get_default_create_solution_params,
             commands::database::get_problems,

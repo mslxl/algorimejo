@@ -11,6 +11,7 @@ const Editor = withMainUIData(editorPageDataSchema, (data) => {
 	return (
 		<CodeEditor
 			documentID={data.data.documentID}
+			entityName={data.data.entityName}
 			language={data.data.language}
 		/>
 	)
@@ -49,6 +50,7 @@ export const SolutionEditor = withMainUIData(solutionEditorPageDataSchema, (data
 	return (
 		<Editor data={{
 			documentID: sol.data.document!.id,
+			entityName: sol.data.name,
 			language: sol.data.language,
 			problemID: data.data.problemID,
 			solutionID: data.data.solutionID,

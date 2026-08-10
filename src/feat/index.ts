@@ -5,5 +5,8 @@ export async function loadFeatures() {
 
 // TODO: use plugin archtecture
 export async function loadServices() {
-	await (await import("./editor/backup")).initBackupService()
+	await Promise.all([
+		(await import("./editor/backup")).initBackupService(),
+		(await import("./wakatime/wakatime")).initWakatimeService(),
+	])
 }

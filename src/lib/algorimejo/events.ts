@@ -18,8 +18,9 @@ export type AlgorimejoEvents = {
 		key: string
 		data: unknown
 	}
-	documentChanged: { documentID: string, ytext: Text, language: string }
-	documentChangedDebounced: { documentID: string, ytext: Text, language: string }
+	documentOpened: { documentID: string, entityName: string, language: string }
+	documentChanged: { documentID: string, entityName: string, ytext: Text, language: string }
+	documentChangedDebounced: { documentID: string, entityName: string, ytext: Text, language: string }
 	solutionDocumentChangedDebounced: { problemID: string, solutionID: string, documentID: string, ytext: Text, language: string }
 	workspaceConfigChanged: { config: WorkspaceConfig }
 	programConfigChanged: { config: ProgramConfig }

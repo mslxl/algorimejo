@@ -12,6 +12,7 @@ pub mod database;
 pub mod lsp_manager;
 pub mod runner;
 pub mod terminal;
+pub mod wakatime;
 
 #[derive(Debug, Serialize, Deserialize, Event, Clone, Type)]
 pub struct ProgramConfigUpdateEvent {

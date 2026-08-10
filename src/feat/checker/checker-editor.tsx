@@ -111,6 +111,7 @@ export const CheckerEditor = withMainUIData(checkerEditorDataSchema, ({ data }) 
 					className="size-full"
 					documentID={checker.data.document.id}
 					documentUri={fileUri(editorInfo.data.source_path)}
+					entityName={checker.data.name}
 					language={checker.data.language}
 				/>
 			</div>

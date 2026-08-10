@@ -1,4 +1,8 @@
+import { LoaderCircleIcon } from "lucide-react"
+import { useState } from "react"
+import { toast } from "react-toastify"
 import { PrefsItem, PrefsSection } from "@/components/prefs"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { commands } from "@/lib/client"
@@ -8,6 +12,7 @@ export function ToolsSection() {
 	const changeset = useProgramPrefsChangeset()!
 	const updateChangeset = useProgramPrefsChangesetSetter()!
 	const applyChangeset = useProgramPrefsChangesetApply()!
+	const [isTestingWakatime, setIsTestingWakatime] = useState(false)
 
 	async function changeCompetitiveCompanionEnabled(value: boolean) {
 		if (value) {
@@ -25,6 +30,19 @@ export function ToolsSection() {
 		if (changeset.competitive_companion_enabled) {
 			await commands.shutdownCompetitiveCompanionListener()
 			await commands.launchCompetitiveCompanionListener(changeset.competitive_companion_addr)
+		}
+	}
+	async function testWakatimeCli() {
+		setIsTestingWakatime(true)
+		try {
+			const version = await commands.checkWakatimeCli(changeset.wakatime_cli_path)
+			toast.success(`WakaTime CLI: ${version}`)
+		}
+		catch (error) {
+			toast.error(`WakaTime CLI: ${error instanceof Error ? error.message : String(error)}`)
+		}
+		finally {
+			setIsTestingWakatime(false)
 		}
 	}
 	return (
@@ -46,6 +64,30 @@ export function ToolsSection() {
 					}}
 					onBlur={applyCompetitiveCompanionAddr}
 				/>
+			</PrefsItem>
+			<PrefsItem name="WakaTime" description="Send coding activity through wakatime-cli. Uses the API key from ~/.wakatime.cfg.">
+				<Switch
+					checked={changeset.wakatime_enabled}
+					onCheckedChange={value => updateChangeset((draft) => {
+						draft.wakatime_enabled = value
+					}, true)}
+				/>
+			</PrefsItem>
+			<PrefsItem name="WakaTime CLI" description="Executable name or absolute path to wakatime-cli">
+				<div className="flex items-center gap-2">
+					<Input
+						value={changeset.wakatime_cli_path}
+						placeholder="wakatime-cli"
+						onChange={event => updateChangeset((draft) => {
+							draft.wakatime_cli_path = event.target.value
+						})}
+						onBlur={() => applyChangeset()}
+					/>
+					<Button type="button" variant="outline" onClick={testWakatimeCli} disabled={isTestingWakatime}>
+						{isTestingWakatime && <LoaderCircleIcon className="animate-spin" />}
+						Test
+					</Button>
+				</div>
 			</PrefsItem>
 		</PrefsSection>
 	)

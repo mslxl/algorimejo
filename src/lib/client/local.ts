@@ -14,6 +14,12 @@ async getProgConfig() : Promise<ProgramConfig> {
 async setProgConfig(data: ProgramConfig) : Promise<null> {
     return await TAURI_INVOKE("set_prog_config", { data });
 },
+async checkWakatimeCli(path: string | null) : Promise<string> {
+    return await TAURI_INVOKE("check_wakatime_cli", { path });
+},
+async sendWakatimeHeartbeat(documentId: string, entityName: string, language: string, isWrite: boolean) : Promise<null> {
+    return await TAURI_INVOKE("send_wakatime_heartbeat", { documentId, entityName, language, isWrite });
+},
 async getDefaultCreateProblemParams(name: string, group: string | null, url: string | null, statement: string | null) : Promise<CreateProblemParams> {
     return await TAURI_INVOKE("get_default_create_problem_params", { name, group, url, statement });
 },
@@ -242,7 +248,7 @@ export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: Checker; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }
 export type ProblemChangeset = { name: string | null; url: string | null; group: string | null; statement: string | null; checker_id: string | null; time_limit: number | null; memory_limit: number | null }
-export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[]; keymap: Keymap; detached_run_mode: DetachedRunMode }
+export type ProgramConfig = { workspace: string | null; theme: string; system_titlebar: boolean; competitive_companion_addr: string; competitive_companion_enabled: boolean; workspace_history: string[]; keymap: Keymap; detached_run_mode: DetachedRunMode; wakatime_enabled: boolean; wakatime_cli_path: string }
 export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
 export type ProgramOutputEvent = { task_tag: string; source: ProgramOutputSource; line: string }

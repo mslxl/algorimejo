@@ -23,11 +23,12 @@ interface CodeEditorProps {
 	className?: string
 	documentID: string
 	documentUri?: string
+	entityName?: string
 	language?: string
 	textarea?: boolean
 }
 
-export function CodeEditorSuspend({ className, documentID, documentUri, language = "Text", textarea }: CodeEditorProps) {
+export function CodeEditorSuspend({ className, documentID, documentUri, entityName = documentID, language = "Text", textarea }: CodeEditorProps) {
 	const [isDocumentLoaded, setIsDocumentLoaded] = useState(false)
 	const ydoc = useMemo(() => {
 		const doc = new Y.Doc()
@@ -51,11 +52,16 @@ export function CodeEditorSuspend({ className, documentID, documentUri, language
 	}, [documentID])
 
 	const ytext = useMemo(() => ydoc.getText("content"), [ydoc])
+	useEffect(() => {
+		if (isDocumentLoaded) {
+			algorimejo.events.emit("documentOpened", { documentID, entityName, language })
+		}
+	}, [documentID, entityName, isDocumentLoaded, language])
 
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const emitDocumentChangeEventDebounced = useCallback(debounce(2000, () => {
-		algorimejo.events.emit("documentChangedDebounced", { documentID, ytext, language })
-	}), [ydoc, documentID])
+		algorimejo.events.emit("documentChangedDebounced", { documentID, entityName, ytext, language })
+	}), [ydoc, documentID, entityName, language])
 
 	useEffect(() => {
 		const cb = (update: Uint8Array, origin: any, _doc: Y.Doc, _transaction: Y.Transaction) => {
@@ -64,7 +70,7 @@ export function CodeEditorSuspend({ className, documentID, documentUri, language
 					toast.error(`failed to apply change with local error message: ${e}`)
 				})
 
-				algorimejo.events.emit("documentChanged", { documentID, ytext, language })
+				algorimejo.events.emit("documentChanged", { documentID, entityName, ytext, language })
 				emitDocumentChangeEventDebounced()
 			}
 		}
@@ -72,7 +78,7 @@ export function CodeEditorSuspend({ className, documentID, documentUri, language
 		return () => {
 			ydoc.off("update", cb)
 		}
-	}, [ydoc, documentID, emitDocumentChangeEventDebounced, ytext, language])
+	}, [ydoc, documentID, emitDocumentChangeEventDebounced, entityName, ytext, language])
 
 	const workspaceConfig = useWorkspaceConfig()
 	const programConfig = useProgramConfig()
