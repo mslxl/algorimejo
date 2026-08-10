@@ -30,7 +30,12 @@ async function listener({ problemID, solutionID, ytext }: AlgorimejoEvents["solu
 }
 
 export async function initBackupService() {
+	let subscribed = false
+
 	function update(enable: boolean) {
+		if (enable === subscribed)
+			return
+		subscribed = enable
 		trace(`auto save duplicated file status: ${enable}`)
 		if (enable) {
 			algorimejo.events.on("solutionDocumentChangedDebounced", listener)

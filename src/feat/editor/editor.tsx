@@ -19,15 +19,18 @@ const Editor = withMainUIData(editorPageDataSchema, (data) => {
 
 export const SolutionEditor = withMainUIData(solutionEditorPageDataSchema, (data) => {
 	const sol = useSolution(data.data.solutionID, data.data.problemID)
+	const documentID = sol.data?.document?.id
+	const problemID = data.data.problemID
+	const solutionID = data.data.solutionID
 	useEffect(() => {
-		if (sol.status !== "success")
+		if (!documentID)
 			return () => {}
-		const forwardEvent = ({ documentID, ytext, language }: AlgorimejoEvents["documentChangedDebounced"]) => {
-			if (documentID === sol.data.document?.id) {
+		const forwardEvent = ({ documentID: changedDocumentID, ytext, language }: AlgorimejoEvents["documentChangedDebounced"]) => {
+			if (changedDocumentID === documentID) {
 				algorimejo.events.emit("solutionDocumentChangedDebounced", {
-					problemID: data.data.problemID,
-					solutionID: data.data.solutionID,
-					documentID,
+					problemID,
+					solutionID,
+					documentID: changedDocumentID,
 					ytext,
 					language,
 				})
@@ -36,9 +39,9 @@ export const SolutionEditor = withMainUIData(solutionEditorPageDataSchema, (data
 		algorimejo.events.on("documentChangedDebounced", forwardEvent)
 
 		return () => {
-			algorimejo.events.off("documentChangedDebounced")
+			algorimejo.events.off("documentChangedDebounced", forwardEvent)
 		}
-	}, [sol, data.data])
+	}, [documentID, problemID, solutionID])
 
 	if (sol.status === "error") {
 		return <ErrorLabel message={sol.error} location={`editor loading solution info for ${data.data.solutionID} of problem ${data.data.problemID}`} />
