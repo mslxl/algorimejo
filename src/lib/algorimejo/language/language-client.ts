@@ -128,7 +128,10 @@ export class LanguageClient {
 		this.cleanupTimers.forEach(timer => clearTimeout(timer))
 		this.cleanupTimers.clear()
 		this.references.clear()
+		this.resetAllSessions()
+	}
 
+	resetAllSessions(): void {
 		const sessions = [...this.process.values()]
 		this.process.clear()
 		sessions.forEach((session) => {

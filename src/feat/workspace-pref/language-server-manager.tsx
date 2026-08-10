@@ -1,10 +1,12 @@
-import type { LanguageBase, LanguageServerPackage, LanguageServerProtocolConnectionType } from "@/lib/client"
+import type { LanguageBase, LanguageServerInstallProgress, LanguageServerPackage, LanguageServerProtocolConnectionType } from "@/lib/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CircleCheck, Download, LoaderCircle, Play, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { algorimejo } from "@/lib/algorimejo"
-import { commands } from "@/lib/client"
+import { commands, events } from "@/lib/client"
 
 const queryKey = ["language-server-packages"] as const
 
@@ -12,8 +14,57 @@ interface LanguageServerManagerProps {
 	languageBase: LanguageBase
 	launchCommand: string | null
 	connection: LanguageServerProtocolConnectionType | null
-	onUse: (command: string) => void
-	onDisable: () => void
+	onUse: (command: string) => Promise<void>
+	onDisable: (command: string) => Promise<void>
+}
+
+interface ProgressDisplay {
+	label: string
+	detail: string | null
+	value: number | null
+}
+
+function formatBytes(value: number): string {
+	if (value < 1024)
+		return `${value} B`
+	if (value < 1024 ** 2)
+		return `${(value / 1024).toFixed(1)} KiB`
+	return `${(value / 1024 ** 2).toFixed(1)} MiB`
+}
+
+function progressDisplay(progress: LanguageServerInstallProgress | null): ProgressDisplay {
+	if (progress === null || progress.type === "Preparing") {
+		return { label: "Preparing installation", detail: null, value: null }
+	}
+	if (progress.type === "Downloading") {
+		const step = progress.artifact_count > 1
+			? `File ${progress.artifact_index} of ${progress.artifact_count}`
+			: null
+		const hasTotal = progress.total !== null && progress.total > 0
+		return {
+			label: `Downloading ${progress.artifact}`,
+			detail: [
+				hasTotal
+					? `${formatBytes(progress.downloaded)} / ${formatBytes(progress.total!)}`
+					: formatBytes(progress.downloaded),
+				step,
+			].filter(Boolean).join(" · "),
+			value: hasTotal ? progress.downloaded / progress.total! * 100 : null,
+		}
+	}
+	if (progress.type === "Extracting") {
+		return {
+			label: `Extracting ${progress.artifact}`,
+			detail: progress.artifact_count > 1
+				? `File ${progress.artifact_index} of ${progress.artifact_count}`
+				: null,
+			value: null,
+		}
+	}
+	if (progress.type === "Installing") {
+		return { label: progress.detail, detail: null, value: null }
+	}
+	return { label: "Activating language server", detail: null, value: null }
 }
 
 function replacePackage(
@@ -31,6 +82,8 @@ export function LanguageServerManager({
 	onDisable,
 }: LanguageServerManagerProps) {
 	const queryClient = useQueryClient()
+	const operationIdRef = useRef<string | null>(null)
+	const [installProgress, setInstallProgress] = useState<LanguageServerInstallProgress | null>(null)
 	const packages = useQuery({
 		queryKey,
 		queryFn: commands.listLanguageServerPackages,
@@ -38,39 +91,75 @@ export function LanguageServerManager({
 	})
 	const languageServer = packages.data?.find(item => item.languages.includes(languageBase))
 
-	const install = useMutation({
-		mutationFn: async ({ packageId, stopServers }: { packageId: string, stopServers: boolean }) => {
-			if (stopServers) {
-				algorimejo.langClient.terminalAll()
-				await commands.killAllLanguageServers()
+	useEffect(() => {
+		let disposed = false
+		let unlisten: (() => void) | undefined
+		void events.languageServerInstallProgressEvent.listen((event) => {
+			if (event.payload.operation_id === operationIdRef.current) {
+				setInstallProgress(event.payload.progress)
 			}
-			return commands.installLanguageServerPackage(packageId)
+		}).then((dispose) => {
+			if (disposed)
+				dispose()
+			else
+				unlisten = dispose
+		})
+		return () => {
+			disposed = true
+			unlisten?.()
+		}
+	}, [])
+
+	async function stopLanguageServers() {
+		algorimejo.langClient.resetAllSessions()
+		await commands.killAllLanguageServers()
+	}
+
+	async function restartLanguageServers() {
+		await queryClient.invalidateQueries({ queryKey: ["language-extension"] })
+	}
+
+	const install = useMutation({
+		mutationFn: async ({ packageId, operationId, stopServers }: { packageId: string, operationId: string, stopServers: boolean }) => {
+			if (stopServers) {
+				await stopLanguageServers()
+			}
+			return commands.installLanguageServerPackage(packageId, operationId)
 		},
-		onSuccess: (installed) => {
+		onSuccess: async (installed) => {
 			queryClient.setQueryData<LanguageServerPackage[]>(queryKey, current => replacePackage(current, installed))
 			if (installed.launch_command !== null) {
-				onUse(installed.launch_command)
+				await onUse(installed.launch_command)
 			}
 			toast.success(`${installed.name} ${installed.version} installed`)
 		},
+		onSettled: async (_data, _error, variables) => {
+			if (variables.stopServers) {
+				await restartLanguageServers()
+			}
+			if (operationIdRef.current === variables.operationId) {
+				operationIdRef.current = null
+				setInstallProgress(null)
+			}
+		},
 	})
 	const uninstall = useMutation({
-		mutationFn: async ({ packageId }: { packageId: string, name: string, disable: boolean }) => {
-			algorimejo.langClient.terminalAll()
-			await commands.killAllLanguageServers()
+		mutationFn: async ({ packageId }: { packageId: string, name: string, launchCommand: string | null }) => {
+			await stopLanguageServers()
 			return commands.uninstallLanguageServerPackage(packageId)
 		},
-		onSuccess: (_, { packageId, name, disable }) => {
+		onSuccess: async (_, { packageId, name, launchCommand }) => {
 			queryClient.setQueryData<LanguageServerPackage[]>(queryKey, current => (current ?? []).map(item => (
 				item.id === packageId
 					? { ...item, installed: false, installed_version: null, launch_command: null }
 					: item
 			)))
-			if (disable) {
-				onDisable()
+			if (launchCommand !== null) {
+				await onDisable(launchCommand)
 			}
 			toast.success(`${name} uninstalled`)
 		},
+		onSettled: restartLanguageServers,
 	})
 
 	if (packages.isPending) {
@@ -111,12 +200,17 @@ export function LanguageServerManager({
 	const mutationError = install.error ?? uninstall.error
 
 	function handleInstall() {
-		install.mutate({ packageId: server.id, stopServers: server.installed })
+		const operationId = crypto.randomUUID()
+		operationIdRef.current = operationId
+		setInstallProgress({ type: "Preparing" })
+		install.mutate({ packageId: server.id, operationId, stopServers: server.installed })
 	}
 
 	function handleUninstall() {
-		uninstall.mutate({ packageId: server.id, name: server.name, disable: isConfigured })
+		uninstall.mutate({ packageId: server.id, name: server.name, launchCommand: server.launch_command })
 	}
+
+	const progress = progressDisplay(installProgress)
 
 	return (
 		<div className="space-y-3 border-y py-3">
@@ -166,6 +260,16 @@ export function LanguageServerManager({
 					)}
 				</div>
 			</div>
+
+			{install.isPending && (
+				<div className="space-y-1.5" aria-live="polite">
+					<div className="flex min-w-0 items-center justify-between gap-3 text-xs">
+						<span className="truncate text-foreground">{progress.label}</span>
+						{progress.detail && <span className="shrink-0 text-muted-foreground">{progress.detail}</span>}
+					</div>
+					<Progress label={progress.label} value={progress.value} />
+				</div>
+			)}
 
 			{mutationError && (
 				<p className="text-sm break-words text-destructive">

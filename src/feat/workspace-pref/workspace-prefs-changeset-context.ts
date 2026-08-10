@@ -3,7 +3,7 @@ import type { WorkspaceConfig } from "@/lib/client"
 import { createContext, useContext } from "react"
 
 export const WorkspacePrefsChangesetContext = createContext<WorkspaceConfig | null>(null)
-export const WorkspacePrefsChangesetSetterContext = createContext<((setter: (draft: Draft<WorkspaceConfig>) => void, applyInstant?: boolean) => void) | null>(null)
+export const WorkspacePrefsChangesetSetterContext = createContext<((setter: (draft: Draft<WorkspaceConfig>) => void, applyInstant?: boolean) => Promise<void>) | null>(null)
 export const WorkspacePrefsChangesetApplyContext = createContext<(() => Promise<void>) | null>(null)
 
 export function useWorkspacePrefsChangeset() {

@@ -24,6 +24,7 @@ pub fn run() {
             commands::ToastEvent,
             commands::ProgramConfigUpdateEvent,
             commands::database::WorkspaceConfigUpdateEvent,
+            commands::lsp_manager::LanguageServerInstallProgressEvent,
             commands::runner::LanguageServerEvent,
             commands::runner::ProgramOutputEvent,
             commands::terminal::PtyProcessEvent,
@@ -140,6 +141,11 @@ pub fn run() {
             setup::setup_document_repo(app)?;
             setup::setup_decorum(app)?;
             setup::setup_competitive_companion_listener(app)?;
+            if let Err(error) =
+                commands::lsp_manager::recover_managed_language_servers(app.handle())
+            {
+                log::warn!("failed to recover managed language server installations: {error}");
+            }
 
             app.manage(commands::runner::LangServerState::default());
             app.manage(commands::terminal::PtySessionState::default());

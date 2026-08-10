@@ -149,8 +149,8 @@ async sendMessageToLanguageServer(pid: string, sessionId: string, message: strin
 async listLanguageServerPackages() : Promise<LanguageServerPackage[]> {
     return await TAURI_INVOKE("list_language_server_packages");
 },
-async installLanguageServerPackage(packageId: string) : Promise<LanguageServerPackage> {
-    return await TAURI_INVOKE("install_language_server_package", { packageId });
+async installLanguageServerPackage(packageId: string, operationId: string) : Promise<LanguageServerPackage> {
+    return await TAURI_INVOKE("install_language_server_package", { packageId, operationId });
 },
 async uninstallLanguageServerPackage(packageId: string) : Promise<null> {
     return await TAURI_INVOKE("uninstall_language_server_package", { packageId });
@@ -186,6 +186,7 @@ async killPtySession(sessionId: string) : Promise<null> {
 
 export const events = __makeEvents__<{
 languageServerEvent: LanguageServerEvent,
+languageServerInstallProgressEvent: LanguageServerInstallProgressEvent,
 programConfigUpdateEvent: ProgramConfigUpdateEvent,
 programOutputEvent: ProgramOutputEvent,
 ptyProcessEvent: PtyProcessEvent,
@@ -194,6 +195,7 @@ toastEvent: ToastEvent,
 workspaceConfigUpdateEvent: WorkspaceConfigUpdateEvent
 }>({
 languageServerEvent: "language-server-event",
+languageServerInstallProgressEvent: "language-server-install-progress-event",
 programConfigUpdateEvent: "program-config-update-event",
 programOutputEvent: "program-output-event",
 ptyProcessEvent: "pty-process-event",
@@ -227,6 +229,7 @@ export type CreateProblemParams = { name: string; url: string | null; group: str
 export type CreateProblemResult = { problem: Problem }
 export type CreateSolutionParams = { author: string | null; name: string; language: string; content: string | null }
 export type CreateSolutionResult = { solution: Solution }
+export type DetachedRunMode = "EmbeddedTerminal" | "ExternalTerminal"
 export type Document = { id: string; create_datetime: string; modified_datetime: string; filename: string }
 export type GetProblemsParams = { cursor: string | null; limit: number | null; search: string | null; sort_by: GetProblemsSortBy | null; sort_order: SortOrder | null }
 export type GetProblemsResult = { problems: Problem[]; next_cursor: string | null; has_more: boolean }
@@ -240,9 +243,10 @@ export type IOMethod =
  */
 "StdIO"
 export type Keymap = "Default" | "Vim" | "Emacs"
-export type DetachedRunMode = "EmbeddedTerminal" | "ExternalTerminal"
 export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text" | "Unknown"
 export type LanguageServerEvent = { session_id: string; pid: string; response: LanguageServerResponse }
+export type LanguageServerInstallProgress = { type: "Preparing" } | { type: "Downloading"; artifact: string; downloaded: number; total: number | null; artifact_index: number; artifact_count: number } | { type: "Extracting"; artifact: string; artifact_index: number; artifact_count: number } | { type: "Installing"; detail: string } | { type: "Activating" }
+export type LanguageServerInstallProgressEvent = { operation_id: string; package_id: string; progress: LanguageServerInstallProgress }
 export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
@@ -253,9 +257,9 @@ export type ProgramConfigUpdateEvent = { new: ProgramConfig }
 export type ProgramOutput = { type: "Full"; exit_code: number; is_timeout: boolean; content: string; output_file: string } | { type: "Strip"; exit_code: number; size: number; is_timeout: boolean; content: string; output_file: string }
 export type ProgramOutputEvent = { task_tag: string; source: ProgramOutputSource; line: string }
 export type ProgramOutputSource = "Stdout" | "Stderr"
+export type ProgramSimpleOutput = { exit_code: number; stdout: string; stderr: string; is_timeout: boolean }
 export type PtyProcessEvent = { session_id: string; event: PtyProcessEventKind }
 export type PtyProcessEventKind = { type: "Output"; data: number[] } | { type: "Stderr"; data: number[] } | { type: "Exit"; exit_code: number; signal: string | null } | { type: "Error"; message: string }
-export type ProgramSimpleOutput = { exit_code: number; stdout: string; stderr: string; is_timeout: boolean }
 export type QueryClientInvalidateEvent = { query_key: string[] | null }
 export type Solution = { id: string; author: string; name: string; language: string; problem_id: string; document: Document | null }
 export type SolutionChangeset = { name: string | null; author: string | null; language: string | null }

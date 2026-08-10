@@ -357,9 +357,13 @@ export function CompilerSection() {
 										draft.language[selectedLanguageName]!.lsp = command
 										draft.language[selectedLanguageName]!.lsp_connect = "StdIO"
 									}, true)}
-									onDisable={() => setChangeset((draft) => {
-										draft.language[selectedLanguageName]!.lsp = null
-										draft.language[selectedLanguageName]!.lsp_connect = null
+									onDisable={command => setChangeset((draft) => {
+										Object.values(draft.language).forEach((language) => {
+											if (language?.lsp === command) {
+												language.lsp = null
+												language.lsp_connect = null
+											}
+										})
 									}, true)}
 								/>
 								<div className="space-y-4">

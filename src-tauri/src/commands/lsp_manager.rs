@@ -4,7 +4,7 @@ use std::{
     io,
     path::{Path, PathBuf},
     process::Command,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use specta::Type;
 use tauri::Manager;
+use tauri_specta::Event;
 use tokio::{io::AsyncWriteExt, sync::Mutex};
 
 use crate::{
@@ -44,6 +45,35 @@ pub struct LanguageServerPackage {
     pub launch_command: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "type")]
+pub enum LanguageServerInstallProgress {
+    Preparing,
+    Downloading {
+        artifact: String,
+        downloaded: u64,
+        total: Option<u64>,
+        artifact_index: usize,
+        artifact_count: usize,
+    },
+    Extracting {
+        artifact: String,
+        artifact_index: usize,
+        artifact_count: usize,
+    },
+    Installing {
+        detail: String,
+    },
+    Activating,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Event, Type)]
+pub struct LanguageServerInstallProgressEvent {
+    operation_id: String,
+    package_id: String,
+    progress: LanguageServerInstallProgress,
+}
+
 #[derive(Clone, Copy)]
 enum ArchiveFormat {
     Zip,
@@ -59,6 +89,7 @@ struct DownloadArtifact {
 
 #[derive(Clone, Copy)]
 struct NodePackageArtifact {
+    name: &'static str,
     artifact: DownloadArtifact,
     destination: &'static str,
     required_file: &'static str,
@@ -94,6 +125,41 @@ struct RegistryPackage {
     installer: Installer,
 }
 
+#[derive(Clone)]
+struct InstallProgressReporter {
+    app: tauri::AppHandle,
+    operation_id: String,
+    package_id: String,
+    artifact_count: usize,
+}
+
+impl InstallProgressReporter {
+    fn new(app: tauri::AppHandle, operation_id: String, package: RegistryPackage) -> Self {
+        let artifact_count = match package.installer {
+            Installer::Archive { .. } | Installer::ManagedGo { .. } => 1,
+            Installer::Node { packages, .. } => packages.len() + 1,
+        };
+        Self {
+            app,
+            operation_id,
+            package_id: package.id.to_string(),
+            artifact_count,
+        }
+    }
+
+    fn emit(&self, progress: LanguageServerInstallProgress) {
+        if let Err(error) = (LanguageServerInstallProgressEvent {
+            operation_id: self.operation_id.clone(),
+            package_id: self.package_id.clone(),
+            progress,
+        })
+        .emit(&self.app)
+        {
+            log::warn!("failed to emit language server installation progress: {error}");
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct InstallManifest {
     id: String,
@@ -102,7 +168,7 @@ struct InstallManifest {
 }
 
 fn clangd_artifact() -> Option<DownloadArtifact> {
-    if cfg!(target_os = "windows") {
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
         Some(DownloadArtifact {
             url: "https://github.com/clangd/clangd/releases/download/20.1.8/clangd-windows-20.1.8.zip",
             sha256: "717a0700fc660574647468b3d0b67e46a077d27e4da794d9d0c212add6ba6765",
@@ -258,6 +324,7 @@ fn registry() -> Vec<RegistryPackage> {
                 runtime,
                 runtime_executable,
                 packages: &[NodePackageArtifact {
+                    name: "Pyright",
                     artifact: DownloadArtifact {
                         url: "https://registry.npmjs.org/pyright/-/pyright-1.1.403.tgz",
                         sha256: "d62b36fcff0a5f67b8cfc25b5618bc232a8e0b714593e25a83cdbba3d47eec9d",
@@ -280,6 +347,7 @@ fn registry() -> Vec<RegistryPackage> {
                 runtime_executable,
                 packages: &[
                     NodePackageArtifact {
+                        name: "TypeScript Language Server",
                         artifact: DownloadArtifact {
                             url: "https://registry.npmjs.org/typescript-language-server/-/typescript-language-server-4.3.4.tgz",
                             sha256: "9a8aef1dd532f9b4b38087b002b949d9e761ab31fe1dc2f0bfe43ac223150385",
@@ -289,6 +357,7 @@ fn registry() -> Vec<RegistryPackage> {
                         required_file: "lib/cli.mjs",
                     },
                     NodePackageArtifact {
+                        name: "TypeScript",
                         artifact: DownloadArtifact {
                             url: "https://registry.npmjs.org/typescript/-/typescript-5.9.2.tgz",
                             sha256: "67a3bc82e822b8f45f653a80fc3a9730d23214d36c83ba85dd7f5abebee82062",
@@ -340,8 +409,133 @@ fn managed_root(app: &tauri::AppHandle) -> Result<PathBuf> {
     Ok(app.path().app_data_dir()?.join("language-servers"))
 }
 
+pub fn recover_managed_language_servers(app: &tauri::AppHandle) -> Result<()> {
+    let root = managed_root(app)?;
+    if !root.is_dir() {
+        return Ok(());
+    }
+
+    for package in registry() {
+        if let Err(error) = recover_package_backup(&root, package) {
+            log::warn!(
+                "failed to recover language server package {}: {error}",
+                package.id
+            );
+        }
+    }
+
+    cleanup_stale_installation_entries(&root)?;
+    Ok(())
+}
+
+fn cleanup_stale_installation_entries(root: &Path) -> Result<()> {
+    for entry in std::fs::read_dir(root)? {
+        let path = entry?.path();
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if name.starts_with(".install-") || name.starts_with(".download-") {
+            if let Err(error) = remove_managed_entry(&path) {
+                log::warn!(
+                    "failed to remove stale language server installation entry {}: {error}",
+                    path.display()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn recover_package_backup(root: &Path, package: RegistryPackage) -> Result<()> {
+    let destination = package_dir(root, package);
+    let backup_prefix = format!(".backup-{}-", package.id);
+    let mut backups = std::fs::read_dir(root)?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.is_dir()
+                && path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .is_some_and(|name| name.starts_with(&backup_prefix))
+        })
+        .collect::<Vec<_>>();
+    backups.sort_by_key(|path| {
+        std::cmp::Reverse(
+            path.metadata()
+                .and_then(|metadata| metadata.modified())
+                .ok(),
+        )
+    });
+
+    let mut recovered = None;
+    if !valid_package_directory(&destination, package) {
+        if let Some(backup) = backups
+            .iter()
+            .find(|backup| valid_package_directory(backup, package))
+        {
+            if destination.exists() {
+                remove_managed_entry(&destination)?;
+            }
+            std::fs::rename(backup, &destination)?;
+            recovered = Some(backup.clone());
+            log::info!(
+                "recovered interrupted language server update for {}",
+                package.id
+            );
+        }
+    }
+
+    for backup in backups {
+        if recovered.as_ref() != Some(&backup) && backup.exists() {
+            remove_managed_entry(&backup)?;
+        }
+    }
+    Ok(())
+}
+
+fn remove_managed_entry(path: &Path) -> io::Result<()> {
+    if path.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    }
+}
+
 fn package_dir(root: &Path, package: RegistryPackage) -> PathBuf {
     root.join(package.id)
+}
+
+fn valid_package_manifest(
+    directory: &Path,
+    package: RegistryPackage,
+    manifest: &InstallManifest,
+) -> bool {
+    if manifest.id != package.id || !directory.join(&manifest.executable).is_file() {
+        return false;
+    }
+    match package.installer {
+        Installer::Node {
+            packages,
+            server_script,
+            ..
+        } => {
+            directory.join(server_script).is_file()
+                && packages.iter().all(|artifact| {
+                    directory
+                        .join(artifact.destination)
+                        .join(artifact.required_file)
+                        .is_file()
+                })
+        }
+        Installer::Archive { .. } | Installer::ManagedGo { .. } => true,
+    }
+}
+
+fn valid_package_directory(directory: &Path, package: RegistryPackage) -> bool {
+    std::fs::read(directory.join(MANIFEST_FILE))
+        .ok()
+        .and_then(|data| serde_json::from_slice::<InstallManifest>(&data).ok())
+        .is_some_and(|manifest| valid_package_manifest(directory, package, &manifest))
 }
 
 async fn read_manifest(directory: &Path) -> Result<InstallManifest> {
@@ -379,27 +573,8 @@ fn launch_command(package: RegistryPackage, manifest: &InstallManifest) -> Strin
 async fn package_status(root: &Path, package: RegistryPackage) -> LanguageServerPackage {
     let directory = package_dir(root, package);
     let manifest = read_manifest(&directory).await.ok();
-    let valid_manifest = manifest.filter(|manifest| {
-        if manifest.id != package.id || !directory.join(&manifest.executable).is_file() {
-            return false;
-        }
-        match package.installer {
-            Installer::Node {
-                packages,
-                server_script,
-                ..
-            } => {
-                directory.join(server_script).is_file()
-                    && packages.iter().all(|artifact| {
-                        directory
-                            .join(artifact.destination)
-                            .join(artifact.required_file)
-                            .is_file()
-                    })
-            }
-            Installer::Archive { .. } | Installer::ManagedGo { .. } => true,
-        }
-    });
+    let valid_manifest =
+        manifest.filter(|manifest| valid_package_manifest(&directory, package, manifest));
 
     LanguageServerPackage {
         id: package.id.to_string(),
@@ -447,15 +622,18 @@ pub async fn install_language_server_package(
     app: tauri::AppHandle,
     state: tauri::State<'_, LanguageServerManagerState>,
     package_id: String,
+    operation_id: String,
 ) -> Result<LanguageServerPackage, String> {
     let package = registry_package(&package_id).map_err(|error| error.to_string())?;
+    let reporter = InstallProgressReporter::new(app.clone(), operation_id, package);
     set_package_active(&state, &package_id)
         .await
         .map_err(|error| error.to_string())?;
+    reporter.emit(LanguageServerInstallProgress::Preparing);
 
     let root = managed_root(&app).map_err(|error| error.to_string());
     let result = match root {
-        Ok(root) => install_package(&root, package)
+        Ok(root) => install_package(&root, package, &reporter)
             .await
             .map(|_| root)
             .map_err(|error| error.to_string()),
@@ -467,13 +645,17 @@ pub async fn install_language_server_package(
     Ok(package_status(&root, package).await)
 }
 
-async fn install_package(root: &Path, package: RegistryPackage) -> Result<()> {
+async fn install_package(
+    root: &Path,
+    package: RegistryPackage,
+    reporter: &InstallProgressReporter,
+) -> Result<()> {
     tokio::fs::create_dir_all(root).await?;
     let temporary = root.join(format!(".install-{}-{}", package.id, uuid::Uuid::new_v4()));
     tokio::fs::create_dir(&temporary).await?;
 
     let result = async {
-        let executable = install_into(&temporary, package).await?;
+        let executable = install_into(&temporary, package, reporter).await?;
         let manifest = InstallManifest {
             id: package.id.to_string(),
             version: package.version.to_string(),
@@ -485,6 +667,7 @@ async fn install_package(root: &Path, package: RegistryPackage) -> Result<()> {
         )
         .await?;
 
+        reporter.emit(LanguageServerInstallProgress::Activating);
         replace_package_directory(root, package, &temporary).await
     }
     .await;
@@ -531,24 +714,38 @@ async fn replace_package_directory(
     Ok(())
 }
 
-async fn install_into(directory: &Path, package: RegistryPackage) -> Result<PathBuf> {
+async fn install_into(
+    directory: &Path,
+    package: RegistryPackage,
+    reporter: &InstallProgressReporter,
+) -> Result<PathBuf> {
     match package.installer {
         Installer::Archive {
             artifact,
             executable_name,
-        } => install_archive(directory, artifact, executable_name).await,
+        } => install_archive(directory, artifact, executable_name, package.name, reporter).await,
         Installer::Node {
             runtime,
             runtime_executable,
             packages,
             ..
-        } => install_node_server(directory, runtime, runtime_executable, packages).await,
+        } => install_node_server(directory, runtime, runtime_executable, packages, reporter).await,
         Installer::ManagedGo {
             runtime,
             runtime_executable,
             package,
             executable,
-        } => install_managed_go(directory, runtime, runtime_executable, package, executable).await,
+        } => {
+            install_managed_go(
+                directory,
+                runtime,
+                runtime_executable,
+                package,
+                executable,
+                reporter,
+            )
+            .await
+        }
     }
 }
 
@@ -556,8 +753,10 @@ async fn install_archive(
     directory: &Path,
     artifact: DownloadArtifact,
     executable_name: &str,
+    artifact_name: &str,
+    reporter: &InstallProgressReporter,
 ) -> Result<PathBuf> {
-    download_and_extract(directory, artifact, 0).await?;
+    download_and_extract(directory, artifact, 0, artifact_name, 1, reporter).await?;
     find_file_named(directory, executable_name)?
         .strip_prefix(directory)
         .map(Path::to_path_buf)
@@ -569,14 +768,31 @@ async fn install_node_server(
     runtime: DownloadArtifact,
     runtime_executable: &str,
     packages: &[NodePackageArtifact],
+    reporter: &InstallProgressReporter,
 ) -> Result<PathBuf> {
-    download_and_extract(&directory.join("runtime"), runtime, 1).await?;
+    download_and_extract(
+        &directory.join("runtime"),
+        runtime,
+        1,
+        "Node.js runtime",
+        1,
+        reporter,
+    )
+    .await?;
     let runtime_executable = PathBuf::from(runtime_executable);
     retain_runtime_executable(directory, &runtime_executable).await?;
 
-    for package in packages {
+    for (index, package) in packages.iter().enumerate() {
         let destination = directory.join(package.destination);
-        download_and_extract(&destination, package.artifact, 1).await?;
+        download_and_extract(
+            &destination,
+            package.artifact,
+            1,
+            package.name,
+            index + 2,
+            reporter,
+        )
+        .await?;
         if !destination.join(package.required_file).is_file() {
             bail!(
                 "Language server archive does not contain {}",
@@ -615,9 +831,10 @@ async fn install_managed_go(
     runtime_executable: &str,
     package: &str,
     executable: &str,
+    reporter: &InstallProgressReporter,
 ) -> Result<PathBuf> {
     let toolchain = directory.join(".toolchain");
-    download_and_extract(&toolchain, runtime, 1).await?;
+    download_and_extract(&toolchain, runtime, 1, "Go toolchain", 1, reporter).await?;
 
     let binary_dir = directory.join("bin");
     let gopath = directory.join(".gopath");
@@ -626,6 +843,9 @@ async fn install_managed_go(
     tokio::fs::create_dir_all(&binary_dir).await?;
 
     let mut command = Command::new(directory.join(runtime_executable));
+    reporter.emit(LanguageServerInstallProgress::Installing {
+        detail: "Building gopls with the managed Go toolchain".to_string(),
+    });
     command
         .current_dir(directory)
         .env("GOROOT", &toolchain)
@@ -662,44 +882,77 @@ async fn download_and_extract(
     destination: &Path,
     artifact: DownloadArtifact,
     strip_components: usize,
+    artifact_name: &str,
+    artifact_index: usize,
+    reporter: &InstallProgressReporter,
 ) -> Result<()> {
     tokio::fs::create_dir_all(destination).await?;
-    let archive_path = destination
-        .parent()
-        .unwrap_or(destination)
-        .join(format!(".download-{}", uuid::Uuid::new_v4()));
-    download_artifact(&archive_path, artifact).await?;
+    let archive_path = destination.join(format!(".download-{}", uuid::Uuid::new_v4()));
+    let result = async {
+        download_artifact(
+            &archive_path,
+            artifact,
+            artifact_name,
+            artifact_index,
+            reporter,
+        )
+        .await?;
 
-    let archive_for_extract = archive_path.clone();
-    let destination = destination.to_path_buf();
-    let extract_result = tokio::task::spawn_blocking(move || match artifact.format {
-        ArchiveFormat::Zip => extract_zip(&archive_for_extract, &destination, strip_components),
-        ArchiveFormat::TarGz => {
-            extract_tar_gz(&archive_for_extract, &destination, strip_components)
-        }
-    })
-    .await?;
-    let remove_result = tokio::fs::remove_file(&archive_path).await;
-    extract_result?;
+        reporter.emit(LanguageServerInstallProgress::Extracting {
+            artifact: artifact_name.to_string(),
+            artifact_index,
+            artifact_count: reporter.artifact_count,
+        });
+        let archive_for_extract = archive_path.clone();
+        let destination = destination.to_path_buf();
+        tokio::task::spawn_blocking(move || match artifact.format {
+            ArchiveFormat::Zip => extract_zip(&archive_for_extract, &destination, strip_components),
+            ArchiveFormat::TarGz => {
+                extract_tar_gz(&archive_for_extract, &destination, strip_components)
+            }
+        })
+        .await??;
+        Ok::<(), anyhow::Error>(())
+    }
+    .await;
+
+    let remove_result = if archive_path.exists() {
+        tokio::fs::remove_file(&archive_path).await
+    } else {
+        Ok(())
+    };
+    result?;
     remove_result?;
     Ok(())
 }
 
-async fn download_artifact(path: &Path, artifact: DownloadArtifact) -> Result<()> {
+async fn download_artifact(
+    path: &Path,
+    artifact: DownloadArtifact,
+    artifact_name: &str,
+    artifact_index: usize,
+    reporter: &InstallProgressReporter,
+) -> Result<()> {
     let client = reqwest::Client::builder()
         .user_agent(concat!("Algorimejo/", env!("CARGO_PKG_VERSION")))
         .build()?;
     let mut response = client.get(artifact.url).send().await?.error_for_status()?;
-    if response
-        .content_length()
-        .is_some_and(|length| length > MAX_DOWNLOAD_SIZE)
-    {
+    let total = response.content_length();
+    if total.is_some_and(|length| length > MAX_DOWNLOAD_SIZE) {
         bail!("Language server archive exceeds the download limit");
     }
 
     let mut downloaded = 0_u64;
+    let mut last_progress = Instant::now();
     let mut hasher = Sha256::new();
     let mut archive_file = tokio::fs::File::create(path).await?;
+    reporter.emit(LanguageServerInstallProgress::Downloading {
+        artifact: artifact_name.to_string(),
+        downloaded,
+        total,
+        artifact_index,
+        artifact_count: reporter.artifact_count,
+    });
     while let Some(chunk) = response.chunk().await? {
         downloaded += chunk.len() as u64;
         if downloaded > MAX_DOWNLOAD_SIZE {
@@ -707,9 +960,26 @@ async fn download_artifact(path: &Path, artifact: DownloadArtifact) -> Result<()
         }
         hasher.update(&chunk);
         archive_file.write_all(&chunk).await?;
+        if last_progress.elapsed() >= Duration::from_millis(100) {
+            reporter.emit(LanguageServerInstallProgress::Downloading {
+                artifact: artifact_name.to_string(),
+                downloaded,
+                total,
+                artifact_index,
+                artifact_count: reporter.artifact_count,
+            });
+            last_progress = Instant::now();
+        }
     }
     archive_file.flush().await?;
     drop(archive_file);
+    reporter.emit(LanguageServerInstallProgress::Downloading {
+        artifact: artifact_name.to_string(),
+        downloaded,
+        total,
+        artifact_index,
+        artifact_count: reporter.artifact_count,
+    });
 
     let actual = hasher
         .finalize()
@@ -867,15 +1137,50 @@ pub async fn uninstall_language_server_package(
 mod tests {
     use super::*;
 
+    fn create_valid_package_directory(directory: &Path, package: RegistryPackage) {
+        let executable = PathBuf::from("bin/server");
+        std::fs::create_dir_all(directory.join("bin")).unwrap();
+        std::fs::write(directory.join(&executable), b"server").unwrap();
+        if let Installer::Node {
+            packages,
+            server_script,
+            ..
+        } = package.installer
+        {
+            std::fs::create_dir_all(directory.join(server_script).parent().unwrap()).unwrap();
+            std::fs::write(directory.join(server_script), b"server").unwrap();
+            for artifact in packages {
+                let required = directory
+                    .join(artifact.destination)
+                    .join(artifact.required_file);
+                std::fs::create_dir_all(required.parent().unwrap()).unwrap();
+                std::fs::write(required, b"package").unwrap();
+            }
+        }
+        let manifest = InstallManifest {
+            id: package.id.to_string(),
+            version: package.version.to_string(),
+            executable,
+        };
+        std::fs::write(
+            directory.join(MANIFEST_FILE),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+    }
+
     #[test]
     fn registry_has_a_server_for_each_supported_programming_language() {
-        for language in [
-            LanguageBase::Cpp,
+        let mut languages = vec![
             LanguageBase::Python,
             LanguageBase::TypeScript,
             LanguageBase::JavaScript,
             LanguageBase::Go,
-        ] {
+        ];
+        if clangd_artifact().is_some() {
+            languages.push(LanguageBase::Cpp);
+        }
+        for language in languages {
             assert!(registry()
                 .iter()
                 .any(|package| package.languages.contains(&language)));
@@ -932,6 +1237,48 @@ mod tests {
     #[test]
     fn unknown_packages_are_rejected() {
         assert!(registry_package("../../arbitrary-command").is_err());
+    }
+
+    #[test]
+    fn interrupted_package_replacement_restores_valid_backup() {
+        let root = std::env::temp_dir().join(format!(
+            "algorimejo-lsp-recovery-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let package = registry().into_iter().next().unwrap();
+        let backup = root.join(format!(".backup-{}-test", package.id));
+        create_valid_package_directory(&backup, package);
+
+        recover_package_backup(&root, package).unwrap();
+
+        assert!(valid_package_directory(
+            &package_dir(&root, package),
+            package
+        ));
+        assert!(!backup.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_install_and_download_entries_are_removed() {
+        let root = std::env::temp_dir().join(format!(
+            "algorimejo-lsp-cleanup-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let install = root.join(".install-clangd-test");
+        let download = root.join(".download-test");
+        let unrelated = root.join("keep-me");
+        std::fs::create_dir_all(&install).unwrap();
+        std::fs::write(&download, b"partial").unwrap();
+        std::fs::write(&unrelated, b"data").unwrap();
+
+        cleanup_stale_installation_entries(&root).unwrap();
+
+        assert!(!install.exists());
+        assert!(!download.exists());
+        assert!(unrelated.exists());
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

@@ -45,14 +45,16 @@ export function WorkspacePref() {
 	}, [mutation])
 	const updateChangeset = useCallback((setter: (changeset: Draft<WorkspaceConfig>) => void, applyInstant?: boolean) => {
 		if (!originalConfig.data)
-			return
+			return Promise.resolve()
 		const newChangeset = match(changeset)
 			.with(null, () => produce(originalConfig.data, setter))
 			.otherwise(() => produce(changeset, setter))
 		if (applyInstant && newChangeset !== null) {
-			void saveChangeset(newChangeset)
+			setChangeset(newChangeset)
+			return saveChangeset(newChangeset)
 		}
 		setChangeset(newChangeset)
+		return Promise.resolve()
 	}, [changeset, originalConfig.data, saveChangeset])
 
 	const applyChangeset = useCallback(async () => {
