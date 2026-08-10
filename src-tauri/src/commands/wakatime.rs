@@ -189,6 +189,8 @@ pub async fn send_wakatime_heartbeat(
         return Ok(());
     }
 
+    let path = cli_path(&config, Some(path))?;
+
     let content = documents
         .get_string_of_doc(&document_id, "content")
         .map_err(|error| error.to_string())?;
@@ -205,7 +207,7 @@ pub async fn send_wakatime_heartbeat(
         .map_err(|error| format!("Failed to write WakaTime temporary source file: {error}"))?;
 
     let args = heartbeat_args(&entity, &local_file, &project, wakatime_language, is_write);
-    let result = run_cli(&cli_path(&config, Some(path))?, &args).await;
+    let result = run_cli(&path, &args).await;
     if let Err(error) = tokio::fs::remove_file(&local_file).await {
         log::warn!(
             "Failed to remove WakaTime temporary source file {}: {error}",

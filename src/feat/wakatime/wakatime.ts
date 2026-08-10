@@ -14,7 +14,8 @@ type DocumentEvent = AlgorimejoEvents["documentOpened"]
 
 let programConfig: ProgramConfig | null = null
 let workspaceConfig: WorkspaceConfig | null = null
-let lastHeartbeat: { documentID: string, sentAt: number } | null = null
+const lastHeartbeats = new Map<string, { sentAt: number, isWrite: boolean }>()
+const heartbeatQueues = new Map<string, Promise<void>>()
 let lastError: string | null = null
 
 function configuredLanguage(language: string): string {
@@ -27,13 +28,11 @@ async function sendHeartbeat(document: DocumentEvent, isWrite: boolean) {
 		return
 
 	const now = Date.now()
-	if (
-		lastHeartbeat?.documentID === document.documentID
-		&& now - lastHeartbeat.sentAt < HEARTBEAT_INTERVAL_MS
-	) {
+	const lastHeartbeat = lastHeartbeats.get(document.documentID)
+	const isWithinInterval = lastHeartbeat && now - lastHeartbeat.sentAt < HEARTBEAT_INTERVAL_MS
+	if (isWithinInterval && (!isWrite || lastHeartbeat.isWrite)) {
 		return
 	}
-	lastHeartbeat = { documentID: document.documentID, sentAt: now }
 
 	try {
 		await commands.sendWakatimeHeartbeat(
@@ -42,6 +41,7 @@ async function sendHeartbeat(document: DocumentEvent, isWrite: boolean) {
 			configuredLanguage(document.language),
 			isWrite,
 		)
+		lastHeartbeats.set(document.documentID, { sentAt: Date.now(), isWrite })
 		lastError = null
 	}
 	catch (error) {
@@ -54,6 +54,16 @@ async function sendHeartbeat(document: DocumentEvent, isWrite: boolean) {
 	}
 }
 
+function queueHeartbeat(document: DocumentEvent, isWrite: boolean) {
+	const previous = heartbeatQueues.get(document.documentID) ?? Promise.resolve()
+	const current = previous.then(() => sendHeartbeat(document, isWrite))
+	heartbeatQueues.set(document.documentID, current)
+	void current.finally(() => {
+		if (heartbeatQueues.get(document.documentID) === current)
+			heartbeatQueues.delete(document.documentID)
+	})
+}
+
 export async function initWakatimeService() {
 	const configs = await Promise.all([
 		fetchProgramConfig(algorimejo.queryClient),
@@ -64,16 +74,16 @@ export async function initWakatimeService() {
 
 	algorimejo.events.on("programConfigChanged", ({ config }) => {
 		programConfig = config
-		lastHeartbeat = null
+		lastHeartbeats.clear()
 		lastError = null
 	})
 	algorimejo.events.on("workspaceConfigChanged", ({ config }) => {
 		workspaceConfig = config
 	})
 	algorimejo.events.on("documentOpened", (document) => {
-		void sendHeartbeat(document, false)
+		queueHeartbeat(document, false)
 	})
 	algorimejo.events.on("documentChangedDebounced", (document) => {
-		void sendHeartbeat(document, true)
+		queueHeartbeat(document, true)
 	})
 }
