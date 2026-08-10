@@ -59,6 +59,7 @@ dependencies = [
  "diesel_migrations",
  "dunce",
  "flate2",
+ "httparse",
  "libsqlite3-sys",
  "log",
  "nom 8.0.0",

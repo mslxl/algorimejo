@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use diesel::{
     r2d2::{ConnectionManager, Pool},
     r2d2::{CustomizeConnection, Error as PoolError},
     RunQueryDsl, SqliteConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use log::{info, trace};
+use log::{error, info, trace};
 use tauri::{async_runtime::block_on, Manager, Runtime};
 use tauri_plugin_decorum::WebviewWindowExt;
 
@@ -128,11 +128,12 @@ pub fn setup_competitive_companion_listener(app: &mut tauri::App) -> Result<()> 
     let cfg = app.state::<ProgramConfigRepo>();
     let cfg_guard = cfg.read()?;
     if cfg_guard.competitive_companion_enabled {
-        block_on(launch_competitive_companion_listener(
+        if let Err(listener_error) = block_on(launch_competitive_companion_listener(
             app.handle().clone(),
             cfg_guard.competitive_companion_addr.clone(),
-        ))
-        .map_err(|e| anyhow!(e))?;
+        )) {
+            error!("failed to start Competitive Companion listener at startup: {listener_error}");
+        }
     }
     Ok(())
 }

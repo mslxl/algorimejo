@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use crate::{
     commands::{QueryClientInvalidateEvent, ToastEvent, ToastKind},
@@ -22,8 +22,8 @@ use specta::Type;
 use tauri::{AppHandle, Manager, Runtime, State, Url};
 use tauri_specta::Event;
 use tokio::{
-    io::{AsyncReadExt, BufReader},
-    net::TcpListener,
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
     sync::Mutex,
 };
 
@@ -420,7 +420,199 @@ pub async fn get_languages(
 
 #[derive(Default)]
 pub struct CompetitiveCompanionListenerState {
-    shutdown_tx: Mutex<Option<tokio::sync::mpsc::UnboundedSender<()>>>,
+    listener: Mutex<Option<CompetitiveCompanionListener>>,
+}
+
+struct CompetitiveCompanionListener {
+    shutdown_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+const COMPETITIVE_COMPANION_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const COMPETITIVE_COMPANION_MAX_HEADER_BYTES: usize = 16 * 1024;
+const COMPETITIVE_COMPANION_MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+#[derive(Debug, PartialEq, Eq)]
+enum CompetitiveCompanionHttpRequest {
+    Incomplete,
+    Preflight,
+    Message(String),
+}
+
+fn parse_competitive_companion_http_request(
+    buffer: &[u8],
+) -> Result<CompetitiveCompanionHttpRequest, String> {
+    let mut headers = [httparse::EMPTY_HEADER; 32];
+    let mut request = httparse::Request::new(&mut headers);
+    let header_length = match request.parse(buffer).map_err(|error| error.to_string())? {
+        httparse::Status::Partial => {
+            if buffer.len() > COMPETITIVE_COMPANION_MAX_HEADER_BYTES {
+                return Err("Competitive Companion HTTP headers are too large".to_string());
+            }
+            return Ok(CompetitiveCompanionHttpRequest::Incomplete);
+        }
+        httparse::Status::Complete(length) => length,
+    };
+    if header_length > COMPETITIVE_COMPANION_MAX_HEADER_BYTES {
+        return Err("Competitive Companion HTTP headers are too large".to_string());
+    }
+
+    let method = request.method.unwrap_or_default();
+    if method.eq_ignore_ascii_case("OPTIONS") {
+        return Ok(CompetitiveCompanionHttpRequest::Preflight);
+    }
+    if !method.eq_ignore_ascii_case("POST") {
+        return Err(format!(
+            "Unsupported Competitive Companion HTTP method: {method}"
+        ));
+    }
+
+    if request.headers.iter().any(|header| {
+        header.name.eq_ignore_ascii_case("transfer-encoding")
+            && !header.value.eq_ignore_ascii_case(b"identity")
+    }) {
+        return Err("Chunked Competitive Companion requests are not supported".to_string());
+    }
+
+    let content_length = request
+        .headers
+        .iter()
+        .find(|header| header.name.eq_ignore_ascii_case("content-length"))
+        .ok_or_else(|| "Competitive Companion request is missing Content-Length".to_string())?
+        .value;
+    let content_length = std::str::from_utf8(content_length)
+        .map_err(|_| "Competitive Companion Content-Length is not valid UTF-8".to_string())?
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| "Competitive Companion Content-Length is invalid".to_string())?;
+    if content_length > COMPETITIVE_COMPANION_MAX_BODY_BYTES {
+        return Err("Competitive Companion request body is too large".to_string());
+    }
+
+    let request_length = header_length
+        .checked_add(content_length)
+        .ok_or_else(|| "Competitive Companion request length overflowed".to_string())?;
+    if buffer.len() < request_length {
+        return Ok(CompetitiveCompanionHttpRequest::Incomplete);
+    }
+
+    let message = String::from_utf8(buffer[header_length..request_length].to_vec())
+        .map_err(|_| "Competitive Companion request body is not valid UTF-8".to_string())?;
+    Ok(CompetitiveCompanionHttpRequest::Message(message))
+}
+
+async fn read_competitive_companion_http_request(
+    stream: &mut TcpStream,
+) -> Result<CompetitiveCompanionHttpRequest, String> {
+    tokio::time::timeout(COMPETITIVE_COMPANION_REQUEST_TIMEOUT, async {
+        let mut buffer = Vec::new();
+        let mut chunk = [0_u8; 8192];
+        loop {
+            match parse_competitive_companion_http_request(&buffer)? {
+                CompetitiveCompanionHttpRequest::Incomplete => {}
+                request => return Ok(request),
+            }
+
+            let read = stream.read(&mut chunk).await.map_err(|error| {
+                format!("Failed to read Competitive Companion request: {error}")
+            })?;
+            if read == 0 {
+                return Err(
+                    "Competitive Companion connection closed before the request was complete"
+                        .to_string(),
+                );
+            }
+            buffer.extend_from_slice(&chunk[..read]);
+        }
+    })
+    .await
+    .map_err(|_| {
+        format!(
+            "Competitive Companion request timed out after {} seconds",
+            COMPETITIVE_COMPANION_REQUEST_TIMEOUT.as_secs()
+        )
+    })?
+}
+
+async fn write_competitive_companion_http_response(
+    stream: &mut TcpStream,
+    status: u16,
+    body: &str,
+) -> Result<(), String> {
+    let reason = match status {
+        200 => "OK",
+        204 => "No Content",
+        400 => "Bad Request",
+        _ => "Internal Server Error",
+    };
+    let response = format!(
+        "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: text/plain; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream
+        .write_all(response.as_bytes())
+        .await
+        .map_err(|error| format!("Failed to write Competitive Companion response: {error}"))?;
+    stream
+        .shutdown()
+        .await
+        .map_err(|error| format!("Failed to close Competitive Companion response: {error}"))
+}
+
+fn emit_competitive_companion_error(app: &tauri::AppHandle, message: String) {
+    error!("{message}");
+    if let Err(emit_error) = (ToastEvent {
+        kind: ToastKind::Error,
+        message,
+    })
+    .emit(app)
+    {
+        error!("failed to emit Competitive Companion error toast: {emit_error}");
+    }
+}
+
+async fn handle_competitive_companion_connection(
+    app: tauri::AppHandle,
+    mut stream: TcpStream,
+    addr: std::net::SocketAddr,
+) {
+    let request = match read_competitive_companion_http_request(&mut stream).await {
+        Ok(request) => request,
+        Err(error) => {
+            emit_competitive_companion_error(
+                &app,
+                format!("failed to read Competitive Companion message from {addr}: {error}"),
+            );
+            let _ = write_competitive_companion_http_response(&mut stream, 400, &error).await;
+            return;
+        }
+    };
+
+    let CompetitiveCompanionHttpRequest::Message(content) = request else {
+        if let Err(error) = write_competitive_companion_http_response(&mut stream, 204, "").await {
+            error!("failed to respond to Competitive Companion preflight from {addr}: {error}");
+        }
+        return;
+    };
+
+    trace!("competitive companion {} -> {}", addr, content);
+    if let Err(error) = handle_competitive_companion_message(app.clone(), &content).await {
+        let message =
+            format!("failed to handle Competitive Companion message from {addr}: {error}");
+        emit_competitive_companion_error(&app, message.clone());
+        let _ = write_competitive_companion_http_response(&mut stream, 400, &message).await;
+        return;
+    }
+
+    let event = QueryClientInvalidateEvent {
+        query_key: Some(vec!["problems".to_string()]),
+    };
+    if let Err(error) = event.emit(&app) {
+        error!("failed to invalidate problems after Competitive Companion import: {error}");
+    }
+    if let Err(error) = write_competitive_companion_http_response(&mut stream, 200, "OK").await {
+        error!("failed to respond to Competitive Companion request from {addr}: {error}");
+    }
 }
 
 #[tauri::command]
@@ -431,55 +623,37 @@ pub async fn launch_competitive_companion_listener(
 ) -> Result<(), String> {
     let app_handle = app.clone();
     let state = app.state::<CompetitiveCompanionListenerState>();
-    let mut guard = state.shutdown_tx.lock().await;
+    let mut guard = state.listener.lock().await;
     if guard.is_some() {
         return Err("Competitive companion listener already running".to_string());
     }
     trace!("launching competitive companion listener on {}", addr);
     let listener = TcpListener::bind(addr).await.map_err(|e| e.to_string())?;
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<()>();
-    *guard = Some(tx);
-
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let mut shutdown_channel = rx;
-        let listener = listener;
         loop {
             tokio::select! {
                 _ = shutdown_channel.recv() => {
                     break;
                 }
-                Ok((mut stream, addr)) = listener.accept() => {
-                    //TODO: handle errors
-                    let mut reader = BufReader::new(&mut stream);
-                    let mut content = String::new();
-                    if let Err(err) = reader.read_to_string(&mut content).await {
-                        error!("failed to read competitive companion message from {}: {}", addr, err);
-                        ToastEvent{
-                            kind: ToastKind::Error,
-                            message: format!("failed to read competitive companion message from {}: {}", addr, err)
-                        }.emit(&app_handle).unwrap();
-                        continue;
+                accepted = listener.accept() => {
+                    match accepted {
+                        Ok((stream, addr)) => {
+                            tokio::spawn(handle_competitive_companion_connection(app_handle.clone(), stream, addr));
+                        }
+                        Err(error) => {
+                            error!("failed to accept Competitive Companion connection: {error}");
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
                     }
-                    // Skip http header
-                    let content = content.lines()
-                        .skip_while(|line| !line.is_empty())
-                        .skip(1)
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    trace!("competitive companion {} -> {}", addr, content);
-                    if let Err(err) = handle_competitive_companion_message(app_handle.clone(), &content).await {
-                        error!("failed to handle competitive companion message from {}: {:?}", addr, err);
-                        ToastEvent{
-                            kind: ToastKind::Error,
-                            message: format!("failed to handle competitive companion message from {}: {}", addr, err)
-                        }.emit(&app_handle).unwrap();
-                    }
-                    // invalidate query is here: src\hooks\use-problems-list.ts
-                    let event = QueryClientInvalidateEvent { query_key: Some(vec!["problems".to_string()]) };
-                    event.emit(&app_handle).unwrap();
                 }
             }
         }
+    });
+    *guard = Some(CompetitiveCompanionListener {
+        shutdown_tx: tx,
+        task,
     });
 
     Ok(())
@@ -489,12 +663,17 @@ pub async fn launch_competitive_companion_listener(
 #[specta::specta]
 pub async fn shutdown_competitive_companion_listener(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<CompetitiveCompanionListenerState>();
-    let mut guard = state.shutdown_tx.lock().await;
-    if guard.is_none() {
-        return Err("Competitive companion listener not running".to_string());
-    }
+    let mut guard = state.listener.lock().await;
     trace!("shutting down competitive companion listener");
-    guard.take().unwrap().send(()).unwrap();
+    let listener = guard.take();
+    drop(guard);
+    if let Some(listener) = listener {
+        let _ = listener.shutdown_tx.send(());
+        listener
+            .task
+            .await
+            .map_err(|error| format!("Competitive Companion listener task failed: {error}"))?;
+    }
     Ok(())
 }
 
@@ -570,5 +749,79 @@ pub async fn save_duplicated_file(
         Ok(())
     } else {
         Err("Duplicated save location is not set, please check your settings".to_string())
+    }
+}
+
+#[cfg(test)]
+mod competitive_companion_http_tests {
+    use super::*;
+
+    fn post_request(body: &str) -> Vec<u8> {
+        format!(
+            "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn parses_complete_post_without_waiting_for_eof() {
+        let body = r#"{"name":"A"}"#;
+        assert_eq!(
+            parse_competitive_companion_http_request(&post_request(body)).unwrap(),
+            CompetitiveCompanionHttpRequest::Message(body.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn reads_complete_request_while_client_stays_connected() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let body = r#"{"name":"A"}"#;
+        let request = post_request(body);
+        let client = tokio::spawn(async move {
+            let mut stream = TcpStream::connect(address).await.unwrap();
+            stream.write_all(&request).await.unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        });
+        let (mut stream, _) = listener.accept().await.unwrap();
+
+        assert_eq!(
+            read_competitive_companion_http_request(&mut stream)
+                .await
+                .unwrap(),
+            CompetitiveCompanionHttpRequest::Message(body.to_string())
+        );
+        client.abort();
+    }
+
+    #[test]
+    fn waits_for_the_declared_body_length() {
+        let mut request = post_request(r#"{"name":"A"}"#);
+        request.pop();
+        assert_eq!(
+            parse_competitive_companion_http_request(&request).unwrap(),
+            CompetitiveCompanionHttpRequest::Incomplete
+        );
+    }
+
+    #[test]
+    fn accepts_cors_preflight() {
+        assert_eq!(
+            parse_competitive_companion_http_request(
+                b"OPTIONS / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+            )
+            .unwrap(),
+            CompetitiveCompanionHttpRequest::Preflight
+        );
+    }
+
+    #[test]
+    fn rejects_requests_without_content_length() {
+        let error = parse_competitive_companion_http_request(
+            b"POST / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n{}",
+        )
+        .unwrap_err();
+        assert!(error.contains("Content-Length"));
     }
 }
