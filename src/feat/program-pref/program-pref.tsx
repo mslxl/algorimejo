@@ -22,21 +22,25 @@ export function ProgramPref() {
 
 	const [changeset, setChangeset] = useState<ProgramConfig | null>(null)
 	const containerRef = useRef<HTMLDivElement | null>(null)
+	const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
-	const saveChangeset = useCallback(async (changeset: ProgramConfig) => {
-		await mutation.mutateAsync(changeset, {
-			onError: (error) => {
+	const saveChangeset = useCallback((nextChangeset: ProgramConfig) => {
+		const save = saveQueueRef.current.then(async () => {
+			try {
+				await mutation.mutateAsync(nextChangeset)
+				setChangeset(current => current === nextChangeset ? null : current)
+			}
+			catch (error) {
 				if (error instanceof Error) {
 					toast.error(`Fail to save program config: ${error.message}`)
 				}
 				else {
 					toast.error(`Fail to save program config: ${error}`)
 				}
-			},
-			onSuccess: () => {
-				setChangeset(null)
-			},
+			}
 		})
+		saveQueueRef.current = save
+		return save
 	}, [mutation])
 
 	const updateChangeset = useCallback((setter: (changeset: Draft<ProgramConfig>) => void, applyInstant?: boolean) => {
@@ -47,7 +51,7 @@ export function ProgramPref() {
 			.with(null, () => produce(originalConfig.data, setter))
 			.otherwise(() => produce(changeset, setter))
 		if (applyInstant && newChangeset !== null) {
-			saveChangeset(newChangeset)
+			void saveChangeset(newChangeset)
 		}
 		setChangeset(newChangeset)
 	}, [changeset, originalConfig.data, saveChangeset])
@@ -55,7 +59,7 @@ export function ProgramPref() {
 	const applyChangeset = useCallback(async () => {
 		if (changeset === null)
 			return
-		saveChangeset(changeset)
+		await saveChangeset(changeset)
 	}, [changeset, saveChangeset])
 
 	if (originalConfig.status === "pending") {

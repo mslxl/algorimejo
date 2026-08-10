@@ -23,21 +23,25 @@ export function WorkspacePref() {
 
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const [changeset, setChangeset] = useState<WorkspaceConfig | null>(null)
+	const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
-	const saveChangeset = useCallback(async (changeset: WorkspaceConfig) => {
-		await mutation.mutateAsync(changeset, {
-			onError: (error) => {
+	const saveChangeset = useCallback((nextChangeset: WorkspaceConfig) => {
+		const save = saveQueueRef.current.then(async () => {
+			try {
+				await mutation.mutateAsync(nextChangeset)
+				setChangeset(current => current === nextChangeset ? null : current)
+			}
+			catch (error) {
 				if (error instanceof Error) {
 					toast.error(`Fail to save workspace config: ${error.message}`)
 				}
 				else {
 					toast.error(`Fail to save workspace config: ${error}`)
 				}
-			},
-			onSuccess: () => {
-				setChangeset(null)
-			},
+			}
 		})
+		saveQueueRef.current = save
+		return save
 	}, [mutation])
 	const updateChangeset = useCallback((setter: (changeset: Draft<WorkspaceConfig>) => void, applyInstant?: boolean) => {
 		if (!originalConfig.data)
@@ -46,7 +50,7 @@ export function WorkspacePref() {
 			.with(null, () => produce(originalConfig.data, setter))
 			.otherwise(() => produce(changeset, setter))
 		if (applyInstant && newChangeset !== null) {
-			saveChangeset(newChangeset)
+			void saveChangeset(newChangeset)
 		}
 		setChangeset(newChangeset)
 	}, [changeset, originalConfig.data, saveChangeset])
@@ -54,7 +58,7 @@ export function WorkspacePref() {
 	const applyChangeset = useCallback(async () => {
 		if (changeset === null)
 			return
-		saveChangeset(changeset)
+		await saveChangeset(changeset)
 	}, [changeset, saveChangeset])
 
 	if (originalConfig.status === "pending") {
