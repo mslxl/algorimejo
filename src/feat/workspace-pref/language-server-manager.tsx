@@ -1,6 +1,6 @@
 import type { LanguageBase, LanguageServerInstallProgress, LanguageServerPackage, LanguageServerProtocolConnectionType } from "@/lib/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CircleCheck, Download, LoaderCircle, Play, Trash2 } from "lucide-react"
+import { CircleAlert, CircleCheck, Download, LoaderCircle, Play, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
@@ -200,6 +200,10 @@ export function LanguageServerManager({
 	const mutationError = install.error ?? uninstall.error
 
 	function handleInstall() {
+		if (!server.available) {
+			toast.error(server.unavailable_reason ?? `${server.name} is not available`)
+			return
+		}
 		const operationId = crypto.randomUUID()
 		operationIdRef.current = operationId
 		setInstallProgress({ type: "Preparing" })
@@ -232,7 +236,7 @@ export function LanguageServerManager({
 
 				<div className="flex flex-wrap items-center gap-2">
 					{(!server.installed || isOutdated) && (
-						<Button size="sm" onClick={handleInstall} disabled={isBusy}>
+						<Button size="sm" onClick={handleInstall} disabled={isBusy || !server.available}>
 							{install.isPending
 								? <LoaderCircle className="size-4 animate-spin" />
 								: <Download className="size-4" />}
@@ -243,7 +247,7 @@ export function LanguageServerManager({
 						<Button
 							size="sm"
 							variant="outline"
-							disabled={isBusy || server.launch_command === null}
+							disabled={isBusy || server.launch_command === null || !server.available}
 							onClick={() => server.launch_command && onUse(server.launch_command)}
 						>
 							<Play className="size-4" />
@@ -268,6 +272,13 @@ export function LanguageServerManager({
 						{progress.detail && <span className="shrink-0 text-muted-foreground">{progress.detail}</span>}
 					</div>
 					<Progress label={progress.label} value={progress.value} />
+				</div>
+			)}
+
+			{!server.available && server.unavailable_reason && (
+				<div className="flex items-start gap-2 text-sm text-destructive" role="alert">
+					<CircleAlert className="mt-0.5 size-4 shrink-0" />
+					<p className="break-words">{server.unavailable_reason}</p>
 				</div>
 			)}
 

@@ -24,6 +24,7 @@ function getLanguageSyntaxExtension(lang: Language): Promise<Extension> {
 		.with("Python", () => import("@codemirror/lang-python").then(mod => mod.python()))
 		.with("TypeScript", () => import("@codemirror/lang-javascript").then(mod => mod.javascript({ typescript: true })))
 		.with("JavaScript", () => import("@codemirror/lang-javascript").then(mod => mod.javascript({ typescript: false })))
+		.with("Java", () => import("@codemirror/lang-java").then(mod => mod.java()))
 		.with("Go", () => import("@codemirror/lang-go").then(mod => mod.go()))
 		.otherwise(() => {
 			log.warn(`unknown language: ${lang}`)
@@ -145,11 +146,12 @@ export class LanguageClient {
 		syntaxHighlight: Extension,
 		onTerminal: () => void,
 	): Promise<LanguageServerSession> {
-		const transport = await LanguageServerStdIOTransport.launch(lang.lsp!, null)
+		const workspaceUri = new URL(".", documentUri).toString()
+		const transport = await LanguageServerStdIOTransport.launch(lang.lsp!, workspaceUri)
 		const closeListener = transport.addCloseEventListener(onTerminal)
 		const client = new LanguageServerClient({
-			rootUri: "file:///",
-			workspaceFolders: null,
+			rootUri: workspaceUri,
+			workspaceFolders: [{ name: "algorimejo", uri: workspaceUri }],
 			capabilities: disableDynamicRegistration,
 			transport,
 		})

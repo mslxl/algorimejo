@@ -28,6 +28,25 @@ interface CodeEditorProps {
 	textarea?: boolean
 }
 
+function localPathToFileUri(path: string): string {
+	const normalized = path.replace(/\\/g, "/")
+	if (normalized.startsWith("//")) {
+		const [host, ...segments] = normalized.slice(2).split("/")
+		return `file://${host}/${segments.map(encodeURIComponent).join("/")}`
+	}
+
+	const absolute = normalized.startsWith("/") ? normalized : `/${normalized}`
+	const encoded = absolute
+		.split("/")
+		.map(segment => /^[a-z]:$/i.test(segment) ? segment : encodeURIComponent(segment))
+		.join("/")
+	return `file://${encoded}`
+}
+
+function ensureTrailingSlash(value: string): string {
+	return value.endsWith("/") ? value : `${value}/`
+}
+
 export function CodeEditorSuspend({ className, documentID, documentUri, entityName = documentID, language = "Text", textarea }: CodeEditorProps) {
 	const [isDocumentLoaded, setIsDocumentLoaded] = useState(false)
 	const ydoc = useMemo(() => {
@@ -89,11 +108,18 @@ export function CodeEditorSuspend({ className, documentID, documentUri, entityNa
 	// Load language
 	// if user set language to Text, use Text
 	// else use the language base from workspace setting
+	const workspaceDocumentBaseUri = programConfig.data?.workspace
+		? ensureTrailingSlash(localPathToFileUri(programConfig.data.workspace))
+		: "file:///algorimejo/"
 	const languageServerDocumentUri = documentUri ?? new URL(
 		`${encodeURIComponent(documentID)}.${getFileExtensionOfLanguage(languageItem.base)}`,
-		"file:///algorimejo/",
+		workspaceDocumentBaseUri,
 	).toString()
-	const languageExtension = useLanguageExtension(languageItem, languageServerDocumentUri)
+	const languageExtension = useLanguageExtension(
+		languageItem,
+		languageServerDocumentUri,
+		documentUri !== undefined || programConfig.status === "success",
+	)
 	// if the language is not configured in workspace setting, show error toast
 	useEffect(() => {
 		if (workspaceConfig.status !== "success")

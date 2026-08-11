@@ -3,7 +3,7 @@ import { identity } from "lodash"
 import { sortBy } from "lodash/fp"
 import { match } from "ts-pattern"
 
-export const languageBaseValues: LanguageBase[] = sortBy(identity, ["Cpp", "TypeScript", "Python", "JavaScript", "Go", "Text"])
+export const languageBaseValues: LanguageBase[] = sortBy(identity, ["Cpp", "TypeScript", "Python", "JavaScript", "Java", "Go", "Text"])
 export const languageServerProtocolConnectionTypeValues: LanguageServerProtocolConnectionType[] = ["StdIO", "WebSocket"]
 export const keymapValues: Keymap[] = ["Default", "Vim", "Emacs"]
 export const detachedRunModeValues: DetachedRunMode[] = ["EmbeddedTerminal", "ExternalTerminal"]
@@ -24,6 +24,7 @@ export function getLanguageID(language: LanguageBase) {
 		.with("Python", () => "python")
 		.with("TypeScript", () => "typescript")
 		.with("JavaScript", () => "javascript")
+		.with("Java", () => "java")
 		.with("Go", () => "go")
 		.otherwise(() => "text")
 }
@@ -34,6 +35,7 @@ export function getFileExtensionOfLanguage(language: LanguageBase) {
 		.with("Python", () => "py")
 		.with("TypeScript", () => "ts")
 		.with("JavaScript", () => "js")
+		.with("Java", () => "java")
 		.with("Go", () => "go")
 		.with("Text", () => "txt")
 		.with("Unknown", () => "txt")

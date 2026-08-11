@@ -108,6 +108,22 @@ impl WorkspaceLocalDeserialized {
                 ),
             },
         );
+        language.insert(
+            "java 21".to_string(),
+            AdvLanguageItem {
+                base: LanguageBase::Java,
+                cmd_compile: "%JAVAC -encoding UTF-8 -d %CWD %SRC".to_string(),
+                cmd_before_run: None,
+                cmd_after_run: None,
+                cmd_run: "%JAVA -cp %CWD Main".to_string(),
+                lsp: None,
+                lsp_connect: None,
+                initial_solution_content: Some(
+                    "class Main {\n    public static void main(String[] args) {\n    }\n}"
+                        .to_string(),
+                ),
+            },
+        );
         language
     }
     fn default_duplicate_save() -> bool {

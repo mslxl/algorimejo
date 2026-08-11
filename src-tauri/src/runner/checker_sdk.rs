@@ -417,6 +417,7 @@ mod tests {
     #[test]
     fn unsupported_languages_are_rejected() {
         assert!(sdk_info(LanguageBase::Text).is_err());
+        assert!(sdk_info(LanguageBase::Java).is_err());
         assert!(sdk_info(LanguageBase::Unknown).is_err());
     }
 }

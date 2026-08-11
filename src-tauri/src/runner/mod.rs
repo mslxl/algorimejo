@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 
 pub mod checker_sdk;
 pub mod cmd;
+pub mod jdk;
 pub mod lang_server;
 pub mod run;
 
@@ -76,7 +77,10 @@ pub fn launch_command_in_terminal(command: &Command) -> Result<(), String> {
             terminal_command.current_dir(current_dir);
         }
 
-        trace!("launch detached program in terminal: {:?}", &terminal_command);
+        trace!(
+            "launch detached program in terminal: {:?}",
+            &terminal_command
+        );
         match terminal_command.spawn() {
             Ok(_) => return Ok(()),
             Err(error) => errors.push(format!("{terminal}: {error}")),

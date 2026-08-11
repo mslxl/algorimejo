@@ -243,11 +243,11 @@ export type IOMethod =
  */
 "StdIO"
 export type Keymap = "Default" | "Vim" | "Emacs"
-export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Go" | "Python" | "Text" | "Unknown"
+export type LanguageBase = "Cpp" | "TypeScript" | "JavaScript" | "Java" | "Go" | "Python" | "Text" | "Unknown"
 export type LanguageServerEvent = { session_id: string; pid: string; response: LanguageServerResponse }
 export type LanguageServerInstallProgress = { type: "Preparing" } | { type: "Downloading"; artifact: string; downloaded: number; total: number | null; artifact_index: number; artifact_count: number } | { type: "Extracting"; artifact: string; artifact_index: number; artifact_count: number } | { type: "Installing"; detail: string } | { type: "Activating" }
 export type LanguageServerInstallProgressEvent = { operation_id: string; package_id: string; progress: LanguageServerInstallProgress }
-export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null }
+export type LanguageServerPackage = { id: string; name: string; version: string; languages: LanguageBase[]; installed: boolean; installed_version: string | null; launch_command: string | null; available: boolean; unavailable_reason: string | null }
 export type LanguageServerProtocolConnectionType = "StdIO" | "WebSocket"
 export type LanguageServerResponse = { type: "Closed"; exit_code: number } | { type: "Message"; msg: string }
 export type Problem = { id: string; name: string; url: string | null; group: string; statement: string | null; checker: Checker; create_datetime: string; modified_datetime: string; time_limit: number; memory_limit: number; solutions: Solution[] }

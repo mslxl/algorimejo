@@ -16,18 +16,22 @@ use tokio::sync::RwLock;
 use crate::runner::{
     cmd::parse_command_with_env,
     get_bundled_checker_names,
+    jdk::{detect_jdk, jdk_command_paths},
     lang_server::{IOMethod, LangServerProcess, LangServerWriter},
     run::{launch_program, launch_program_without_input, ProgramOutput, ProgramSimpleOutput},
     temp_dir,
 };
 
-#[cfg(target_os = "linux")]
-use crate::runner::launch_command_in_terminal;
 #[cfg(not(target_os = "linux"))]
 use crate::runner::command_flag_create_new_console;
+#[cfg(target_os = "linux")]
+use crate::runner::launch_command_in_terminal;
 
 pub static ENV_KEY_BUNDLED_LSP: &str = "BUNDLED_LSP";
 pub static ENV_KEY_MANAGED_LSP: &str = "MANAGED_LSP";
+pub static ENV_KEY_JAVA: &str = "JAVA";
+pub static ENV_KEY_JAVAC: &str = "JAVAC";
+pub static ENV_KEY_LSP_SESSION_ID: &str = "LSP_SESSION_ID";
 pub fn get_default_env(app: &tauri::AppHandle) -> anyhow::Result<HashMap<String, String>> {
     let path_resolver = app.path();
     let mut env = HashMap::new();
@@ -46,6 +50,9 @@ pub fn get_default_env(app: &tauri::AppHandle) -> anyhow::Result<HashMap<String,
             .display()
             .to_string(),
     );
+    let (java, javac) = jdk_command_paths();
+    env.insert(ENV_KEY_JAVA.to_string(), java.display().to_string());
+    env.insert(ENV_KEY_JAVAC.to_string(), javac.display().to_string());
     Ok(env)
 }
 
@@ -121,7 +128,12 @@ pub async fn launch_language_server(
     io_method: IOMethod,
     session_id: String,
 ) -> Result<ChildPID, String> {
-    let env = get_default_env(&app).map_err(|e| e.to_string())?;
+    let mut env = get_default_env(&app).map_err(|e| e.to_string())?;
+    env.insert(ENV_KEY_LSP_SESSION_ID.to_string(), session_id.clone());
+    if commands.contains(&format!("%{ENV_KEY_JAVA}")) {
+        let jdk = detect_jdk().map_err(|error| error.to_string())?;
+        env.insert(ENV_KEY_JAVA.to_string(), jdk.java.display().to_string());
+    }
     let cmd = parse_command_with_env(&commands, &env).map_err(|e| e.to_string())?;
     let process = LangServerProcess::launch(cmd, io_method).map_err(|e| e.to_string())?;
     let pid = process.pid().await.ok_or("Failed to get PID")?;

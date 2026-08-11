@@ -1,33 +1,44 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io,
+    io::{self, SeekFrom},
     path::{Path, PathBuf},
     process::Command,
     time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use reqwest::{
+    header::{CONTENT_RANGE, RANGE},
+    StatusCode,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use specta::Type;
 use tauri::Manager;
 use tauri_specta::Event;
-use tokio::{io::AsyncWriteExt, sync::Mutex};
+use tokio::{
+    io::{AsyncSeekExt, AsyncWriteExt},
+    sync::Mutex,
+};
 
 use crate::{
-    commands::runner::ENV_KEY_MANAGED_LSP, database::language::LanguageBase,
-    runner::command_flag_hide_new_console,
+    commands::runner::{ENV_KEY_JAVA, ENV_KEY_LSP_SESSION_ID, ENV_KEY_MANAGED_LSP},
+    database::language::LanguageBase,
+    runner::{command_flag_hide_new_console, jdk::detect_jdk},
 };
 
 const INSTALL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const MAX_DOWNLOAD_SIZE: u64 = 512 * 1024 * 1024;
+const DOWNLOAD_RETRY_LIMIT: usize = 3;
 const MANIFEST_FILE: &str = "install.json";
 
 const CPP_LANGUAGES: &[LanguageBase] = &[LanguageBase::Cpp];
 const PYTHON_LANGUAGES: &[LanguageBase] = &[LanguageBase::Python];
 const TYPESCRIPT_LANGUAGES: &[LanguageBase] = &[LanguageBase::TypeScript, LanguageBase::JavaScript];
+const JAVA_LANGUAGES: &[LanguageBase] = &[LanguageBase::Java];
 const GO_LANGUAGES: &[LanguageBase] = &[LanguageBase::Go];
+const JDTLS_LAUNCHER: &str = "plugins/org.eclipse.equinox.launcher_1.7.200.v20260619-2039.jar";
 
 #[derive(Default)]
 pub struct LanguageServerManagerState {
@@ -43,6 +54,8 @@ pub struct LanguageServerPackage {
     pub installed: bool,
     pub installed_version: Option<String>,
     pub launch_command: Option<String>,
+    pub available: bool,
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -113,6 +126,11 @@ enum Installer {
         package: &'static str,
         executable: &'static str,
     },
+    Jdtls {
+        artifact: DownloadArtifact,
+        launcher: &'static str,
+        configuration: &'static str,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -136,7 +154,7 @@ struct InstallProgressReporter {
 impl InstallProgressReporter {
     fn new(app: tauri::AppHandle, operation_id: String, package: RegistryPackage) -> Self {
         let artifact_count = match package.installer {
-            Installer::Archive { .. } | Installer::ManagedGo { .. } => 1,
+            Installer::Archive { .. } | Installer::ManagedGo { .. } | Installer::Jdtls { .. } => 1,
             Installer::Node { packages, .. } => packages.len() + 1,
         };
         Self {
@@ -288,8 +306,42 @@ fn go_artifact() -> Option<DownloadArtifact> {
     })
 }
 
+fn jdtls_configuration() -> Option<&'static str> {
+    if cfg!(target_os = "windows") {
+        Some("config_win")
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        Some("config_linux_arm")
+    } else if cfg!(target_os = "linux") {
+        Some("config_linux")
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        Some("config_mac_arm")
+    } else if cfg!(target_os = "macos") {
+        Some("config_mac")
+    } else {
+        None
+    }
+}
+
 fn registry() -> Vec<RegistryPackage> {
     let mut packages = Vec::new();
+    if let Some(configuration) = jdtls_configuration() {
+        packages.push(RegistryPackage {
+            id: "jdtls",
+            name: "Eclipse JDT Language Server",
+            version: "1.60.0",
+            languages: JAVA_LANGUAGES,
+            launch_arguments: &[],
+            installer: Installer::Jdtls {
+                artifact: DownloadArtifact {
+                    url: "https://download.eclipse.org/jdtls/milestones/1.60.0/jdt-language-server-1.60.0-202606262232.tar.gz",
+                    sha256: "e94c303d8198f977930803582738771fd18c52c5492878410bf222b1aa81ef1d",
+                    format: ArchiveFormat::TarGz,
+                },
+                launcher: JDTLS_LAUNCHER,
+                configuration,
+            },
+        });
+    }
     if let Some(artifact) = clangd_artifact() {
         packages.push(RegistryPackage {
             id: "clangd",
@@ -527,6 +579,11 @@ fn valid_package_manifest(
                         .is_file()
                 })
         }
+        Installer::Jdtls {
+            launcher,
+            configuration,
+            ..
+        } => directory.join(launcher).is_file() && directory.join(configuration).is_dir(),
         Installer::Archive { .. } | Installer::ManagedGo { .. } => true,
     }
 }
@@ -559,6 +616,34 @@ fn launch_command(package: RegistryPackage, manifest: &InstallManifest) -> Strin
             executable,
             managed_command_path(package, Path::new(server_script)),
         ],
+        Installer::Jdtls { configuration, .. } => vec![
+            format!("%{ENV_KEY_JAVA}"),
+            "-Declipse.application=org.eclipse.jdt.ls.core.id1".to_string(),
+            "-Dosgi.bundles.defaultStartLevel=4".to_string(),
+            "-Declipse.product=org.eclipse.jdt.ls.core.product".to_string(),
+            "-Dosgi.checkConfiguration=true".to_string(),
+            format!(
+                "-Dosgi.sharedConfiguration.area={}",
+                managed_command_path(package, Path::new(configuration))
+            ),
+            "-Dosgi.sharedConfiguration.area.readOnly=true".to_string(),
+            "-Dosgi.configuration.cascaded=true".to_string(),
+            "-Djdk.xml.maxGeneralEntitySizeLimit=0".to_string(),
+            "-Djdk.xml.totalEntitySizeLimit=0".to_string(),
+            "-Xms1G".to_string(),
+            "--add-modules=ALL-SYSTEM".to_string(),
+            "--add-opens".to_string(),
+            "java.base/java.util=ALL-UNNAMED".to_string(),
+            "--add-opens".to_string(),
+            "java.base/java.lang=ALL-UNNAMED".to_string(),
+            "-jar".to_string(),
+            executable,
+            "-data".to_string(),
+            managed_command_path(
+                package,
+                Path::new(&format!("workspaces/%{ENV_KEY_LSP_SESSION_ID}")),
+            ),
+        ],
         Installer::Archive { .. } | Installer::ManagedGo { .. } => vec![executable],
     };
     parts.extend(
@@ -576,6 +661,18 @@ async fn package_status(root: &Path, package: RegistryPackage) -> LanguageServer
     let valid_manifest =
         manifest.filter(|manifest| valid_package_manifest(&directory, package, manifest));
 
+    let (available, unavailable_reason) = match package.installer {
+        Installer::Jdtls { .. } => match tokio::task::spawn_blocking(detect_jdk).await {
+            Ok(Ok(_)) => (true, None),
+            Ok(Err(error)) => (false, Some(error.to_string())),
+            Err(error) => (
+                false,
+                Some(format!("Failed to check the installed JDK: {error}")),
+            ),
+        },
+        _ => (true, None),
+    };
+
     LanguageServerPackage {
         id: package.id.to_string(),
         name: package.name.to_string(),
@@ -588,6 +685,8 @@ async fn package_status(root: &Path, package: RegistryPackage) -> LanguageServer
         launch_command: valid_manifest
             .as_ref()
             .map(|manifest| launch_command(package, manifest)),
+        available,
+        unavailable_reason,
     }
 }
 
@@ -625,6 +724,12 @@ pub async fn install_language_server_package(
     operation_id: String,
 ) -> Result<LanguageServerPackage, String> {
     let package = registry_package(&package_id).map_err(|error| error.to_string())?;
+    if matches!(package.installer, Installer::Jdtls { .. }) {
+        tokio::task::spawn_blocking(detect_jdk)
+            .await
+            .map_err(|error| format!("Failed to check the installed JDK: {error}"))?
+            .map_err(|error| error.to_string())?;
+    }
     let reporter = InstallProgressReporter::new(app.clone(), operation_id, package);
     set_package_active(&state, &package_id)
         .await
@@ -746,7 +851,40 @@ async fn install_into(
             )
             .await
         }
+        Installer::Jdtls {
+            artifact,
+            launcher,
+            configuration,
+        } => {
+            install_jdtls(
+                directory,
+                artifact,
+                launcher,
+                configuration,
+                package.name,
+                reporter,
+            )
+            .await
+        }
     }
+}
+
+async fn install_jdtls(
+    directory: &Path,
+    artifact: DownloadArtifact,
+    launcher: &str,
+    configuration: &str,
+    artifact_name: &str,
+    reporter: &InstallProgressReporter,
+) -> Result<PathBuf> {
+    download_and_extract(directory, artifact, 0, artifact_name, 1, reporter).await?;
+    if !directory.join(launcher).is_file() {
+        bail!("JDT LS archive does not contain {launcher}");
+    }
+    if !directory.join(configuration).is_dir() {
+        bail!("JDT LS archive does not contain {configuration}");
+    }
+    Ok(PathBuf::from(launcher))
 }
 
 async fn install_archive(
@@ -936,16 +1074,16 @@ async fn download_artifact(
     let client = reqwest::Client::builder()
         .user_agent(concat!("Algorimejo/", env!("CARGO_PKG_VERSION")))
         .build()?;
-    let mut response = client.get(artifact.url).send().await?.error_for_status()?;
-    let total = response.content_length();
-    if total.is_some_and(|length| length > MAX_DOWNLOAD_SIZE) {
-        bail!("Language server archive exceeds the download limit");
-    }
-
     let mut downloaded = 0_u64;
+    let mut total = None;
+    let mut retries = 0_usize;
     let mut last_progress = Instant::now();
     let mut hasher = Sha256::new();
     let mut archive_file = tokio::fs::File::create(path).await?;
+    let mut response =
+        request_download_with_retry(&client, artifact.url, downloaded, &mut retries).await?;
+    total = response.total.or(total);
+    validate_download_size(total)?;
     reporter.emit(LanguageServerInstallProgress::Downloading {
         artifact: artifact_name.to_string(),
         downloaded,
@@ -953,22 +1091,63 @@ async fn download_artifact(
         artifact_index,
         artifact_count: reporter.artifact_count,
     });
-    while let Some(chunk) = response.chunk().await? {
-        downloaded += chunk.len() as u64;
-        if downloaded > MAX_DOWNLOAD_SIZE {
-            bail!("Language server archive exceeds the download limit");
-        }
-        hasher.update(&chunk);
-        archive_file.write_all(&chunk).await?;
-        if last_progress.elapsed() >= Duration::from_millis(100) {
-            reporter.emit(LanguageServerInstallProgress::Downloading {
-                artifact: artifact_name.to_string(),
-                downloaded,
-                total,
-                artifact_index,
-                artifact_count: reporter.artifact_count,
-            });
-            last_progress = Instant::now();
+    loop {
+        match response.response.chunk().await {
+            Ok(Some(chunk)) => {
+                downloaded += chunk.len() as u64;
+                validate_download_size(Some(downloaded))?;
+                hasher.update(&chunk);
+                archive_file.write_all(&chunk).await?;
+                if last_progress.elapsed() >= Duration::from_millis(100) {
+                    reporter.emit(LanguageServerInstallProgress::Downloading {
+                        artifact: artifact_name.to_string(),
+                        downloaded,
+                        total,
+                        artifact_index,
+                        artifact_count: reporter.artifact_count,
+                    });
+                    last_progress = Instant::now();
+                }
+            }
+            Ok(None) if total.is_none_or(|expected| downloaded >= expected) => break,
+            result => {
+                let error = match result {
+                    Ok(None) => anyhow!(
+                        "download ended after {downloaded} of {} bytes",
+                        total.unwrap()
+                    ),
+                    Err(error) => error.into(),
+                    Ok(Some(_)) => unreachable!(),
+                };
+                if retries >= DOWNLOAD_RETRY_LIMIT {
+                    return Err(error).context(format!(
+                        "Language server download failed after {} attempts",
+                        retries + 1
+                    ));
+                }
+
+                retries += 1;
+                log::warn!(
+                    "language server download interrupted at {downloaded} bytes; retry {retries}/{DOWNLOAD_RETRY_LIMIT}: {error}"
+                );
+                archive_file.flush().await?;
+                tokio::time::sleep(Duration::from_millis(500 * (1 << (retries - 1)))).await;
+
+                response =
+                    request_download_with_retry(&client, artifact.url, downloaded, &mut retries)
+                        .await?;
+                if !response.resumed && downloaded > 0 {
+                    log::warn!(
+                        "download server did not honor Range; restarting from the beginning"
+                    );
+                    downloaded = 0;
+                    hasher = Sha256::new();
+                    archive_file.set_len(0).await?;
+                    archive_file.seek(SeekFrom::Start(0)).await?;
+                }
+                total = response.total.or(total);
+                validate_download_size(total)?;
+            }
         }
     }
     archive_file.flush().await?;
@@ -991,6 +1170,92 @@ async fn download_artifact(
             "Language server artifact checksum mismatch: expected {}, got {actual}",
             artifact.sha256
         );
+    }
+    Ok(())
+}
+
+struct DownloadResponse {
+    response: reqwest::Response,
+    total: Option<u64>,
+    resumed: bool,
+}
+
+async fn request_download_with_retry(
+    client: &reqwest::Client,
+    url: &str,
+    offset: u64,
+    retries: &mut usize,
+) -> Result<DownloadResponse> {
+    loop {
+        match request_download(client, url, offset).await {
+            Ok(response) => return Ok(response),
+            Err(error) if *retries < DOWNLOAD_RETRY_LIMIT => {
+                *retries += 1;
+                log::warn!(
+                    "language server download request failed; retry {retries}/{DOWNLOAD_RETRY_LIMIT}: {error}"
+                );
+                tokio::time::sleep(Duration::from_millis(500 * (1 << (*retries - 1)))).await;
+            }
+            Err(error) => {
+                return Err(error).context(format!(
+                    "Language server download failed after {} attempts",
+                    *retries + 1
+                ));
+            }
+        }
+    }
+}
+
+async fn request_download(
+    client: &reqwest::Client,
+    url: &str,
+    offset: u64,
+) -> Result<DownloadResponse> {
+    let mut request = client.get(url);
+    if offset > 0 {
+        request = request.header(RANGE, format!("bytes={offset}-"));
+    }
+    let response = request.send().await?.error_for_status()?;
+    let resumed = offset > 0 && response.status() == StatusCode::PARTIAL_CONTENT;
+    let total = if response.status() == StatusCode::PARTIAL_CONTENT {
+        let content_range = response
+            .headers()
+            .get(CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| anyhow!("Partial download response is missing Content-Range"))?;
+        let (start, total) = parse_content_range(content_range)
+            .ok_or_else(|| anyhow!("Invalid Content-Range: {content_range}"))?;
+        if start != offset {
+            bail!("Download resumed at byte {start}, expected {offset}");
+        }
+        total
+    } else {
+        response.content_length()
+    };
+    Ok(DownloadResponse {
+        response,
+        total,
+        resumed,
+    })
+}
+
+fn parse_content_range(value: &str) -> Option<(u64, Option<u64>)> {
+    let value = value.strip_prefix("bytes ")?;
+    let (range, total) = value.split_once('/')?;
+    let (start, _) = range.split_once('-')?;
+    Some((
+        start.parse().ok()?,
+        if total == "*" {
+            None
+        } else {
+            Some(total.parse().ok()?)
+        },
+    ))
+}
+
+fn validate_download_size(size: Option<u64>) -> Result<()> {
+    if size.is_some_and(|length| length > MAX_DOWNLOAD_SIZE) {
+        bail!("Language server archive exceeds the download limit");
     }
     Ok(())
 }
@@ -1157,6 +1422,16 @@ mod tests {
                 std::fs::write(required, b"package").unwrap();
             }
         }
+        if let Installer::Jdtls {
+            launcher,
+            configuration,
+            ..
+        } = package.installer
+        {
+            std::fs::create_dir_all(directory.join(launcher).parent().unwrap()).unwrap();
+            std::fs::write(directory.join(launcher), b"launcher").unwrap();
+            std::fs::create_dir_all(directory.join(configuration)).unwrap();
+        }
         let manifest = InstallManifest {
             id: package.id.to_string(),
             version: package.version.to_string(),
@@ -1175,6 +1450,7 @@ mod tests {
             LanguageBase::Python,
             LanguageBase::TypeScript,
             LanguageBase::JavaScript,
+            LanguageBase::Java,
             LanguageBase::Go,
         ];
         if clangd_artifact().is_some() {
@@ -1198,6 +1474,11 @@ mod tests {
             let command = launch_command(package, &manifest);
             assert!(command.contains(&format!("%{ENV_KEY_MANAGED_LSP}/")));
             assert!(!command.starts_with("node "));
+            if matches!(package.installer, Installer::Jdtls { .. }) {
+                assert!(command.starts_with(&format!("%{ENV_KEY_JAVA} ")));
+                assert!(command.contains(&format!("%{ENV_KEY_LSP_SESSION_ID}")));
+                assert!(command.contains("org.eclipse.jdt.ls.core.product"));
+            }
         }
     }
 
@@ -1221,6 +1502,7 @@ mod tests {
                         .for_each(|package| assert_artifact(package.artifact));
                 }
                 Installer::ManagedGo { runtime, .. } => assert_artifact(runtime),
+                Installer::Jdtls { artifact, .. } => assert_artifact(artifact),
             }
         }
     }
@@ -1232,6 +1514,16 @@ mod tests {
             .is_some());
         assert!(strip_archive_path(Path::new("package/../outside"), 1).is_err());
         assert!(strip_archive_path(Path::new("/outside"), 0).is_err());
+    }
+
+    #[test]
+    fn parses_partial_download_ranges() {
+        assert_eq!(
+            parse_content_range("bytes 1024-2047/4096"),
+            Some((1024, Some(4096)))
+        );
+        assert_eq!(parse_content_range("bytes 10-20/*"), Some((10, None)));
+        assert_eq!(parse_content_range("invalid"), None);
     }
 
     #[test]

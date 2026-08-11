@@ -6,7 +6,7 @@ import { algorimejo } from "@/lib/algorimejo"
 
 export type Language = LanguageBase | "Text"
 
-export function useLanguageExtension(lang: AdvLanguageItem, documentUri: string) {
+export function useLanguageExtension(lang: AdvLanguageItem, documentUri: string, enabled = true) {
 	const client = useQueryClient()
 	const sessionKey = algorimejo.langClient.getSessionKey(lang, documentUri)
 	const queryKey = useMemo(() => ["language-extension", sessionKey] as const, [sessionKey])
@@ -16,6 +16,7 @@ export function useLanguageExtension(lang: AdvLanguageItem, documentUri: string)
 			log.warn(`Language server for ${lang.base} terminated, invalidate its extension cache`)
 			client.invalidateQueries({ queryKey })
 		}),
+		enabled,
 		staleTime: Infinity,
 		gcTime: 35_000,
 		retry: 4,
@@ -23,7 +24,7 @@ export function useLanguageExtension(lang: AdvLanguageItem, documentUri: string)
 	})
 
 	useEffect(() => {
-		if (lang.lsp === null || lang.lsp_connect !== "StdIO") {
+		if (!enabled || lang.lsp === null || lang.lsp_connect !== "StdIO") {
 			return
 		}
 
@@ -33,7 +34,7 @@ export function useLanguageExtension(lang: AdvLanguageItem, documentUri: string)
 				client.removeQueries({ queryKey, exact: true })
 			})
 		}
-	}, [client, lang.lsp, lang.lsp_connect, queryKey, sessionKey])
+	}, [client, enabled, lang.lsp, lang.lsp_connect, queryKey, sessionKey])
 
 	return query
 }
