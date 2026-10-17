@@ -348,24 +348,26 @@ export function CompilerSection() {
 							{/* Language Server */}
 							<div className="space-y-4">
 								<h4 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Language Server</h4>
-								<LanguageServerManager
-									key={selectedLanguageName}
-									languageBase={changeset.language[selectedLanguageName]!.base}
-									launchCommand={changeset.language[selectedLanguageName]!.lsp}
-									connection={changeset.language[selectedLanguageName]!.lsp_connect}
-									onUse={command => setChangeset((draft) => {
-										draft.language[selectedLanguageName]!.lsp = command
-										draft.language[selectedLanguageName]!.lsp_connect = "StdIO"
-									}, true)}
-									onDisable={command => setChangeset((draft) => {
-										Object.values(draft.language).forEach((language) => {
-											if (language?.lsp === command) {
-												language.lsp = null
-												language.lsp_connect = null
-											}
-										})
-									}, true)}
-								/>
+								{changeset.language[selectedLanguageName]!.base === "Cpp"
+									? <div className="border-y py-3 text-sm text-muted-foreground">clangd is bundled with Algorimejo.</div>
+									: <LanguageServerManager
+										key={selectedLanguageName}
+										languageBase={changeset.language[selectedLanguageName]!.base}
+										launchCommand={changeset.language[selectedLanguageName]!.lsp}
+										connection={changeset.language[selectedLanguageName]!.lsp_connect}
+										onUse={command => setChangeset((draft) => {
+											draft.language[selectedLanguageName]!.lsp = command
+											draft.language[selectedLanguageName]!.lsp_connect = "StdIO"
+										}, true)}
+										onDisable={command => setChangeset((draft) => {
+											Object.values(draft.language).forEach((language) => {
+												if (language?.lsp === command) {
+													language.lsp = null
+													language.lsp_connect = null
+												}
+											})
+										}, true)}
+									/>}
 								<div className="space-y-4">
 									<div className="space-y-2">
 										<Label htmlFor="lsp-cmd" className="text-sm font-medium">

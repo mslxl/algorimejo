@@ -22,9 +22,9 @@ use crate::runner::{
     temp_dir,
 };
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 use crate::runner::command_flag_create_new_console;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::runner::launch_command_in_terminal;
 
 pub static ENV_KEY_BUNDLED_LSP: &str = "BUNDLED_LSP";
@@ -420,12 +420,12 @@ pub async fn execute_program_detached(
         .arg(origin_cmd.get_program())
         .args(origin_cmd.get_args());
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
         return launch_command_in_terminal(&cmd);
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         command_flag_create_new_console(&mut cmd);
         trace!("launch program detached cmd: {:?}", &cmd);

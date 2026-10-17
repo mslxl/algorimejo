@@ -33,7 +33,6 @@ const MAX_DOWNLOAD_SIZE: u64 = 512 * 1024 * 1024;
 const DOWNLOAD_RETRY_LIMIT: usize = 3;
 const MANIFEST_FILE: &str = "install.json";
 
-const CPP_LANGUAGES: &[LanguageBase] = &[LanguageBase::Cpp];
 const PYTHON_LANGUAGES: &[LanguageBase] = &[LanguageBase::Python];
 const TYPESCRIPT_LANGUAGES: &[LanguageBase] = &[LanguageBase::TypeScript, LanguageBase::JavaScript];
 const JAVA_LANGUAGES: &[LanguageBase] = &[LanguageBase::Java];
@@ -110,10 +109,6 @@ struct NodePackageArtifact {
 
 #[derive(Clone, Copy)]
 enum Installer {
-    Archive {
-        artifact: DownloadArtifact,
-        executable_name: &'static str,
-    },
     Node {
         runtime: DownloadArtifact,
         runtime_executable: &'static str,
@@ -154,7 +149,7 @@ struct InstallProgressReporter {
 impl InstallProgressReporter {
     fn new(app: tauri::AppHandle, operation_id: String, package: RegistryPackage) -> Self {
         let artifact_count = match package.installer {
-            Installer::Archive { .. } | Installer::ManagedGo { .. } | Installer::Jdtls { .. } => 1,
+            Installer::ManagedGo { .. } | Installer::Jdtls { .. } => 1,
             Installer::Node { packages, .. } => packages.len() + 1,
         };
         Self {
@@ -183,31 +178,6 @@ struct InstallManifest {
     id: String,
     version: String,
     executable: PathBuf,
-}
-
-fn clangd_artifact() -> Option<DownloadArtifact> {
-    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        Some(DownloadArtifact {
-            url: "https://github.com/clangd/clangd/releases/download/20.1.8/clangd-windows-20.1.8.zip",
-            sha256: "717a0700fc660574647468b3d0b67e46a077d27e4da794d9d0c212add6ba6765",
-            format: ArchiveFormat::Zip,
-        })
-    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        Some(DownloadArtifact {
-            url:
-                "https://github.com/clangd/clangd/releases/download/20.1.8/clangd-linux-20.1.8.zip",
-            sha256: "98493005e2c7532e69827987d909c46295e2ee997a48228606e7777547994490",
-            format: ArchiveFormat::Zip,
-        })
-    } else if cfg!(target_os = "macos") {
-        Some(DownloadArtifact {
-            url: "https://github.com/clangd/clangd/releases/download/20.1.8/clangd-mac-20.1.8.zip",
-            sha256: "c2303d0a83dcb31c08c4920e815586ad1b0c17ee8d1a484d605f33d784a31402",
-            format: ArchiveFormat::Zip,
-        })
-    } else {
-        None
-    }
 }
 
 fn node_artifact() -> Option<DownloadArtifact> {
@@ -339,23 +309,6 @@ fn registry() -> Vec<RegistryPackage> {
                 },
                 launcher: JDTLS_LAUNCHER,
                 configuration,
-            },
-        });
-    }
-    if let Some(artifact) = clangd_artifact() {
-        packages.push(RegistryPackage {
-            id: "clangd",
-            name: "clangd",
-            version: "20.1.8",
-            languages: CPP_LANGUAGES,
-            launch_arguments: &[],
-            installer: Installer::Archive {
-                artifact,
-                executable_name: if cfg!(target_os = "windows") {
-                    "clangd.exe"
-                } else {
-                    "clangd"
-                },
             },
         });
     }
@@ -584,7 +537,7 @@ fn valid_package_manifest(
             configuration,
             ..
         } => directory.join(launcher).is_file() && directory.join(configuration).is_dir(),
-        Installer::Archive { .. } | Installer::ManagedGo { .. } => true,
+        Installer::ManagedGo { .. } => true,
     }
 }
 
@@ -644,7 +597,7 @@ fn launch_command(package: RegistryPackage, manifest: &InstallManifest) -> Strin
                 Path::new(&format!("workspaces/%{ENV_KEY_LSP_SESSION_ID}")),
             ),
         ],
-        Installer::Archive { .. } | Installer::ManagedGo { .. } => vec![executable],
+        Installer::ManagedGo { .. } => vec![executable],
     };
     parts.extend(
         package
@@ -825,10 +778,6 @@ async fn install_into(
     reporter: &InstallProgressReporter,
 ) -> Result<PathBuf> {
     match package.installer {
-        Installer::Archive {
-            artifact,
-            executable_name,
-        } => install_archive(directory, artifact, executable_name, package.name, reporter).await,
         Installer::Node {
             runtime,
             runtime_executable,
@@ -885,20 +834,6 @@ async fn install_jdtls(
         bail!("JDT LS archive does not contain {configuration}");
     }
     Ok(PathBuf::from(launcher))
-}
-
-async fn install_archive(
-    directory: &Path,
-    artifact: DownloadArtifact,
-    executable_name: &str,
-    artifact_name: &str,
-    reporter: &InstallProgressReporter,
-) -> Result<PathBuf> {
-    download_and_extract(directory, artifact, 0, artifact_name, 1, reporter).await?;
-    find_file_named(directory, executable_name)?
-        .strip_prefix(directory)
-        .map(Path::to_path_buf)
-        .map_err(Into::into)
 }
 
 async fn install_node_server(
@@ -1333,20 +1268,6 @@ fn strip_archive_path(path: &Path, strip_components: usize) -> Result<Option<Pat
     ))
 }
 
-fn find_file_named(directory: &Path, name: &str) -> Result<PathBuf> {
-    for entry in std::fs::read_dir(directory)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            if let Ok(found) = find_file_named(&path, name) {
-                return Ok(found);
-            }
-        } else if path.file_name().is_some_and(|value| value == name) {
-            return Ok(path);
-        }
-    }
-    bail!("Language server archive does not contain {name}")
-}
-
 async fn run_managed_command(mut command: Command, name: &str) -> Result<()> {
     command_flag_hide_new_console(&mut command);
     let mut command = tokio::process::Command::from(command);
@@ -1446,16 +1367,13 @@ mod tests {
 
     #[test]
     fn registry_has_a_server_for_each_supported_programming_language() {
-        let mut languages = vec![
+        let languages = vec![
             LanguageBase::Python,
             LanguageBase::TypeScript,
             LanguageBase::JavaScript,
             LanguageBase::Java,
             LanguageBase::Go,
         ];
-        if clangd_artifact().is_some() {
-            languages.push(LanguageBase::Cpp);
-        }
         for language in languages {
             assert!(registry()
                 .iter()
@@ -1492,7 +1410,6 @@ mod tests {
 
         for package in registry() {
             match package.installer {
-                Installer::Archive { artifact, .. } => assert_artifact(artifact),
                 Installer::Node {
                     runtime, packages, ..
                 } => {
