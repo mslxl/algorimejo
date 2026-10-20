@@ -17,6 +17,16 @@ pub struct JdkInfo {
     pub major_version: u32,
 }
 
+#[cfg(target_os = "macos")]
+fn macos_java_home() -> Option<PathBuf> {
+    let output = Command::new("/usr/libexec/java_home").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    (!path.is_empty()).then(|| PathBuf::from(path))
+}
+
 fn java_executable_name(name: &str) -> String {
     if cfg!(windows) {
         format!("{name}.exe")
@@ -30,6 +40,15 @@ pub fn jdk_command_paths() -> (PathBuf, PathBuf) {
         let bin = PathBuf::from(java_home).join("bin");
         let java = bin.join(java_executable_name("java"));
         let javac = bin.join(java_executable_name("javac"));
+        if java.is_file() && javac.is_file() {
+            return (java, javac);
+        }
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(java_home) = macos_java_home() {
+        let bin = java_home.join("bin");
+        let java = bin.join("java");
+        let javac = bin.join("javac");
         if java.is_file() && javac.is_file() {
             return (java, javac);
         }
@@ -107,6 +126,15 @@ pub fn detect_jdk() -> Result<JdkInfo> {
             bin.join(java_executable_name("java")),
             bin.join(java_executable_name("javac")),
             "JAVA_HOME",
+        ));
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(java_home) = macos_java_home() {
+        let bin = java_home.join("bin");
+        candidates.push((
+            bin.join("java"),
+            bin.join("javac"),
+            "/usr/libexec/java_home",
         ));
     }
     candidates.push((

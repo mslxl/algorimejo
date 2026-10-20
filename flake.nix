@@ -37,6 +37,7 @@
         pkg-config
         openssl
         diesel-cli
+        unzip
 
         zig
       ]

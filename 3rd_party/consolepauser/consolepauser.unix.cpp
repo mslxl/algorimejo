@@ -122,7 +122,7 @@ int ExecuteCommand(vector<string> &command, bool reInp, long int &peakMemory) {
       file = path_to_command.substr(pos + 1);
     }
     argv[0] = (char *)file.c_str();
-    int result = execv(path_to_command.c_str(), argv);
+    int result = execvp(path_to_command.c_str(), argv);
     if (result) {
       printf("Failed to start command %s %s!\n", path_to_command.c_str(),
              file.c_str());
