@@ -8,8 +8,10 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { useCreateAndOpenProblem } from "@/hooks/use-problem-creator"
 import { algorimejo } from "@/lib/algorimejo"
 import { useObservable } from "@/lib/observable"
+import { useShortcuts } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { AlgorimejoMenubar } from "./menubar"
 import { SidebarButtonDefault } from "./sidebar-button-default"
@@ -44,9 +46,24 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 	const isLeftOpen = leftSelectedID !== null
 	const isRightOpen = rightSelectedID !== null
 
-	const [openLeftSize, setOpenLeftSize] = useState(25)
+	const [openLeftSize, setOpenLeftSize] = useState(28)
 	const [openRightSize, setOpenRightSize] = useState(25)
 	const [openBottomSize, setOpenBottomSize] = useState(25)
+
+	const { create: createProblem } = useCreateAndOpenProblem()
+	useShortcuts({
+		newProblem: createProblem,
+		closeTab: () => algorimejo.tab.closeSelectedTab(),
+		nextTab: () => algorimejo.tab.cycleTab(1),
+		previousTab: () => algorimejo.tab.cycleTab(-1),
+		toggleFileBrowser: () => algorimejo.dock.toggle("file-browser"),
+		toggleTestcase: () => algorimejo.dock.toggle("testcase"),
+		toggleTerminal: () => algorimejo.dock.toggle("terminal"),
+		runAllTestcases: () => {
+			algorimejo.dock.select(null, "testcase")
+			algorimejo.events.emit("runAllTestcasesRequested")
+		},
+	})
 
 	// keys: All dock id need to be rendered
 	// position: one of `left`, `right` or `bottom`
@@ -101,7 +118,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 			<div className="flex min-h-0 flex-1">
 				<div
 					className={cn(
-						"border-r w-8 space-x-1",
+						"border-r w-8 flex flex-col gap-1 py-1",
 						sidebarButtonClassname,
 					)}
 				>
@@ -117,6 +134,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 										order={1}
 										onResize={setOpenLeftSize}
 										defaultSize={openLeftSize}
+										minSize={15}
 										className={sidebarPanelClassname}
 									>
 										{renderSidebarPanel("left", leftSelectedID)}
@@ -139,6 +157,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 												id="bottom-panel"
 												order={2}
 												defaultSize={openBottomSize}
+												minSize={10}
 												onResize={setOpenBottomSize}
 												className={sidebarPanelClassname}
 											>
@@ -158,6 +177,7 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 										order={3}
 										onResize={setOpenRightSize}
 										defaultSize={openRightSize}
+										minSize={15}
 										className={sidebarPanelClassname}
 									>
 										{renderSidebarPanel("right", rightSelectedID)}
@@ -165,9 +185,11 @@ export function Algorimejo({ className, ...props }: AlgorimejoProps) {
 								</>
 							)}
 				</ResizablePanelGroup>
-				<div className={cn("border-l w-8", sidebarButtonClassname)}>
-					{renderSidebarButton(rightDockKeys, "right", rightSelectedID, id => algorimejo.dock.select("right", id))}
-				</div>
+				{rightDockKeys.length > 0 && (
+					<div className={cn("border-l w-8 flex flex-col gap-1 py-1", sidebarButtonClassname)}>
+						{renderSidebarButton(rightDockKeys, "right", rightSelectedID, id => algorimejo.dock.select("right", id))}
+					</div>
+				)}
 			</div>
 			<div className="flex h-6 shrink-0 items-center border-t">
 				{renderSidebarButton(bottomDockKeys, "bottom", bottomSelectedID, id => algorimejo.dock.select("bottom", id))}

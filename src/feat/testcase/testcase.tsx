@@ -1,6 +1,7 @@
 import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo"
 import { LucidePlaySquare } from "lucide-react"
 import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default"
+import { Button } from "@/components/ui/button"
 import { algorimejo } from "@/lib/algorimejo"
 import { useObservable } from "@/lib/observable"
 import { TestcaseContent } from "./testcase-content"
@@ -22,24 +23,14 @@ export function Testcase() {
 	}
 	if (currentTab === null || currentTab.key !== "solution-editor") {
 		return (
-			<div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center select-none">
-				<h1 className="text-3xl font-bold text-gray-800">No Active Solution</h1>
-				<p className="text-muted-foreground">
-					Please open a solution file to begin programming and testing.
-				</p>
+			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center select-none">
+				<h2 className="text-lg font-semibold text-foreground">No active solution</h2>
 				<p className="text-sm text-muted-foreground">
-					Use the
-					{" "}
-					<button
-						type="button"
-						className="text-blue-500 hover:underline"
-						onClick={handleOpenFileBrowser}
-					>
-						file browser
-					</button>
-					{" "}
-					panel to select and open a solution.
+					Open a solution to see and run its testcases.
 				</p>
+				<Button size="sm" variant="outline" onClick={handleOpenFileBrowser}>
+					Browse problems
+				</Button>
 			</div>
 		)
 	}

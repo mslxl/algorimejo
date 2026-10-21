@@ -85,6 +85,28 @@ export class DockManager {
 			.exhaustive()
 	}
 
+	isSelected(key: string) {
+		return this._leftSelected.value === key
+			|| this._rightSelected.value === key
+			|| this._bottomSelected.value === key
+	}
+
+	/**
+	 * Open the dock wherever it lives, or close it if it is already open
+	 */
+	toggle(key: string) {
+		if (!this.isSelected(key)) {
+			this.select(null, key)
+			return
+		}
+		if (this._leftSelected.value === key)
+			this.unselect("left")
+		if (this._rightSelected.value === key)
+			this.unselect("right")
+		if (this._bottomSelected.value === key)
+			this.unselect("bottom")
+	}
+
 	select(position: DockPosition | null, key: string | null) {
 		match(position)
 			.with("left", () => {

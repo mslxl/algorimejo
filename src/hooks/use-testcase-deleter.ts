@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { commands } from "@/lib/client"
 
-export function useProblemDeleter() {
+export function useTestcaseDeleter() {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: async (testcaseID: string) => {

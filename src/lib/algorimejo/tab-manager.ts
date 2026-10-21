@@ -83,8 +83,17 @@ export class TabManager {
 		if (!this.exists(id)) {
 			throw new Error(`Tab with id ${id} does not exist`)
 		}
-		const tab = this._tabs.value.find(tab => tab.id === id)!
+		const index = this._tabs.value.findIndex(tab => tab.id === id)
+		const tab = this._tabs.value[index]
 		this._tabs.value = this._tabs.value.filter(tab => tab.id !== id)
+		// Closing the active tab focuses its neighbour instead of falling back to the welcome page
+		if (this._selectedID.value === id) {
+			const neighbour = this._tabs.value[Math.min(index, this._tabs.value.length - 1)]
+			if (neighbour)
+				this.selectTabByID(neighbour.id)
+			else
+				this._selectedID.value = null
+		}
 		this.eventbus.emit("tabClosed", {
 			tabID: tab.id,
 			key: tab.key,
@@ -98,6 +107,24 @@ export class TabManager {
 		}
 		const tab = this._tabs.value[index]
 		this.removeTabByID(tab.id)
+	}
+
+	/**
+	 * Select the tab `offset` positions away from the current one, wrapping around
+	 */
+	cycleTab(offset: number) {
+		const tabs = this._tabs.value
+		if (tabs.length === 0)
+			return
+		const current = Math.max(this.selectedIndex.value, 0)
+		const next = ((current + offset) % tabs.length + tabs.length) % tabs.length
+		this.selectTabByIndex(next)
+	}
+
+	closeSelectedTab() {
+		const id = this._selectedID.value
+		if (id && this.exists(id))
+			this.removeTabByID(id)
 	}
 
 	renameTab(id: string, newTitle: string) {

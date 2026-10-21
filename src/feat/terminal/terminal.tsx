@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { algorimejo } from "@/lib/algorimejo"
 import { embeddedTerminal } from "@/lib/embedded-terminal"
+import { shortcuts } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import "@xterm/xterm/css/xterm.css"
 import "./terminal.css"
@@ -66,7 +67,7 @@ function TerminalAction({ label, children, ...props }: React.ComponentProps<type
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button type="button" variant="ghost" size="icon" className="size-7" {...props}>
+				<Button type="button" variant="ghost" size="icon" className="size-7" aria-label={label} {...props}>
 					{children}
 				</Button>
 			</TooltipTrigger>
@@ -81,15 +82,21 @@ export function EmbeddedTerminalButton({ isSelected, onClick }: { isSelected: bo
 			<TooltipTrigger asChild>
 				<button
 					type="button"
-					className={cn("flex size-6 items-center justify-center hover:bg-secondary", {
-						"bg-secondary": isSelected,
+					aria-label="Terminal"
+					aria-pressed={isSelected}
+					className={cn("flex size-6 items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring", {
+						"bg-secondary text-foreground": isSelected,
 					})}
 					onClick={onClick}
 				>
 					<SquareTerminal className="size-4" />
 				</button>
 			</TooltipTrigger>
-			<TooltipContent side="top">Terminal</TooltipContent>
+			<TooltipContent side="top">
+				Terminal
+				{" "}
+				<span className="opacity-70">{shortcuts.toggleTerminal.label}</span>
+			</TooltipContent>
 		</Tooltip>
 	)
 }

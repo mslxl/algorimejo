@@ -14,6 +14,8 @@ function RouteComponent() {
 			right: [],
 			bottom: ["terminal"],
 		})
+		// Show the problem list on startup so there is always something to act on
+		algorimejo.dock.select("left", "file-browser")
 	}, [])
 	return (
 		<Algorimejo className="size-full" />

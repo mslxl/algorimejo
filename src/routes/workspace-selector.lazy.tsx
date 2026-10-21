@@ -1,6 +1,5 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router"
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as process from "@tauri-apps/plugin-process"
 
 import {
 	ArrowLeftIcon,
@@ -12,13 +11,23 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-toastify"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { useProgramConfig } from "@/hooks/use-program-config"
-import { useProgramConfigMutation } from "@/hooks/use-program-config-mutation"
+import { getFolderName, useWorkspaceSwitcher } from "@/hooks/use-workspace-switcher"
 
 export const Route = createLazyFileRoute("/workspace-selector")({
 	component: RouteComponent,
@@ -26,40 +35,13 @@ export const Route = createLazyFileRoute("/workspace-selector")({
 
 function RouteComponent() {
 	const navigate = useNavigate()
-	const programConfig = useProgramConfig()
-	const mutation = useProgramConfigMutation()
+	const {
+		programConfig,
+		switchTo: handleWorkspaceSelect,
+		reset: handleResetWorkspace,
+		removeFromHistory: handleRemoveFromHistory,
+	} = useWorkspaceSwitcher()
 	const [selectedPath, setSelectedPath] = useState<string>("")
-
-	const handleWorkspaceSelect = async (path: string) => {
-		try {
-			const currentConfig = programConfig.data
-			if (!currentConfig)
-				return
-
-			const newConfig = {
-				...currentConfig,
-				workspace: path,
-				workspace_history: [
-					path,
-					...currentConfig.workspace_history.filter(p => p !== path),
-				].slice(0, 10), // 只保留最近10个
-			}
-
-			await mutation.mutateAsync(newConfig)
-			await process.relaunch()
-		}
-		catch {
-			toast.error("Fail to switch workspace")
-		}
-	}
-
-	const handleResetWorkspace = async () => {
-		await mutation.mutateAsync({
-			...programConfig.data!,
-			workspace: null,
-		})
-		await process.relaunch()
-	}
 
 	const handleOpenFolder = async () => {
 		try {
@@ -72,31 +54,8 @@ function RouteComponent() {
 			}
 		}
 		catch {
-			toast.error("Fail to open folder selector")
+			toast.error("Failed to open folder selector")
 		}
-	}
-
-	const handleRemoveFromHistory = async (pathToRemove: string) => {
-		try {
-			const currentConfig = programConfig.data
-			if (!currentConfig)
-				return
-
-			const newConfig = {
-				...currentConfig,
-				workspace_history: currentConfig.workspace_history.filter(p => p !== pathToRemove),
-			}
-
-			await mutation.mutateAsync(newConfig)
-		}
-		catch {
-			toast.error("Fail to remove from history")
-		}
-	}
-
-	const getFolderName = (path: string) => {
-		const parts = path.split(/[/\\]/)
-		return parts[parts.length - 1] || path
 	}
 
 	if (programConfig.status === "pending") {
@@ -166,7 +125,6 @@ function RouteComponent() {
 									<Input
 										placeholder="Click the button below to select a folder..."
 										value={selectedPath}
-										onChange={e => setSelectedPath(e.target.value)}
 										readOnly
 									/>
 								</div>
@@ -209,7 +167,23 @@ function RouteComponent() {
 												No workspace set
 											</div>
 										)}
-								<Button variant="outline" onClick={handleResetWorkspace}>Reset workspace</Button>
+								<AlertDialog>
+									<AlertDialogTrigger asChild>
+										<Button variant="outline">Reset workspace</Button>
+									</AlertDialogTrigger>
+									<AlertDialogContent>
+										<AlertDialogHeader>
+											<AlertDialogTitle>Reset workspace?</AlertDialogTitle>
+											<AlertDialogDescription>
+												Algorimejo will forget the current workspace and restart. Files in the folder are not deleted.
+											</AlertDialogDescription>
+										</AlertDialogHeader>
+										<AlertDialogFooter>
+											<AlertDialogCancel>Cancel</AlertDialogCancel>
+											<AlertDialogAction onClick={handleResetWorkspace}>Reset and restart</AlertDialogAction>
+										</AlertDialogFooter>
+									</AlertDialogContent>
+								</AlertDialog>
 							</CardContent>
 						</Card>
 					</div>
@@ -232,36 +206,36 @@ function RouteComponent() {
 											<div className="space-y-2">
 												{programConfig.data.workspace_history.map((path, index) => (
 													<div key={path} className="group">
-														<div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-accent/50">
-															<div className="flex min-w-0 flex-1 items-center gap-3">
+														<div className="flex items-center justify-between rounded-lg border transition-colors focus-within:bg-accent/50 hover:bg-accent/50">
+															<button
+																type="button"
+																className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+																title={`Open ${path}`}
+																onClick={() => handleWorkspaceSelect(path)}
+															>
 																<FolderIcon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
 																<div className="min-w-0 flex-1">
 																	<div className="truncate text-sm font-medium">
 																		{getFolderName(path)}
+																		{path === programConfig.data.workspace && (
+																			<span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs font-normal text-muted-foreground">current</span>
+																		)}
 																	</div>
 																	<div className="truncate font-mono text-xs text-muted-foreground">
 																		{path}
 																	</div>
 																</div>
-															</div>
-															<div className="flex items-center gap-2">
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	onClick={() => handleWorkspaceSelect(path)}
-																	className="opacity-0 transition-opacity group-hover:opacity-100"
-																>
-																	Open
-																</Button>
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	onClick={() => handleRemoveFromHistory(path)}
-																	className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-																>
-																	<XIcon className="h-4 w-4" />
-																</Button>
-															</div>
+															</button>
+															<Button
+																variant="ghost"
+																size="sm"
+																aria-label={`Remove ${getFolderName(path)} from history`}
+																title="Remove from history"
+																onClick={() => handleRemoveFromHistory(path)}
+																className="mr-2 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+															>
+																<XIcon className="h-4 w-4" />
+															</Button>
 														</div>
 														{index < programConfig.data.workspace_history.length - 1 && (
 															<Separator className="mt-2" />

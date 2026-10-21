@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
-import { toast } from "react-toastify"
+import { useState } from "react"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -9,52 +9,28 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
 	MenubarContent,
 	MenubarItem,
 	MenubarMenu,
 	MenubarSeparator,
+	MenubarShortcut,
 	MenubarSub,
 	MenubarSubContent,
 	MenubarSubTrigger,
 	MenubarTrigger,
 } from "@/components/ui/menubar"
-import { useDefaultProblemCreator } from "@/hooks/use-problem-creator"
+import { useCreateAndOpenProblem } from "@/hooks/use-problem-creator"
 import { algorimejo } from "@/lib/algorimejo"
 import { commands } from "@/lib/client"
+import { shortcuts } from "@/lib/shortcuts"
 
 export function MenubarFileItem() {
-	const problemCreateMutation = useDefaultProblemCreator()
+	const { create: createProblem } = useCreateAndOpenProblem()
 	const navigate = useNavigate()
-	function handleCreateProblem() {
-		problemCreateMutation.mutate(undefined, {
-			onError: (error) => {
-				// Tauri errors are strings, not objects with message property
-				const errorMessage
-					= typeof error === "string"
-						? error
-						: error?.message || "An error occurred"
-				toast.error(`[Database Error]: ${errorMessage}`)
-			},
-			onSuccess: (data) => {
-				const problem = data.problem
-				if (problem.solutions[0].document) {
-					algorimejo.openSolutionTab({
-						problemID: problem.id,
-						solutionID: problem.solutions[0].id,
-						title: `${problem.name} - ${problem.solutions[0].name}`,
-					})
-				}
-				else {
-					toast.error(
-						`[Database Error]: Solution ${problem.solutions[0].name} has no document included! This should not happen! Please report this issue to the developer.`,
-					)
-				}
-			},
-		})
-	}
+	// The dialog lives outside the menu, otherwise it unmounts together with the closing menu
+	const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
 	function handleExit() {
 		commands.exitApp()
 	}
@@ -65,47 +41,53 @@ export function MenubarFileItem() {
 		algorimejo.openProgramPrefTab()
 	}
 	return (
-		<MenubarMenu>
-			<MenubarTrigger>File</MenubarTrigger>
-			<MenubarContent>
-				<MenubarItem onClick={handleCreateProblem}>New Problem</MenubarItem>
-				<MenubarSeparator />
-				<MenubarItem onClick={() => navigate({ to: "/workspace-selector" })}>Open Workspace...</MenubarItem>
-				<MenubarSeparator />
-				{/* TODO */}
-				{/* <MenubarItem>Open Recent</MenubarItem>
-					<MenubarItem>Import External File...</MenubarItem>
-					<MenubarSeparator /> */}
-				{/* TODO */}
-				{/* <MenubarItem>Export to...</MenubarItem> */}
-				{/* <MenubarItem>Share<MenubarItem> */}
-				<MenubarSub>
-					<MenubarSubTrigger>Preferences</MenubarSubTrigger>
-					<MenubarSubContent>
-						<MenubarItem onClick={handleOpenWorkspacePrefs}>Workspace Settings</MenubarItem>
-						<MenubarItem onClick={handleOpenProgramPrefs}>Algorimejo Settings</MenubarItem>
-					</MenubarSubContent>
-				</MenubarSub>
-				<MenubarSeparator />
-				<AlertDialog>
-					<MenubarItem asChild>
-						<AlertDialogTrigger className="w-full">Exit</AlertDialogTrigger>
+		<>
+			<MenubarMenu>
+				<MenubarTrigger>File</MenubarTrigger>
+				<MenubarContent>
+					<MenubarItem onClick={createProblem}>
+						New Problem
+						<MenubarShortcut>{shortcuts.newProblem.label}</MenubarShortcut>
 					</MenubarItem>
-					<AlertDialogContent>
-						<AlertDialogHeader>
-							<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-							<AlertDialogDescription>
-								Some unsaved changes will be lost forever!(A long time!).
-								{/* The emph way from Minecraft. lol */}
-							</AlertDialogDescription>
-						</AlertDialogHeader>
-						<AlertDialogFooter>
-							<AlertDialogCancel>Cancel</AlertDialogCancel>
-							<AlertDialogAction onClick={handleExit}>Exit</AlertDialogAction>
-						</AlertDialogFooter>
-					</AlertDialogContent>
-				</AlertDialog>
-			</MenubarContent>
-		</MenubarMenu>
+					<MenubarSeparator />
+					<MenubarItem onClick={() => navigate({ to: "/workspace-selector" })}>Open Workspace...</MenubarItem>
+					<MenubarSeparator />
+					{/* TODO */}
+					{/* <MenubarItem>Open Recent</MenubarItem>
+						<MenubarItem>Import External File...</MenubarItem>
+						<MenubarSeparator /> */}
+					{/* TODO */}
+					{/* <MenubarItem>Export to...</MenubarItem> */}
+					{/* <MenubarItem>Share<MenubarItem> */}
+					<MenubarSub>
+						<MenubarSubTrigger>Preferences</MenubarSubTrigger>
+						<MenubarSubContent>
+							<MenubarItem onClick={handleOpenWorkspacePrefs}>Workspace Settings</MenubarItem>
+							<MenubarItem onClick={handleOpenProgramPrefs}>Algorimejo Settings</MenubarItem>
+						</MenubarSubContent>
+					</MenubarSub>
+					<MenubarSeparator />
+					<MenubarItem onClick={() => algorimejo.tab.closeSelectedTab()}>
+						Close Tab
+						<MenubarShortcut>{shortcuts.closeTab.label}</MenubarShortcut>
+					</MenubarItem>
+					<MenubarItem onClick={() => setIsExitDialogOpen(true)}>Exit</MenubarItem>
+				</MenubarContent>
+			</MenubarMenu>
+			<AlertDialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Exit Algorimejo?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Running programs and terminal sessions will be stopped.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleExit}>Exit</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	)
 }
