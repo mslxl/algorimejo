@@ -7,13 +7,20 @@ export function HelpItem() {
 		<MenubarMenu>
 			<MenubarTrigger>Help</MenubarTrigger>
 			<MenubarContent>
-				<MenubarItem onClick={() => algorimejo.tab.openTab({
-					key: "about",
-					title: "About",
-					icon: "Info",
-					id: uniqueId("tab-"),
-					data: {},
-				})}
+				<MenubarItem onClick={() => {
+					const existing = algorimejo.tab.findTabByData({ key: "about", predicate: () => true })
+					if (existing) {
+						algorimejo.tab.selectTabByID(existing.id)
+						return
+					}
+					algorimejo.tab.openTab({
+						key: "about",
+						title: "About",
+						icon: "Info",
+						id: uniqueId("tab-"),
+						data: {},
+					})
+				}}
 				>
 					About
 				</MenubarItem>

@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react"
 import type { PanelButtonProps } from "@/lib/algorimejo/algorimejo"
 import type { GetProblemsSortBy, SortOrder } from "@/lib/client"
 import { useQueryClient } from "@tanstack/react-query"
@@ -6,13 +5,15 @@ import {
 	LucideFile,
 	LucideFilePlus2,
 	LucideRefreshCcw,
+	LucideSearch,
 	LucideSortAsc,
 	LucideSortDesc,
 } from "lucide-react"
 import { useState } from "react"
-import { toast } from "react-toastify"
 import { match } from "ts-pattern"
+import { ErrorLabel } from "@/components/error-label"
 import { SidebarButtonDefault } from "@/components/layout/sidebar-button-default"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
 	Popover,
@@ -25,104 +26,94 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useDefaultProblemCreator } from "@/hooks/use-problem-creator"
+import { useCreateAndOpenProblem } from "@/hooks/use-problem-creator"
 import {
 	PROBLEMS_LIST_QUERY_KEY,
 	useProblemsInfiniteQuery,
 } from "@/hooks/use-problems-list"
+import { shortcuts } from "@/lib/shortcuts"
 import { ProblemList } from "./problem-list"
 import { ProblemListSkeleton } from "./problem-list-skeleton"
 
-export function FileBrowerButton(props: PanelButtonProps) {
+export function FileBrowserButton(props: PanelButtonProps) {
 	return (
 		<SidebarButtonDefault {...props}>
 			<LucideFile className="size-4 rotate-90" />
-			FileBrower
+			Problems
 		</SidebarButtonDefault>
 	)
 }
 
-const buttonStyle: CSSProperties = {
-	width: "16px",
-	height: "16px",
-}
+const toolbarButtonClassname = "rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
 export function FileBrowser() {
 	const [sortOrder, setSortOrder] = useState<SortOrder>("Asc")
 	const [searchText, setSearchText] = useState("")
 	const [sortBy, setSortBy] = useState<GetProblemsSortBy>("CreateDatetime")
 	const queryClient = useQueryClient()
-	const problemCreateMutation = useDefaultProblemCreator()
+	const { create: createProblem } = useCreateAndOpenProblem()
 	const problemsQueryResult = useProblemsInfiniteQuery(
 		searchText,
 		sortBy,
 		sortOrder,
 	)
-	function handleProblemCreate() {
-		problemCreateMutation.mutate(undefined, {
-			onError: (error) => {
-				// Tauri errors are strings, not objects with message property
-				const errorMessage
-					= typeof error === "string"
-						? error
-						: error?.message || "An error occurred"
-				toast.error(`[Database Error]: ${errorMessage}`)
-			},
-		})
-	}
 	function handleRefreshExplorer() {
 		queryClient.invalidateQueries({ queryKey: [PROBLEMS_LIST_QUERY_KEY] })
 	}
 
 	return (
 		<div className="flex min-h-0 flex-col">
-			<div className="flex justify-end gap-0.5 border-b">
+			<div className="flex h-7 shrink-0 items-center gap-0.5 border-b px-2">
+				<span className="flex-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none">
+					Problems
+				</span>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="rounded-md p-1 hover:bg-secondary"
-							onClick={handleProblemCreate}
+							aria-label="New problem"
+							className={toolbarButtonClassname}
+							onClick={createProblem}
 						>
-							<LucideFilePlus2 style={buttonStyle} />
+							<LucideFilePlus2 className="size-4" />
 						</button>
 					</TooltipTrigger>
-					<TooltipContent>New Problem...</TooltipContent>
+					<TooltipContent>
+						New Problem
+						{" "}
+						<span className="opacity-70">{shortcuts.newProblem.label}</span>
+					</TooltipContent>
 				</Tooltip>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="rounded-md p-1 hover:bg-secondary"
+							aria-label="Refresh"
+							className={toolbarButtonClassname}
 							onClick={handleRefreshExplorer}
 						>
-							<LucideRefreshCcw style={buttonStyle} />
+							<LucideRefreshCcw className="size-4" />
 						</button>
 					</TooltipTrigger>
-					<TooltipContent>Refresh Explorer</TooltipContent>
+					<TooltipContent>Refresh</TooltipContent>
 				</Tooltip>
 
 				<Popover>
-					<PopoverTrigger asChild>
-						<button type="button" className="rounded-md p-1 hover:bg-secondary">
-							{match(sortOrder)
-								.with("Asc", () => <LucideSortAsc style={buttonStyle} />)
-								.with("Desc", () => <LucideSortDesc style={buttonStyle} />)
-								.exhaustive()}
-						</button>
-					</PopoverTrigger>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<PopoverTrigger asChild>
+								<button type="button" aria-label="Sort" className={toolbarButtonClassname}>
+									{match(sortOrder)
+										.with("Asc", () => <LucideSortAsc className="size-4" />)
+										.with("Desc", () => <LucideSortDesc className="size-4" />)
+										.exhaustive()}
+								</button>
+							</PopoverTrigger>
+						</TooltipTrigger>
+						<TooltipContent>Sort</TooltipContent>
+					</Tooltip>
 					<PopoverContent>
 						<div className="space-y-4 p-1">
-							<div className="space-y-1.5">
-								<div className="text-sm font-medium">Search</div>
-								<Input
-									value={searchText}
-									onChange={e => setSearchText(e.target.value)}
-									placeholder="Search problems..."
-									className="w-full"
-								/>
-							</div>
-
 							<div className="space-y-1.5">
 								<div className="text-sm font-medium">Sort By</div>
 								<ToggleGroup
@@ -131,9 +122,8 @@ export function FileBrowser() {
 									className="w-full justify-start"
 									value={sortBy}
 									onValueChange={(value) => {
-										setSortBy(
-											value as "Name" | "CreateDatetime" | "ModifiedDatetime",
-										)
+										if (value)
+											setSortBy(value as GetProblemsSortBy)
 									}}
 								>
 									<ToggleGroupItem value="CreateDatetime">
@@ -154,7 +144,8 @@ export function FileBrowser() {
 									className="w-full justify-start"
 									value={sortOrder}
 									onValueChange={(value) => {
-										setSortOrder(value as "Asc" | "Desc")
+										if (value)
+											setSortOrder(value as SortOrder)
 									}}
 								>
 									<ToggleGroupItem value="Asc">Ascending</ToggleGroupItem>
@@ -165,22 +156,62 @@ export function FileBrowser() {
 					</PopoverContent>
 				</Popover>
 			</div>
+			<div className="relative shrink-0 border-b p-1.5">
+				<LucideSearch className="pointer-events-none absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					value={searchText}
+					onChange={e => setSearchText(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === "Escape")
+							setSearchText("")
+					}}
+					placeholder="Search problems"
+					aria-label="Search problems"
+					className="h-7 pl-7 text-sm"
+				/>
+			</div>
 			<div className="min-h-0 flex-1">
 				{match(problemsQueryResult)
 					.with({ status: "pending" }, () => (
 						<ProblemListSkeleton className="size-full" />
 					))
-					.with({ status: "success" }, result => (
-						<ProblemList
-							className="h-full overflow-y-auto px-2"
-							problems={result.data.pages.flatMap(page => page.problems)}
-							hasNextPage={result.hasNextPage}
-							fetchNextPage={result.fetchNextPage}
-							isFetchingNextPage={result.isFetchingNextPage}
-						/>
-					))
+					.with({ status: "success" }, (result) => {
+						const problems = result.data.pages.flatMap(page => page.problems)
+						if (problems.length === 0) {
+							return (
+								<div className="flex flex-col items-center gap-3 p-6 text-center text-sm text-muted-foreground select-none">
+									{searchText
+										? (
+												<p>
+													No problems match "
+													{searchText}
+													".
+												</p>
+											)
+										: (
+												<>
+													<p>No problems in this workspace yet.</p>
+													<Button size="sm" onClick={createProblem}>
+														<LucideFilePlus2 />
+														New Problem
+													</Button>
+												</>
+											)}
+								</div>
+							)
+						}
+						return (
+							<ProblemList
+								className="h-full overflow-y-auto px-1 py-1"
+								problems={problems}
+								hasNextPage={result.hasNextPage}
+								fetchNextPage={result.fetchNextPage}
+								isFetchingNextPage={result.isFetchingNextPage}
+							/>
+						)
+					})
 					.with({ status: "error" }, result => (
-						<span>{result.error.message}</span>
+						<ErrorLabel message={result.error} location="loading problems" />
 					))
 					.exhaustive()}
 			</div>

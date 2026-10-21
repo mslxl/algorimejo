@@ -1,7 +1,7 @@
 import { useLayoutEffect } from "react"
 import { match, P } from "ts-pattern"
 import { useProgramConfig } from "@/hooks/use-program-config"
-import { getShadcnTheme } from "./theme"
+import { getShadcnTheme, isThemeDark } from "./theme"
 import zincTheme from "./zinc.css?raw"
 import zincDarkTheme from "./zincDark.css?raw"
 
@@ -24,6 +24,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 		styleElement.setAttribute("data-theme", themeName ?? "default")
 		styleElement.type = "text/css"
 		document.head.appendChild(styleElement)
+		// Enables the `dark:` variants used by the UI components
+		const isDark = isThemeDark(themeName)
+		document.documentElement.classList.toggle("dark", isDark)
+		document.documentElement.style.colorScheme = isDark ? "dark" : "light"
 		return () => {
 			document.head.removeChild(styleElement)
 		}

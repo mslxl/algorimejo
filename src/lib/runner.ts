@@ -2,6 +2,7 @@ import type { AdvLanguageItem, ProgramSimpleOutput } from "./client"
 import { MD5 } from "crypto-js"
 import { commands, events } from "./client"
 import { getFileExtensionOfLanguage } from "./client/type"
+import { isColorDark } from "./color"
 import { embeddedTerminal } from "./embedded-terminal"
 import { LRUCache } from "./lru-cache"
 
@@ -334,4 +335,50 @@ export const runTestStatusToColor: Record<RunTestResultStatus, `#${string}`> = {
 	CHKTLE: "#F97316", // 橙色 - 检查器超时
 	CHKRE: "#9333EA", // 紫色 - 检查器运行时错误
 	UKE: "#374151", // 深灰色 - 未知错误
+}
+
+export const runTestStatusToLabel: Record<RunTestResultStatus, string> = {
+	UNRUN: "Not run",
+	PD: "Running",
+	AC: "Accepted",
+	WA: "Wrong Answer",
+	PE: "Presentation Error",
+	TLE: "Time Limit Exceeded",
+	RE: "Runtime Error",
+	CE: "Compile Error",
+	CETLE: "Compile Timeout",
+	CHKCE: "Checker Compile Error",
+	CHKCETLE: "Checker Compile Timeout",
+	CHKTLE: "Checker Timeout",
+	CHKRE: "Checker Runtime Error",
+	UKE: "Unknown Error",
+}
+
+/**
+ * The verdict shown on a badge: the familiar judge abbreviation when there is one,
+ * otherwise a readable label
+ */
+export function runTestStatusToBadge(status: RunTestResultStatus): string {
+	return ["AC", "WA", "PE", "TLE", "RE", "CE"].includes(status)
+		? status
+		: runTestStatusToLabel[status]
+}
+
+/**
+ * Extract the human readable diagnostics (checker message, compiler output, internal error) of a run
+ */
+export function getRunTestMessage(info: RunTestResult): string | undefined {
+	if (info.result === "CE")
+		return (info.compilerErrorOutput || info.compilerOutput).trim() || `Compiler exited with code ${info.compilerExitCode}`
+	if (info.result === "UKE")
+		return info.error
+	if ("checkerMsg" in info)
+		return info.checkerMsg
+	return undefined
+}
+
+export function runTestStatusStyle(status: RunTestResultStatus) {
+	const backgroundColor = runTestStatusToColor[status]
+	// Yellow and orange verdicts need dark text to stay readable
+	return { backgroundColor, color: isColorDark(backgroundColor) ? "#FFFFFF" : "#1C1917" }
 }

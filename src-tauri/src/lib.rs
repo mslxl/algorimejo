@@ -106,8 +106,11 @@ pub fn run() {
             .expect("failed to export typescript bindings");
     }
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+    let app = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let app = app.menu(setup::macos_menu);
+
+    app.plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(

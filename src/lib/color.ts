@@ -54,9 +54,10 @@ export function deepenColor(color: string, range: number = 1.1): string {
 		const b = Number.parseInt(color.slice(5, 7), 16)
 
 		// Darken by reducing RGB values
-		const newR = Math.max(0, Math.floor(r / range))
-		const newG = Math.max(0, Math.floor(g / range))
-		const newB = Math.max(0, Math.floor(b / range))
+		// `range` below 1 lightens instead, so clamp to the valid channel range
+		const newR = Math.min(255, Math.max(0, Math.floor(r / range)))
+		const newG = Math.min(255, Math.max(0, Math.floor(g / range)))
+		const newB = Math.min(255, Math.max(0, Math.floor(b / range)))
 
 		return `#${newR.toString(16).padStart(2, "0")}${newG.toString(16).padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`
 	}
@@ -68,7 +69,7 @@ export function deepenColor(color: string, range: number = 1.1): string {
 			const values = match[1].split(" ").map(v => Number.parseFloat(v))
 			if (values.length >= 1) {
 				// Reduce lightness (first value) by the range
-				const newLightness = Math.max(0, values[0] / range)
+				const newLightness = Math.min(1, Math.max(0, values[0] / range))
 				const newValues = [newLightness, ...values.slice(1)]
 				return `oklch(${newValues.join(" ")})`
 			}

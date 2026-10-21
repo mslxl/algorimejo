@@ -22,6 +22,7 @@ export type AlgorimejoEvents = {
 	documentChanged: { documentID: string, entityName: string, ytext: Text, language: string }
 	documentChangedDebounced: { documentID: string, entityName: string, ytext: Text, language: string }
 	solutionDocumentChangedDebounced: { problemID: string, solutionID: string, documentID: string, ytext: Text, language: string }
+	runAllTestcasesRequested: void
 	workspaceConfigChanged: { config: WorkspaceConfig }
 	programConfigChanged: { config: ProgramConfig }
 }

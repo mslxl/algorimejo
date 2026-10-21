@@ -13,8 +13,8 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { buttonVariants } from "@/components/ui/button"
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -26,6 +26,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useSolutionChangeset } from "@/hooks/use-solution-changeset"
 import { useSolutionDeleter } from "@/hooks/use-solution-deleter"
 import { algorimejo } from "@/lib/algorimejo"
+import { useObservable } from "@/lib/observable"
+import { cn } from "@/lib/utils"
+import { solutionEditorPageDataSchema } from "../editor/schema"
+import { getSolutionTabTitle } from "../editor/title"
+import { RenameInput } from "./rename-input"
 import { TreeStyledLi } from "./tree-styled-item"
 
 interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
@@ -35,22 +40,21 @@ interface ProblemListItemProps extends HTMLAttributes<HTMLLIElement> {
 export function ProblemListItem({
 	solution,
 	problem,
+	className,
 	...props
 }: ProblemListItemProps) {
 	const [isRenaming, setIsRenaming] = useState(false)
 	const [isEditingOptions, setIsEditingOptions] = useState(false)
+	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+	const keepFocusOnCloseRef = useRef(false)
 	const solutionChangesetMutation = useSolutionChangeset()
 	const solutionDeleterMutation = useSolutionDeleter()
-	const inputRenameRef = useRef<HTMLInputElement>(null)
 
-	function handleStartRename() {
-		setIsRenaming(true)
-		setTimeout(() => {
-			inputRenameRef.current?.focus()
-		}, 400)
-	}
-	function handleProblemRename(newName: string) {
-		setIsRenaming(false)
+	const selectedTab = useObservable(algorimejo.tab.selectedTab)
+	const isActive = selectedTab?.key === "solution-editor"
+		&& solutionEditorPageDataSchema.safeParse(selectedTab.data).data?.solutionID === solution.id
+
+	function handleSolutionRename(newName: string) {
 		solutionChangesetMutation.mutate(
 			{
 				id: solution.id,
@@ -63,14 +67,14 @@ export function ProblemListItem({
 			},
 			{
 				onError: (error) => {
-					toast.error(`Fail to rename: ${error}`)
+					toast.error(`Failed to rename: ${error}`)
 				},
 				onSuccess: () => {
 					const tabID = algorimejo.findSolutionTabID(solution.id)
 					if (tabID) {
 						algorimejo.tab.renameTab(
 							tabID,
-							`${newName} - ${problem.name}`,
+							getSolutionTabTitle(newName, problem.name),
 						)
 					}
 				},
@@ -80,7 +84,7 @@ export function ProblemListItem({
 	function handleSolutionDelete() {
 		solutionDeleterMutation.mutate(solution.id, {
 			onError: (error) => {
-				toast.error(`Fail to delete: ${error}`)
+				toast.error(`Failed to delete: ${error}`)
 			},
 			onSuccess: () => {
 				if (solution.document) {
@@ -97,7 +101,8 @@ export function ProblemListItem({
 			algorimejo.openSolutionTab({
 				problemID: problem.id,
 				solutionID: solution.id,
-				title: `${solution.name} - ${problem.name}`,
+				title: getSolutionTabTitle(solution.name, problem.name),
+				reuse: true,
 			})
 		}
 		else {
@@ -111,7 +116,10 @@ export function ProblemListItem({
 		}
 	}
 	return (
-		<TreeStyledLi {...props}>
+		<TreeStyledLi
+			{...props}
+			className={cn(className, { "bg-accent text-accent-foreground font-medium": isActive })}
+		>
 			<Dialog open={isEditingOptions} onOpenChange={setIsEditingOptions}>
 				<DialogContent>
 					<DialogHeader>
@@ -133,23 +141,35 @@ export function ProblemListItem({
 					/>
 				</DialogContent>
 			</Dialog>
+			{/* Kept outside the context menu, otherwise it unmounts as soon as the menu closes */}
+			<AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete solution?</AlertDialogTitle>
+						<AlertDialogDescription>
+							"
+							{solution.name}
+							" and its code will be permanently deleted. This cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							className={buttonVariants({ variant: "destructive" })}
+							onClick={handleSolutionDelete}
+						>
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{isRenaming
 				? (
-						<input
-							className="w-full shadow-none ring-0 outline-1"
-							autoComplete="off"
-							type="text"
-							name="name"
+						<RenameInput
 							defaultValue={solution.name}
-							onBlur={e => handleProblemRename(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									handleProblemRename(e.currentTarget.value)
-								}
-							}}
-							onFocus={e => e.target.select()}
-							ref={inputRenameRef}
+							onCommit={handleSolutionRename}
+							onDone={() => setIsRenaming(false)}
 						/>
 					)
 				: (
@@ -158,40 +178,35 @@ export function ProblemListItem({
 								<button
 									type="button"
 									onClick={handleOpenSolution}
-									className="size-full truncate py-0.5 text-left"
+									title={`${solution.name} (${solution.language})`}
+									className="size-full truncate py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
 								>
 									{solution.name}
 								</button>
 							</ContextMenuTrigger>
-							<ContextMenuContent>
-								<ContextMenuItem>Open</ContextMenuItem>
+							<ContextMenuContent
+								onCloseAutoFocus={(e) => {
+									if (keepFocusOnCloseRef.current) {
+										e.preventDefault()
+										keepFocusOnCloseRef.current = false
+									}
+								}}
+							>
+								<ContextMenuItem onClick={handleOpenSolution}>Open</ContextMenuItem>
 								<ContextMenuSeparator />
-								<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
+								<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options...</ContextMenuItem>
 								<ContextMenuSeparator />
-								<ContextMenuItem onClick={handleStartRename}>
+								<ContextMenuItem
+									onClick={() => {
+										keepFocusOnCloseRef.current = true
+										setIsRenaming(true)
+									}}
+								>
 									Rename
 								</ContextMenuItem>
-								<AlertDialog>
-									<ContextMenuItem asChild>
-										<AlertDialogTrigger className="w-full">
-											Delete
-										</AlertDialogTrigger>
-									</ContextMenuItem>
-									<AlertDialogContent>
-										<AlertDialogHeader>
-											<AlertDialogTitle>Delete Solution</AlertDialogTitle>
-											<AlertDialogDescription>
-												Are you sure you want to delete this solution?
-											</AlertDialogDescription>
-										</AlertDialogHeader>
-										<AlertDialogFooter>
-											<AlertDialogCancel>Cancel</AlertDialogCancel>
-											<AlertDialogAction onClick={handleSolutionDelete}>
-												Delete
-											</AlertDialogAction>
-										</AlertDialogFooter>
-									</AlertDialogContent>
-								</AlertDialog>
+								<ContextMenuItem variant="destructive" onClick={() => setIsConfirmingDelete(true)}>
+									Delete...
+								</ContextMenuItem>
 							</ContextMenuContent>
 						</ContextMenu>
 					)}

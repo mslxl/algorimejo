@@ -1,5 +1,5 @@
 import type { Problem } from "@/lib/client"
-import { LucideFile } from "lucide-react"
+import { LucideChevronRight } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { ProblemSetting } from "@/components/problem-setting"
@@ -12,8 +12,8 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { buttonVariants } from "@/components/ui/button"
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -36,8 +36,11 @@ import { useProblemChangeset } from "@/hooks/use-problem-changeset"
 import { useProblemDeleter } from "@/hooks/use-problem-deleter"
 import { useSolutionCreator } from "@/hooks/use-solution-creator"
 import { algorimejo } from "@/lib/algorimejo"
+import { cn } from "@/lib/utils"
+import { getSolutionTabTitle } from "../editor/title"
 import { ProblemDetail } from "./problem-detail"
 import { ProblemListItem } from "./problem-list-item"
+import { RenameInput } from "./rename-input"
 
 interface ProblemCollapsibleProps {
 	problem: Problem
@@ -52,15 +55,16 @@ export function ProblemCollapsible({
 }: ProblemCollapsibleProps) {
 	const [isRenaming, setIsRenaming] = useState(false)
 	const [isEditingOptions, setIsEditingOptions] = useState(false)
+	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+	const keepFocusOnCloseRef = useRef(false)
 	const problemDeleteMutation = useProblemDeleter()
 	const problemChangesetMutation = useProblemChangeset()
 	const solutionCreateMutation = useSolutionCreator()
 
-	const inputRenameRef = useRef<HTMLInputElement>(null)
 	function handleDeleteProblem() {
 		problemDeleteMutation.mutate(problem.id, {
 			onError: (error) => {
-				toast.error(error.message)
+				toast.error(`Failed to delete: ${error.message ?? error}`)
 			},
 			onSuccess: () => {
 				for (const sol of problem.solutions) {
@@ -81,16 +85,12 @@ export function ProblemCollapsible({
 				language: "cpp",
 				content: null,
 			},
+		}, {
+			onSuccess: () => onOpenChange(true),
+			onError: error => toast.error(`Failed to create solution: ${error}`),
 		})
 	}
-	function handleStartRename() {
-		setIsRenaming(true)
-		setTimeout(() => {
-			inputRenameRef.current?.focus()
-		}, 400)
-	}
 	function handleProblemRename(newName: string) {
-		setIsRenaming(false)
 		problemChangesetMutation.mutate(
 			{
 				id: problem.id,
@@ -106,7 +106,7 @@ export function ProblemCollapsible({
 			},
 			{
 				onError: (error) => {
-					toast.error(`Fail to rename: ${error}`)
+					toast.error(`Failed to rename: ${error}`)
 				},
 				onSuccess: async () => {
 					for (const sol of problem.solutions) {
@@ -114,7 +114,7 @@ export function ProblemCollapsible({
 						if (tabID) {
 							algorimejo.tab.renameTab(
 								tabID,
-								`${sol.name} - ${newName}`,
+								getSolutionTabTitle(sol.name, newName),
 							)
 						}
 					}
@@ -139,78 +139,97 @@ export function ProblemCollapsible({
 				</DialogContent>
 			</Dialog>
 
+			{/* Kept outside the context menu, otherwise it unmounts as soon as the menu closes */}
+			<AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete problem?</AlertDialogTitle>
+						<AlertDialogDescription>
+							"
+							{problem.name}
+							" will be permanently deleted together with its
+							{" "}
+							{problem.solutions.length}
+							{" "}
+							{problem.solutions.length === 1 ? "solution" : "solutions"}
+							{" "}
+							and all testcases. This cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							className={buttonVariants({ variant: "destructive" })}
+							onClick={handleDeleteProblem}
+						>
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
 			<ContextMenu key={problem.id}>
 				{isRenaming
 					? (
-							<div className="flex w-full items-center gap-1 text-sm">
-								<span>
-									<LucideFile className="size-4" />
-								</span>
-								<input
-									className="w-full shadow-none ring-0 outline-1"
-									autoComplete="off"
-									type="text"
-									name="name"
+							<div className="flex w-full items-center gap-1 py-0.5 text-sm">
+								<LucideChevronRight className={cn("size-4 shrink-0 text-muted-foreground", { "rotate-90": open })} />
+								<RenameInput
 									defaultValue={problem.name}
-									onBlur={e => handleProblemRename(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter") {
-											handleProblemRename(e.currentTarget.value)
-										}
-									}}
-									onFocus={e => e.target.select()}
-									ref={inputRenameRef}
+									onCommit={handleProblemRename}
+									onDone={() => setIsRenaming(false)}
 								/>
 							</div>
 						)
 					: (
-							<Tooltip delayDuration={1000}>
+							<Tooltip delayDuration={600}>
 								<ContextMenuTrigger asChild>
 									<CollapsibleTrigger
-										className="flex w-full items-center gap-1 text-sm hover:bg-secondary"
+										className="flex w-full items-center gap-1 rounded-sm text-sm outline-none hover:bg-secondary focus-visible:ring-1 focus-visible:ring-ring"
 										asChild
 									>
 										<TooltipTrigger className="flex items-center justify-start py-0.5">
-											<LucideFile className="size-4" />
-											{/* <LucideFileCheck/> */}
+											<LucideChevronRight
+												className={cn("size-4 shrink-0 text-muted-foreground transition-transform", { "rotate-90": open })}
+											/>
 											<span className="flex-1 truncate text-left">
 												{problem.name}
+											</span>
+											<span className="pr-1 text-xs text-muted-foreground tabular-nums">
+												{problem.solutions.length}
 											</span>
 										</TooltipTrigger>
 									</CollapsibleTrigger>
 								</ContextMenuTrigger>
-								<TooltipContent>
+								<TooltipContent side="right" align="start">
 									<ProblemDetail problem={problem} />
 								</TooltipContent>
 							</Tooltip>
 						)}
-				<ContextMenuContent>
+				<ContextMenuContent
+					onCloseAutoFocus={(e) => {
+						if (keepFocusOnCloseRef.current) {
+							e.preventDefault()
+							keepFocusOnCloseRef.current = false
+						}
+					}}
+				>
 					<ContextMenuItem onClick={handleCreateSolution}>
 						New Solution
 					</ContextMenuItem>
 					<ContextMenuSeparator />
-					<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options</ContextMenuItem>
+					<ContextMenuItem onClick={() => setIsEditingOptions(true)}>Options...</ContextMenuItem>
 					<ContextMenuSeparator />
-					<ContextMenuItem onClick={handleStartRename}>Rename</ContextMenuItem>
-					<AlertDialog>
-						<ContextMenuItem asChild>
-							<AlertDialogTrigger className="w-full">Delete</AlertDialogTrigger>
-						</ContextMenuItem>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Delete Problem</AlertDialogTitle>
-								<AlertDialogDescription>
-									Are you sure you want to delete this problem?
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction onClick={handleDeleteProblem}>
-									Delete
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
+					<ContextMenuItem
+						onClick={() => {
+							keepFocusOnCloseRef.current = true
+							setIsRenaming(true)
+						}}
+					>
+						Rename
+					</ContextMenuItem>
+					<ContextMenuItem variant="destructive" onClick={() => setIsConfirmingDelete(true)}>
+						Delete...
+					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
 			<CollapsibleContent asChild>

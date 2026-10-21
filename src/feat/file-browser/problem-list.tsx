@@ -7,6 +7,9 @@ import {
 } from "@tanstack/react-virtual"
 import { useEffect, useReducer, useRef } from "react"
 import { match } from "ts-pattern"
+import { algorimejo } from "@/lib/algorimejo"
+import { useObservable } from "@/lib/observable"
+import { solutionEditorPageDataSchema } from "../editor/schema"
 import { ProblemCollapsible } from "./problem-collapsible"
 import { ProblemListSkeletonItem } from "./problem-list-skeleton"
 
@@ -94,14 +97,14 @@ export function ProblemList({
 
 	const [rowOpenStateMap, dispatchRowOpenState] = useReducer(
 		(
-			state: Record<number, boolean>,
-			action: { type: "set", index: number, value: boolean },
+			state: Record<string, boolean>,
+			action: { type: "set", problemID: string, value: boolean },
 		) => {
 			switch (action.type) {
 				case "set":
 					return {
 						...state,
-						[action.index]: action.value,
+						[action.problemID]: action.value,
 					}
 				default:
 					return state
@@ -109,6 +112,16 @@ export function ProblemList({
 		},
 		{},
 	)
+
+	// Reveal the solution being edited, e.g. a freshly created problem
+	const selectedTab = useObservable(algorimejo.tab.selectedTab)
+	const activeProblemID = selectedTab?.key === "solution-editor"
+		? solutionEditorPageDataSchema.safeParse(selectedTab.data).data?.problemID
+		: undefined
+	useEffect(() => {
+		if (activeProblemID)
+			dispatchRowOpenState({ type: "set", problemID: activeProblemID, value: true })
+	}, [activeProblemID])
 
 	const rowVirtualizer = useVirtualizer({
 		count: hasNextPage ? problems.length + 1 : problems.length,
@@ -154,13 +167,14 @@ export function ProblemList({
 							virtualRow={virtualRow}
 							problem={problem}
 							virtualizer={rowVirtualizer}
+							// Keyed by problem so expansion survives sorting, searching and insertion
 							onOpenChange={value =>
 								dispatchRowOpenState({
 									type: "set",
-									index: virtualRow.index,
+									problemID: problem.id,
 									value,
 								})}
-							open={rowOpenStateMap[virtualRow.index] ?? false}
+							open={(problem && rowOpenStateMap[problem.id]) ?? false}
 							isLoaderRow={isLoaderRow}
 							hasNextPage={hasNextPage}
 						/>

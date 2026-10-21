@@ -53,9 +53,25 @@ export interface StyleSettings {
 	gutterBorder?: string
 }
 
-export function getShadcnTheme(name: string): string {
+function getThemeStyleSettings(name: string): StyleSettings {
 	const normalizedName = upperFirst(name)
-	const styles: StyleSettings = (themes as any)[`defaultSettings${normalizedName}`] ? (themes as any)[`defaultSettings${normalizedName}`] : themes.defaultSettingsVscodeLight
+	return (themes as any)[`defaultSettings${normalizedName}`] ?? themes.defaultSettingsVscodeLight
+}
+
+/**
+ * Whether the UI theme generated for `name` has a dark background
+ */
+export function isThemeDark(name?: string | null): boolean {
+	if (!name || name === "default" || name === "zinc")
+		return false
+	if (name === "zincDark")
+		return true
+	const styles = getThemeStyleSettings(name)
+	return styles.background ? isColorDark(styles.background) : false
+}
+
+export function getShadcnTheme(name: string): string {
+	const styles = getThemeStyleSettings(name)
 
 	// Define fallback values based on dark mode
 	const fallbacks = {
@@ -119,6 +135,7 @@ export function getShadcnTheme(name: string): string {
 	const isDark = styles.background ? isColorDark(styles.background) : false
 
 	const theme = isDark ? fallbacks.dark : fallbacks.light
+	const primary = styles.caret && styles.caret !== "transparent" ? styles.caret : theme.primary
 
 	// Generate CSS variables based on the theme settings
 	const cssVars = [
@@ -132,9 +149,9 @@ export function getShadcnTheme(name: string): string {
 		`--popover: ${styles.background && styles.background !== "transparent" ? styles.background : theme.popover}`,
 		// `--popover-foreground: ${styles.foreground ? hexToOklch(styles.foreground) : theme.popoverForeground}`,
 		`--popover-foreground: ${theme.popoverForeground}`,
-		`--primary: ${styles.caret && styles.caret !== "transparent" ? styles.caret : theme.primary}`,
-		// `--primary-foreground: ${styles.background ? hexToOklch(styles.background) : theme.primaryForeground}`,
-		`--primary-foreground: ${theme.primaryForeground}`,
+		`--primary: ${primary}`,
+		// The caret colour is arbitrary, so pick whichever text colour stays readable on it
+		`--primary-foreground: ${isColorDark(primary) ? "oklch(0.985 0 0)" : "oklch(0.205 0 0)"}`,
 		`--secondary: ${styles.lineHighlight ? styles.lineHighlight : theme.secondary}`,
 		// `--secondary-foreground: ${styles.foreground ? hexToOklch(styles.foreground) : theme.secondaryForeground}`,
 		`--secondary-foreground: ${theme.secondaryForeground}`,
@@ -151,9 +168,9 @@ export function getShadcnTheme(name: string): string {
 		`--sidebar: ${styles.gutterBackground ? styles.gutterBackground : theme.sidebar}`,
 		// `--sidebar-foreground: ${styles.gutterForeground ? hexToOklch(styles.gutterForeground) : theme.sidebarForeground}`,
 		`--sidebar-foreground: ${theme.sidebarForeground}`,
-		`--sidebar-primary: ${styles.caret && styles.caret !== "transparent" ? styles.caret : theme.sidebarPrimary}`,
+		`--sidebar-primary: ${primary}`,
 		// `--sidebar-primary-foreground: ${styles.background ? hexToOklch(styles.background) : theme.sidebarPrimaryForeground}`,
-		`--sidebar-primary-foreground: ${theme.sidebarPrimaryForeground}`,
+		`--sidebar-primary-foreground: ${isColorDark(primary) ? "oklch(0.985 0 0)" : "oklch(0.205 0 0)"}`,
 		`--sidebar-accent: ${styles.selection ? styles.selection : theme.sidebarAccent}`,
 		// `--sidebar-accent-foreground: ${styles.foreground ? hexToOklch(styles.foreground) : theme.sidebarAccentForeground}`,
 		`--sidebar-accent-foreground: ${theme.sidebarAccentForeground}`,

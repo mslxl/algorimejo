@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { Suspense } from "react"
 import { algorimejo } from "@/lib/algorimejo"
 import { useObservable } from "@/lib/observable"
+import { shortcuts } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { LucideIcon } from "../lucide-icon"
 import { TabbarScrollArea } from "../tabbar-scroll-area"
@@ -23,7 +24,7 @@ function TabBar({ className, ...props }: TabBarProps) {
 		algorimejo.tab.selectTabByIndex(idx)
 	}
 	return (
-		<TabbarScrollArea className={cn("bg-secondary/40 select-none", className)}>
+		<TabbarScrollArea className={cn("bg-muted/60 border-b select-none", className)}>
 			<div className="flex w-max items-stretch justify-stretch" {...props}>
 				<AnimatePresence>
 					{tabs.map((tab, index) => {
@@ -42,14 +43,23 @@ function TabBar({ className, ...props }: TabBarProps) {
 								key={tab.id}
 								data-tab-id={tab.id}
 								data-tab-key={tab.key}
-								className={cn("h-6 pr-1 tab-item flex items-center group", {
-									"bg-secondary/80": isSelected,
-								})}
+								className={cn(
+									"h-7 pr-1 tab-item flex items-center group border-r border-b-2 border-b-transparent text-muted-foreground hover:text-foreground",
+									{
+										"bg-background text-foreground border-b-primary": isSelected,
+									},
+								)}
+								onAuxClick={(e) => {
+									// Middle click closes the tab, like in browsers and editors
+									if (e.button === 1)
+										handleClickTab(index)
+								}}
 							>
 								<button
 									type="button"
-									className="flex items-center truncate  pl-2"
+									className="flex items-center truncate pl-2 outline-none focus-visible:underline"
 									onClick={() => handleSelectTab(index)}
+									aria-current={isSelected ? "page" : undefined}
 								>
 									{tab.icon
 										? (
@@ -62,17 +72,19 @@ function TabBar({ className, ...props }: TabBarProps) {
 								</button>
 								<button
 									type="button"
+									aria-label={`Close ${tab.title}`}
+									title={`Close (${shortcuts.closeTab.label})`}
 									className={cn(
-										"hover:bg-secondary invisible group-hover:visible border border-background group-hover:border-white p-1 rounded-sm",
+										"rounded-sm p-0.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-secondary outline-none focus-visible:ring-1 focus-visible:ring-ring",
 										{
-											visible: isSelected,
+											"opacity-100": isSelected,
 										},
 									)}
 									onClick={() => {
 										handleClickTab(index)
 									}}
 								>
-									<LucideX className="size-3" />
+									<LucideX className="size-3.5" />
 								</button>
 							</motion.div>
 						)
@@ -99,7 +111,7 @@ function TabContent({ tab }: TabContentProps) {
 	}
 	return (
 		<div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center select-none">
-			<h1 className="text-3xl font-bold text-gray-800">
+			<h1 className="text-3xl font-bold text-foreground">
 				Page "
 				{tab.key}
 				" does not exist!
